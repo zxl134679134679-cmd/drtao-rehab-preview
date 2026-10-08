@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#005e34">
+  <title>涛博士运动康复 · 交互预览</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="preview" class="preview-layout">
+    <aside class="preview-sidebar" aria-label="预览控制">
+      <details class="preview-controls" open>
+        <summary><span>涛博士 · 交互预览</span><span class="preview-state">示例数据</span></summary>
+        <div class="preview-control-body">
+          <div class="control-intro"><h1>看得到的服务，<br>清楚的下一步。</h1><p>先试用页面与工作流程。所有姓名、门店及记录均为虚构示例。</p></div>
+          <label class="field"><span>预览身份</span><select id="role-select" aria-label="预览身份"></select></label>
+          <div class="control-links"><button class="btn btn-outline" data-action="tour">试一遍完整流程</button><button class="btn btn-quiet" data-action="reset">重置示例数据</button></div>
+          <div class="preview-conditions"><h2>预览范围</h2><p>客户计划与服务评价<br>康复师登记与消费业绩<br>老板多店管理与撤销</p><p class="muted">数据仅保存在此页面，刷新会恢复初始示例。微信登录、消息通知与真实档案将在正式接入时启用。</p></div>
+          <label class="check preview-toggle"><input id="network-toggle" type="checkbox"><span>模拟一次提交失败</span></label>
+          <button class="text-link" data-action="export-preview">导出当前演示记录</button>
+        </div>
+      </details>
+    </aside>
+    <div class="app-stage"><div id="app-window" class="app-window customer-mode">
+      <header id="app-header" class="app-header"></header>
+      <main id="app-main" class="app-main" tabindex="-1"></main>
+      <nav id="bottom-nav" class="bottom-nav" aria-label="主要页面"></nav>
+    </div></div>
+  </div>
+  <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
+    <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-button" data-action="close-dialog" aria-label="关闭"></button></div>
+    <div id="sheet-body" class="sheet-body"></div>
+  </dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
