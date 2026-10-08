@@ -3,11 +3,37 @@ export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024
 
 const copy = value => JSON.parse(JSON.stringify(value));
 const money = value => Math.round((value + Number.EPSILON) * 100) / 100;
-const required = (value, label) => {
-  const text = String(value ?? '').trim();
+const required = (value, label, maxLength = 4000) => {
+  if (value != null && typeof value !== 'string') throw new Error(`请填写有效的${label}`);
+  const text = (value ?? '').trim();
   if (!text) throw new Error(`请填写${label}`);
+  if (text.length > maxLength) throw new Error(`${label}长度不能超过 ${maxLength} 字`);
   return text;
 };
+const optionalText = (value, label, maxLength = 2000) => {
+  if (value == null) return '';
+  if (typeof value !== 'string') throw new Error(`请填写有效的${label}`);
+  const text = value.trim();
+  if (text.length > maxLength) throw new Error(`${label}长度不能超过 ${maxLength} 字`);
+  return text;
+};
+const CASH_CHANNELS = Object.freeze(['direct', 'douyin', 'meituan', 'other_platform']);
+const amountMinor = (value, label = '套餐金额') => {
+  if (!['string', 'number'].includes(typeof value)) throw new Error(`请核对${label}`);
+  const text = String(value).trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) throw new Error(`${label}须为最多两位小数的正数`);
+  const [whole, fraction = ''] = text.split('.');
+  const minor = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+  if (!Number.isSafeInteger(minor) || minor < 1 || minor > 1000000000) throw new Error(`${label}须在 0.01 至 10000000 元之间`);
+  return minor;
+};
+const count = (value, label, min = 1, max = 999) => {
+  if (!['string', 'number'].includes(typeof value) || !/^\d+$/.test(String(value).trim())) throw new Error(`请核对${label}`);
+  const number = Number(value);
+  if (!Number.isSafeInteger(number) || number < min || number > max) throw new Error(`${label}须在 ${min} 至 ${max} 之间`);
+  return number;
+};
+const pendingAppointment = status => ['confirmed', 'reschedule_requested', 'pending_reassignment'].includes(status);
 const validDate = value => {
   const date = required(value, '日期');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(Date.parse(`${date}T00:00:00Z`)) || new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date) {
@@ -120,6 +146,10 @@ function seedState() {
       { id: 't4', name: '何知行', storeId: 'b', active: true },
       { id: 't5', name: '许映', storeId: 'a', active: true },
     ],
+    frontDesks: [
+      { id: 'f1', name: 'A店前台', storeIds: ['a'], active: true },
+      { id: 'f2', name: 'B店前台', storeIds: ['b'], active: true },
+    ],
     clients: [
       seedClient('c1', '陈一诺', 't1', 'a', 'p1', '13800000001'),
       seedClient('c2', '许安然', 't2', 'b', 'p2', '13800000002'),
@@ -143,6 +173,7 @@ function seedState() {
         time: '10:00', project: '首次评估', principalId: 't2', participantIds: ['t1', 't3'],
         ownerId: 't1', recordedBy: 't2', amount: 300, sessions: 1, status: 'valid',
         notes: '已完成首次评估。下一步进行基础训练与阶段复评。',
+        slotNumber: 1, amountMinor: 30000,
         requestId: 'seed-s1', createdAt: '2026-10-08T03:00:00.000Z',
       },
     ],
@@ -158,14 +189,132 @@ function seedState() {
       { id: 'task3', clientId: 'c2', appointmentId: 'a2', title: '完成本次训练后的服务记录', assigneeId: 't2', dueDate: TODAY, status: 'pending', type: 'service_note' },
       { id: 'task4', clientId: 'c6', title: '套餐已用完，核对下一阶段服务安排', assigneeId: 't5', dueDate: '2026-10-07', status: 'pending', type: 'review' },
     ],
-    reviews: [], audit: [],
+    reviews: [], audit: [], receipts: [], refunds: [],
   };
 }
 
 export class DemoModel {
-  constructor() {
-    this.state = seedState();
-    this.sequence = 100;
+  constructor({ today = TODAY, now = () => new Date().toISOString(), state, sequence = 100, seed = true, enforceServiceTime = false } = {}) {
+    this.today = validDate(today);
+    if (typeof enforceServiceTime !== 'boolean') throw new Error('严格服务时间配置须为布尔值');
+    this.enforceServiceTime = enforceServiceTime;
+    if (typeof now !== 'function') throw new Error('请提供有效的服务器时钟');
+    this.now = now;
+    this._timestamp();
+    if (state === undefined && !seed) throw new Error('无种子模式须显式提供业务状态，不能自动生成示例数据');
+    const source = state === undefined ? seedState() : state;
+    const collections = ['stores', 'therapists', 'clients', 'packages', 'services', 'appointments', 'tasks', 'reviews', 'audit'];
+    if (!source || collections.some(key => !Array.isArray(source[key]))) throw new Error('业务状态缺少有效的数据集合');
+    for (const key of ['receipts', 'refunds', 'frontDesks']) {
+      if (source[key] !== undefined && !Array.isArray(source[key])) throw new Error('业务状态缺少有效的数据集合');
+      collections.push(key);
+    }
+    this.state = copy(source);
+    this.state.receipts ??= [];
+    this.state.refunds ??= [];
+    this.state.frontDesks ??= [];
+    if (!Number.isSafeInteger(sequence) || sequence < 0) throw new Error('业务序列无效');
+    const ids = collections.flatMap(key => this.state[key].map(row => row?.id));
+    if (ids.some(id => typeof id !== 'string' || !id.trim())) throw new Error('业务状态包含无效记录标识');
+    const numericIds = ids.map(id => Number(/(\d+)$/.exec(id)?.[1] || 0));
+    this.sequence = numericIds.reduce((highest, value) => Math.max(highest, value), sequence);
+    if (!Number.isSafeInteger(this.sequence)) throw new Error('业务状态的数字序列超出可用范围');
+    const frontDeskIds = new Set();
+    for (const row of this.state.frontDesks) {
+      required(row.name, '前台姓名', 80);
+      this._frontDeskStoreIds(row.storeIds);
+      if (typeof row.active !== 'boolean' || frontDeskIds.has(row.id)) throw new Error('前台业务状态包含无效或重复人员记录');
+      frontDeskIds.add(row.id);
+    }
+    this.state.packages.forEach(pack => {
+      const minor = amountMinor(pack.amount);
+      if (pack.amountMinor !== undefined && pack.amountMinor !== minor) throw new Error('套餐金额与分金额不一致');
+      pack.amountMinor = minor;
+      pack.total = count(pack.total, '套餐总次数');
+      pack.openingUsed = count(pack.openingUsed, '期初已用次数', 0, pack.total);
+      if (minor < pack.total) throw new Error('套餐金额不能少于总次数对应的分金额');
+    });
+    const claimed = new Set();
+    this.state.services.forEach(service => {
+      const pack = this.state.packages.find(row => row.id === service.packageId);
+      if (!pack || !Number.isInteger(service.slotNumber) || service.slotNumber <= pack.openingUsed || service.slotNumber > pack.total) {
+        throw new Error('历史服务缺少有效套餐槽位，请先完成数据迁移');
+      }
+      const minor = this.slotValueMinor(pack.id, service.slotNumber);
+      if (amountMinor(service.amount) !== minor || (service.amountMinor !== undefined && service.amountMinor !== minor)) throw new Error('历史服务金额与套餐槽位不一致，请核对迁移');
+      service.amountMinor = minor;
+      const key = `${pack.id}:${service.slotNumber}`;
+      if (service.status === 'valid' && claimed.has(key)) throw new Error('同一套餐槽位存在重复有效消课');
+      if (service.status === 'valid') claimed.add(key);
+    });
+    for (const row of [...this.state.receipts, ...this.state.refunds]) {
+      const minor = amountMinor(row.amount, '收支金额');
+      if (row.amountMinor !== undefined && row.amountMinor !== minor) throw new Error('收支金额与分金额不一致，请核对迁移');
+      row.amountMinor = minor;
+    }
+    this._validateCashState();
+  }
+
+  _validateCashState() {
+    const financialRows = [...this.state.receipts, ...this.state.refunds];
+    if (new Set(financialRows.map(row => row.id)).size !== financialRows.length) throw new Error('收支状态存在重复记录标识');
+    const requestKeys = new Set();
+    for (const row of financialRows) {
+      validDate(row.date); validTime(row.time);
+      this._store(row.storeId);
+      required(row.recordedBy, '收支登记人', 80);
+      const key = `${row.recordedBy}:${required(row.requestId, '收支提交标识', 80)}`;
+      if (requestKeys.has(key)) throw new Error('收支状态存在重复提交请求');
+      requestKeys.add(key);
+      if (!CASH_CHANNELS.includes(row.channel)) throw new Error('收支状态包含无效渠道');
+      if (!['wechat', 'alipay', 'cash', 'bank'].includes(row.method)) throw new Error('收支状态包含无效收款方式');
+      if (row.clientId) this._client(row.clientId);
+      else if (row.channel === 'direct') throw new Error('直接收款状态缺少客户');
+    }
+    for (const row of this.state.receipts) {
+      if (!['valid', 'pending_settlement', 'settled', 'revoked'].includes(row.status) || !['received', 'pending'].includes(row.settlementStatus)) throw new Error('收款状态无效');
+      if (!['package', 'renewal', 'single', 'other', 'platform_settlement'].includes(row.purpose)) throw new Error('收款用途无效');
+      if (row.channel === 'direct' && (row.settlementStatus !== 'received' || row.purpose === 'platform_settlement')) throw new Error('直接收款状态不能使用平台待结算');
+      if (row.channel !== 'direct') required(row.reference, '平台参考单号', 160);
+      if ((row.status === 'valid' && row.settlementStatus !== 'received') || (['pending_settlement', 'settled'].includes(row.status) && row.settlementStatus !== 'pending')) throw new Error('收款状态与到账状态不一致');
+      if (['valid', 'pending_settlement'].includes(row.status)) this._assertPlatformReferenceUnique(row, row.id);
+      if (row.parentId) {
+        const parent = this.state.receipts.find(item => item.id === row.parentId);
+        if (!parent || parent.parentId || parent.channel === 'direct' || parent.settlementStatus !== 'pending' ||
+            ['storeId', 'channel', 'clientId', 'method'].some(key => row[key] !== parent[key]) || row.settlementStatus !== 'received' ||
+            row.purpose !== 'platform_settlement' || `${row.date} ${row.time}` < `${parent.date} ${parent.time}` ||
+            !parent.settlementReceiptIds?.includes(row.id)) throw new Error('平台到账子单与父单关联无效');
+        if (row.status === 'valid' && (parent.status !== 'settled' || parent.settlementReceiptId !== row.id)) throw new Error('有效到账子单与父单结算状态不一致');
+      }
+      if (row.settlementReceiptIds !== undefined) {
+        const ids = row.settlementReceiptIds;
+        if (!Array.isArray(ids) || ids.some(id => typeof id !== 'string' || !this.state.receipts.some(child => child.id === id && child.parentId === row.id)) || new Set(ids).size !== ids.length ||
+            !ids.includes(row.settlementReceiptId)) throw new Error('平台结算历史关联无效');
+      }
+      const children = this.state.receipts.filter(child => child.parentId === row.id && child.status === 'valid');
+      if (children.length > 1 || (row.status === 'settled' && children.length !== 1) || (row.status !== 'settled' && children.length > 0)) throw new Error('平台父单存在无效或重复的有效到账结算');
+    }
+    for (const row of this.state.refunds) {
+      const receipt = this.state.receipts.find(item => item.id === row.receiptId);
+      if (!receipt || !['valid', 'revoked'].includes(row.status) || ['storeId', 'channel', 'clientId', 'method'].some(key => row[key] !== receipt[key]) ||
+          `${row.date} ${row.time}` < `${receipt.date} ${receipt.time}` || (row.status === 'valid' && receipt.status !== 'valid')) throw new Error('退款与原有效收款关联无效');
+    }
+    for (const row of this.state.receipts) {
+      const refunded = this.state.refunds.filter(item => item.receiptId === row.id && item.status === 'valid').reduce((sum, item) => sum + item.amountMinor, 0);
+      if (refunded > row.amountMinor) throw new Error('累计有效退款超过原收款金额');
+    }
+  }
+
+  _timestamp() {
+    const stamp = this.now();
+    if (typeof stamp !== 'string' || !Number.isFinite(Date.parse(stamp))) throw new Error('服务器时钟须返回有效 ISO 时间');
+    return new Date(stamp).toISOString();
+  }
+
+  _assertServiceStarted(date, time, label = '服务') {
+    if (!this.enforceServiceTime) return;
+    const start = Date.parse(`${validDate(date)}T${validTime(time)}:00+08:00`);
+    if (start > Date.parse(this._timestamp())) throw new Error(`此${label}时间尚未发生，请在实际${label}发生后处理`);
   }
 
   _id(prefix) { return `${prefix}${++this.sequence}`; }
@@ -187,6 +336,35 @@ export class DemoModel {
   _boss(role) {
     if (role?.type !== 'boss' || role.id !== 'boss') throw new Error('仅老板有权限进行此操作');
   }
+  _frontDesk(id) {
+    const row = this.state.frontDesks.find(item => item.id === id && item.active);
+    if (!row) throw new Error('此前台不存在或已停用，您没有操作权限');
+    return row;
+  }
+  _frontDeskStoreIds(value) {
+    if (!Array.isArray(value) || !value.length || value.length > 99 || value.some(id => typeof id !== 'string' || !id.trim() || id.length > 80) || new Set(value).size !== value.length) throw new Error('前台授权门店须填写非空、唯一的有效门店标识数组');
+    value.forEach(id => this._store(id));
+    return [...value];
+  }
+  frontDeskStoreIds(role) {
+    if (role?.type !== 'frontdesk') throw new Error('仅前台可读取本人门店权限');
+    return [...this._frontDesk(role.id).storeIds];
+  }
+  _cashActor(role, storeId, clientId) {
+    if (role?.type === 'boss') return this._boss(role);
+    if (role?.type !== 'frontdesk') throw new Error('仅老板和授权门店前台有权限登记收款或确认到账');
+    const frontDesk = this._frontDesk(role.id);
+    if (storeId && !frontDesk.storeIds.includes(storeId)) throw new Error('您没有该门店的收款操作权限');
+    if (clientId && !this.canSeeClient(role, clientId)) throw new Error('您没有该客户的前台操作权限');
+    return frontDesk;
+  }
+  _bookingActor(role, clientId, storeId) {
+    if (role?.type !== 'frontdesk') return this._staff(role, clientId);
+    const frontDesk = this._frontDesk(role.id);
+    if (!frontDesk.storeIds.includes(storeId)) throw new Error('您没有该门店的预约操作权限');
+    if (!this.canSeeClient(role, clientId)) throw new Error('您没有该客户的前台操作权限');
+    return this._client(clientId);
+  }
   _staff(role, clientId) {
     if (role?.type === 'boss') this._boss(role);
     else if (role?.type === 'therapist') {
@@ -196,9 +374,178 @@ export class DemoModel {
     return this._client(clientId);
   }
   _log(type, data, role) {
-    const row = { id: this._id('audit'), type, ...copy(data), actorId: role.id, createdAt: new Date().toISOString() };
+    const row = { id: this._id('audit'), type, ...copy(data), actorId: role.id, actorType: role.type, createdAt: this._timestamp() };
     this.state.audit.unshift(row);
     return row;
+  }
+
+  _cashOccurrence(data, label) {
+    const date = validDate(data.date), time = validTime(data.time);
+    if (date > this.today) throw new Error(`不能登记尚未发生的未来${label}`);
+    this._assertServiceStarted(date, time, label);
+    return { date, time };
+  }
+
+  _financialExisting(requestId, role, requestType, inputKey) {
+    const existing = [...this.state.receipts, ...this.state.refunds].find(row => row.recordedBy === role.id && row.requestId === requestId);
+    if (!existing) return null;
+    if (existing.requestType !== requestType || existing.inputKey !== inputKey) throw new Error('同一提交请求的内容或收支操作发生变化，请重新打开录入表');
+    return existing;
+  }
+
+  _assertPlatformReferenceUnique(input, excludedId) {
+    if (input.channel === 'direct') return;
+    const excluded = new Set(Array.isArray(excludedId) ? excludedId : [excludedId]);
+    if (this.state.receipts.some(row => !excluded.has(row.id) && ['valid', 'pending_settlement'].includes(row.status) &&
+        row.storeId === input.storeId && row.channel === input.channel && row.reference === input.reference)) {
+      throw new Error('该门店和平台的单号已录入，请核对原账单，不能重复记账');
+    }
+  }
+
+  recordReceipt(data, role) {
+    this._cashActor(role);
+    const requestId = required(data.requestId, '提交标识', 80);
+    const channel = data.channel ?? 'direct', settlementStatus = data.settlementStatus ?? 'received';
+    if (!CASH_CHANNELS.includes(channel)) throw new Error('请选择有效收款渠道');
+    if (!['received', 'pending'].includes(settlementStatus)) throw new Error('请选择有效到账状态');
+    if (channel === 'direct' && settlementStatus === 'pending') throw new Error('待结算状态仅适用于平台渠道');
+    const purpose = required(data.purpose, '收款用途', 80), method = required(data.method, '收款方式', 80);
+    if (!['package', 'renewal', 'single', 'other', 'platform_settlement'].includes(purpose)) throw new Error('请选择有效收款用途');
+    if (purpose === 'platform_settlement' && channel === 'direct') throw new Error('平台结算用途须选择平台渠道');
+    if (!['wechat', 'alipay', 'cash', 'bank'].includes(method)) throw new Error('请选择有效收款方式');
+    const clientId = channel === 'direct' ? required(data.clientId, '客户', 80) : optionalText(data.clientId, '客户', 80);
+    if (clientId) this._client(clientId);
+    const storeId = required(data.storeId, '收款门店', 80);
+    this._store(storeId);
+    this._cashActor(role, storeId, clientId);
+    const reference = channel === 'direct' ? optionalText(data.reference, '参考单号', 160) : required(data.reference, '平台参考单号', 160);
+    const minor = amountMinor(data.amount, '收款金额');
+    const input = { clientId, storeId, date: validDate(data.date), time: validTime(data.time), purpose, method, channel,
+      settlementStatus, reference, amountMinor: minor, notes: optionalText(data.notes, '收款备注') };
+    const inputKey = JSON.stringify(input);
+    const existing = this._financialExisting(requestId, role, 'receipt', inputKey);
+    if (existing) return existing;
+    this._cashOccurrence(input, '收款');
+    this._assertPlatformReferenceUnique(input);
+    const stamp = this._timestamp();
+    const row = { id: this._id('receipt'), ...input, amount: minor / 100,
+      status: settlementStatus === 'pending' ? 'pending_settlement' : 'valid', recordedBy: role.id, recordedRole: role.type,
+      requestId, requestType: 'receipt', inputKey, createdAt: stamp, recordedAt: stamp };
+    this.state.receipts.push(row);
+    this._log('receipt_recorded', { receiptId: row.id, clientId, storeId, channel, status: row.status, amountMinor: minor, reference }, role);
+    return row;
+  }
+
+  refundReceipt(data, role) {
+    this._boss(role);
+    const requestId = required(data.requestId, '提交标识', 80);
+    const receiptId = required(data.receiptId, '原收款标识', 80), minor = amountMinor(data.amount, '退款金额');
+    const input = { receiptId, date: validDate(data.date), time: validTime(data.time), amountMinor: minor,
+      reason: required(data.reason, '退款原因', 1000) };
+    const inputKey = JSON.stringify(input), existing = this._financialExisting(requestId, role, 'refund', inputKey);
+    if (existing) return existing;
+    const receipt = this.state.receipts.find(row => row.id === receiptId);
+    if (!receipt || receipt.status !== 'valid') throw new Error('只能从有效的已到账收款登记退款');
+    this._cashOccurrence(input, '退款');
+    if (`${input.date} ${input.time}` < `${receipt.date} ${receipt.time}`) throw new Error('退款时间不能早于原收款时间');
+    const refunded = this.state.refunds.filter(row => row.receiptId === receiptId && row.status === 'valid').reduce((sum, row) => sum + row.amountMinor, 0);
+    if (refunded + minor > receipt.amountMinor) throw new Error('累计有效退款不能超过原收款金额，请核对可退余额');
+    const stamp = this._timestamp();
+    const row = { id: this._id('refund'), ...input, clientId: receipt.clientId, storeId: receipt.storeId,
+      method: receipt.method, channel: receipt.channel, amount: minor / 100, status: 'valid', recordedBy: role.id, recordedRole: role.type,
+      requestId, requestType: 'refund', inputKey, createdAt: stamp, recordedAt: stamp };
+    this.state.refunds.push(row);
+    this._log('refund_recorded', { refundId: row.id, receiptId, clientId: row.clientId, storeId: row.storeId, channel: row.channel, amountMinor: minor, reason: row.reason }, role);
+    return row;
+  }
+
+  settleReceipt(id, data, role) {
+    this._cashActor(role);
+    const parentId = required(id, '待结算标识', 80), requestId = required(data.requestId, '提交标识', 80);
+    const parent = this.state.receipts.find(row => row.id === parentId);
+    if (!parent) throw new Error('待结算收款记录不存在');
+    this._cashActor(role, parent.storeId, parent.clientId);
+    const minor = amountMinor(data.amount, '到账金额');
+    const input = { parentId, date: validDate(data.date), time: validTime(data.time), amountMinor: minor,
+      reference: required(data.reference, '到账参考单号', 160), notes: optionalText(data.notes, '到账备注') };
+    const inputKey = JSON.stringify(input), existing = this._financialExisting(requestId, role, 'settlement', inputKey);
+    if (existing) return existing;
+    if (parent.status !== 'pending_settlement' || parent.channel === 'direct') throw new Error('只能确认平台待结算单到账，原单可能已结算或已撤销');
+    if (this.state.receipts.some(row => row.parentId === parentId && row.status === 'valid')) throw new Error('该待结算单已有有效到账子单，不能重复结算');
+    this._cashOccurrence(input, '到账');
+    if (`${input.date} ${input.time}` < `${parent.date} ${parent.time}`) throw new Error('到账时间不能早于原待结算日期和时间');
+    this._assertPlatformReferenceUnique({ storeId: parent.storeId, channel: parent.channel, reference: input.reference }, parentId);
+    const stamp = this._timestamp();
+    const row = { id: this._id('receipt'), ...input, clientId: parent.clientId, storeId: parent.storeId,
+      channel: parent.channel, purpose: 'platform_settlement', method: parent.method,
+      settlementStatus: 'received', amount: minor / 100, status: 'valid', recordedBy: role.id, recordedRole: role.type,
+      requestId, requestType: 'settlement', inputKey, createdAt: stamp, recordedAt: stamp };
+    this.state.receipts.push(row);
+    parent.status = 'settled';
+    parent.settlementReceiptId = row.id;
+    parent.settlementReceiptIds = [...(parent.settlementReceiptIds || []), row.id];
+    this._log('receipt_settled', { receiptId: row.id, parentId, storeId: row.storeId, channel: row.channel, amountMinor: minor, reference: row.reference }, role);
+    return row;
+  }
+
+  voidReceipt(id, reason, role) {
+    this._boss(role);
+    const why = required(reason, '撤销收款原因', 1000), row = this.state.receipts.find(item => item.id === id);
+    if (!row) throw new Error('收款记录不存在');
+    if (row.status === 'revoked') throw new Error('该收款已撤销，不能重复撤销');
+    if (row.status === 'settled') throw new Error('该单已结算，请先核对并处理到账子单，不能直接撤销父单');
+    if (!['valid', 'pending_settlement'].includes(row.status)) throw new Error('该收款状态不能撤销');
+    if (this.state.refunds.some(item => item.receiptId === row.id && item.status === 'valid')) throw new Error('此收款有有效退款，请先核对并处理退款记录');
+    const parent = row.parentId && this.state.receipts.find(item => item.id === row.parentId);
+    if (row.parentId && (!parent || parent.status !== 'settled' || parent.settlementReceiptId !== row.id)) throw new Error('到账子单与父单关联不一致，请核对账目');
+    if (parent) this._assertPlatformReferenceUnique(parent, [parent.id, row.id]);
+    const stamp = this._timestamp();
+    row.status = 'revoked';
+    row.voidReason = why; row.voidedBy = role.id; row.voidedAt = stamp;
+    if (parent) parent.status = 'pending_settlement';
+    this._log('receipt_voided', { receiptId: row.id, parentId: row.parentId || null, reason: why, amountMinor: row.amountMinor }, role);
+    return row;
+  }
+
+  voidRefund(id, reason, role) {
+    this._boss(role);
+    const why = required(reason, '撤销退款原因', 1000), row = this.state.refunds.find(item => item.id === id);
+    if (!row) throw new Error('退款记录不存在');
+    if (row.status === 'revoked') throw new Error('该退款已撤销，不能重复撤销');
+    if (row.status !== 'valid') throw new Error('该退款状态不能撤销');
+    const stamp = this._timestamp();
+    row.status = 'revoked';
+    row.voidReason = why; row.voidedBy = role.id; row.voidedAt = stamp;
+    this._log('refund_voided', { refundId: row.id, receiptId: row.receiptId, reason: why, amountMinor: row.amountMinor }, role);
+    return row;
+  }
+
+  cashSummary(filters = {}, role) {
+    let allowedStores = null;
+    if (role !== undefined) {
+      if (role?.type === 'boss') this._boss(role);
+      else if (role?.type === 'frontdesk') allowedStores = this.frontDeskStoreIds(role);
+      else throw new Error('您没有查看营业收支的权限');
+    }
+    const storeId = optionalText(filters.storeId, '门店', 80);
+    if (storeId) this._store(storeId);
+    if (storeId && allowedStores && !allowedStores.includes(storeId)) throw new Error('您没有该门店的营业收支查看权限');
+    const from = filters.from ? validDate(filters.from) : '', to = filters.to ? validDate(filters.to) : '';
+    if (from && to && from > to) throw new Error('日期范围的开始不能晚于结束');
+    const matches = row => (!allowedStores || allowedStores.includes(row.storeId)) && (!storeId || row.storeId === storeId) && (!from || row.date >= from) && (!to || row.date <= to);
+    const receipts = this.state.receipts.filter(row => row.status === 'valid' && matches(row));
+    const refunds = this.state.refunds.filter(row => row.status === 'valid' && matches(row));
+    const pending = this.state.receipts.filter(row => row.status === 'pending_settlement' && matches(row));
+    const sum = rows => rows.reduce((total, row) => {
+      const next = total + row.amountMinor;
+      if (!Number.isSafeInteger(next)) throw new Error('收支合计超出安全金额范围，请分日期核对');
+      return next;
+    }, 0);
+    const totals = (receivedMinor, refundedMinor, pendingMinor) => ({ receivedMinor, refundedMinor, netMinor: receivedMinor - refundedMinor,
+      received: receivedMinor / 100, refunded: refundedMinor / 100, net: (receivedMinor - refundedMinor) / 100, pendingMinor, pending: pendingMinor / 100 });
+    const channels = CASH_CHANNELS.map(channel => ({ channel, ...totals(sum(receipts.filter(row => row.channel === channel)),
+      sum(refunds.filter(row => row.channel === channel)), sum(pending.filter(row => row.channel === channel))) }));
+    return { ...totals(sum(receipts), sum(refunds), sum(pending)), receipts, refunds, channels };
   }
 
   remaining(clientId) {
@@ -216,10 +563,10 @@ export class DemoModel {
   renewPackage(data, role) {
     this._boss(role);
     const client = this._client(data.clientId);
-    const requestId = required(data.requestId, '提交标识');
-    const amount = money(Number(data.amount)), total = Number(data.total);
-    if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(total) || total <= 0) throw new Error('请核对套餐金额和总次数');
-    const input = { clientId: client.id, name: required(data.name, '套餐名称'), amount, total, reason: required(data.reason, '续套餐原因') };
+    const requestId = required(data.requestId, '提交标识', 80);
+    const minor = amountMinor(data.amount), amount = minor / 100, total = count(data.total, '套餐总次数');
+    if (minor < total) throw new Error('套餐金额不能少于总次数对应的分金额');
+    const input = { clientId: client.id, name: required(data.name, '套餐名称', 80), amount, total, reason: required(data.reason, '续套餐原因', 1000) };
     const inputKey = JSON.stringify(input);
     const existing = this.state.packages.find(item => item.requestId === requestId && item.renewedBy === role.id);
     if (existing) {
@@ -229,9 +576,9 @@ export class DemoModel {
     const previous = this.state.packages.find(item => item.id === client.packageId && item.status === 'current');
     if (!previous) throw new Error('该客户还没有当前套餐');
     if (this.packageRemaining(previous.id) !== 0) throw new Error('当前套餐仍有剩余次数，请用完后再续套餐');
-    const row = { id: this._id('p'), clientId: client.id, name: input.name, amount, total, openingUsed: 0,
+    const row = { id: this._id('p'), clientId: client.id, name: input.name, amount, amountMinor: minor, total, openingUsed: 0,
       status: 'current', previousPackageId: previous.id, renewedBy: role.id, reason: input.reason,
-      requestId, inputKey, createdAt: new Date().toISOString() };
+      requestId, inputKey, createdAt: this._timestamp() };
     previous.status = 'historical';
     client.packageId = row.id;
     this.state.packages.push(row);
@@ -261,16 +608,47 @@ export class DemoModel {
     return money(pack.amount / pack.total);
   }
 
+  slotValueMinor(packageId, slotNumber) {
+    const pack = this.state.packages.find(row => row.id === packageId);
+    if (!pack || !Number.isInteger(slotNumber) || slotNumber < 1 || slotNumber > pack.total) throw new Error('套餐次数槽位无效');
+    const minor = pack.amountMinor ?? amountMinor(pack.amount);
+    const quotient = Math.floor(minor / pack.total), remainder = minor % pack.total;
+    return quotient + (slotNumber > pack.total - remainder ? 1 : 0);
+  }
+
+  _availableSlot(packageId) {
+    const pack = this.state.packages.find(row => row.id === packageId);
+    if (!pack) throw new Error('套餐不存在');
+    const occupied = new Set(this.state.services.filter(row => row.packageId === packageId && row.status === 'valid').map(row => row.slotNumber));
+    for (let slot = pack.openingUsed + 1; slot <= pack.total; slot++) if (!occupied.has(slot)) return slot;
+    throw new Error('套餐次数已用完，请先由老板确认套餐');
+  }
+
+  nextServiceValue(packageId) {
+    const slotNumber = this._availableSlot(packageId);
+    const minor = this.slotValueMinor(packageId, slotNumber);
+    return { slotNumber, amountMinor: minor, amount: minor / 100 };
+  }
+
   canSeeClient(role, clientId) {
     const client = this.state.clients.find(item => item.id === clientId);
     if (!client) return false;
     if (role?.type === 'boss' && role.id === 'boss') return true;
     if (role?.type === 'customer') return role.id === clientId;
+    if (role?.type === 'frontdesk') {
+      const frontDesk = this.state.frontDesks.find(row => row.id === role.id && row.active);
+      if (!frontDesk) return false;
+      const stores = frontDesk.storeIds;
+      return stores.includes(client.storeId) ||
+        this.state.appointments.some(row => row.clientId === clientId && stores.includes(row.storeId) && (pendingAppointment(row.status) || Boolean(row.arrivalAt))) ||
+        this.state.services.some(row => row.clientId === clientId && stores.includes(row.storeId) && row.status === 'valid');
+    }
     if (role?.type !== 'therapist' || !this.state.therapists.some(item => item.id === role.id && item.active)) return false;
     return client.ownerId === role.id || this.state.services.some(item => item.clientId === clientId && item.status === 'valid' && (item.principalId === role.id || item.participantIds.includes(role.id)));
   }
 
   canSeeEvidence(role, serviceId) {
+    if (role?.type === 'frontdesk') return false;
     const service = this.state.services.find(item => item.id === serviceId);
     const client = service && this.state.clients.find(item => item.id === service.clientId);
     if (!service || !client) return false;
@@ -283,7 +661,9 @@ export class DemoModel {
   }
 
   visibleClients(role) {
-    return this.state.clients.filter(item => this.canSeeClient(role, item.id));
+    const clients = this.state.clients.filter(item => this.canSeeClient(role, item.id));
+    if (role?.type === 'frontdesk') return clients.map(({ id, name, phone, ownerId, storeId, packageId }) => ({ id, name, phone, ownerId, storeId, packageId }));
+    return clients;
   }
 
   serviceRows(filters = {}) {
@@ -307,8 +687,9 @@ export class DemoModel {
 
   pendingAppointments(role, filters = {}) {
     return this.state.appointments.filter(item =>
-      ['confirmed', 'reschedule_requested'].includes(item.status) && item.date < TODAY &&
-      this.canSeeClient(role, item.clientId) && (role.type !== 'therapist' || item.principalId === role.id) &&
+      pendingAppointment(item.status) && item.date < this.today &&
+      (role?.type !== 'frontdesk' || this.state.frontDesks.some(row => row.id === role.id && row.active && row.storeIds.includes(item.storeId))) &&
+      this.canSeeClient(role, item.clientId) && (role.type !== 'therapist' || item.principalId === role.id || (item.status === 'pending_reassignment' && this._client(item.clientId).ownerId === role.id)) &&
       (!filters.storeId || item.storeId === filters.storeId) &&
       (!filters.therapistId || item.principalId === filters.therapistId) &&
       (!filters.from || item.date >= filters.from) && (!filters.to || item.date <= filters.to),
@@ -317,11 +698,12 @@ export class DemoModel {
 
   registerService(data, role) {
     const client = this._staff(role, data.clientId);
-    const requestId = required(data.requestId, '提交标识');
+    const requestId = required(data.requestId, '提交标识', 80);
+    if (data.participantIds !== undefined && (!Array.isArray(data.participantIds) || data.participantIds.length > 99 || data.participantIds.some(id => typeof id !== 'string' || !id.trim() || id.length > 80))) throw new Error('参与康复师须填写有效的人员标识数组');
     const input = {
-      clientId: client.id, storeId: required(data.storeId, '服务门店'),
-      date: validDate(data.date), time: validTime(data.time), project: required(data.project, '服务项目'),
-      principalId: required(data.principalId, '主康复师'),
+      clientId: client.id, storeId: required(data.storeId, '服务门店', 80),
+      date: validDate(data.date), time: validTime(data.time), project: required(data.project, '服务项目', 120),
+      principalId: required(data.principalId, '主康复师', 80),
       participantIds: [...new Set(data.participantIds || [])].filter(id => id !== data.principalId).sort(),
       notes: required(data.notes, '本次服务记录'),
       evidencePhotos: serviceEvidencePhotos(data.evidencePhotos),
@@ -334,10 +716,14 @@ export class DemoModel {
       if (existing.inputKey !== inputKey) throw new Error('同一提交请求的内容发生变化，请重新打开登记表');
       return existing;
     }
-    if (input.date > TODAY) throw new Error('不能登记尚未发生的未来服务');
+    if (input.date > this.today) throw new Error('不能登记尚未发生的未来服务');
+    this._assertServiceStarted(input.date, input.time);
     this._store(input.storeId);
     this._therapist(input.principalId);
     input.participantIds.forEach(id => this._therapist(id));
+    if (this.state.services.some(item => item.status === 'valid' && item.clientId === client.id && item.date === input.date && item.time === input.time)) {
+      throw new Error('同一客户此时间已登记有效服务，不能重复扣次数，请先核对原记录');
+    }
     const activeService = appointment => this.state.services.some(item => item.status === 'valid' &&
       (item.appointmentId === appointment.id || item.id === appointment.serviceId));
     const sameSlot = appointment => ['clientId', 'date', 'time', 'storeId', 'principalId'].every(key => appointment[key] === input[key]);
@@ -356,12 +742,15 @@ export class DemoModel {
       const unresolved = matches.filter(item => ['confirmed', 'reschedule_requested'].includes(item.status));
       if (unresolved.length > 1) throw new Error('此时间存在多条待处理预约，请选择具体预约登记');
       appointment = unresolved[0];
+      if (appointment && appointment.project !== input.project) throw new Error('服务项目须与所选预约一致，请先核对或调整预约');
+      if (matches.some(item => item.status === 'pending_reassignment')) throw new Error('该预约需要重新分配康复师，请先确认新的服务安排');
     }
     if (this.remaining(client.id) < 1) throw new Error('套餐次数已用完，请先由老板确认套餐');
-    const recordedAt = new Date().toISOString();
+    const value = this.nextServiceValue(client.packageId);
+    const recordedAt = this._timestamp();
     const row = {
       id: this._id('s'), ...input, packageId: client.packageId, ownerId: client.ownerId,
-      recordedBy: role.id, amount: this.unitValue(client.packageId), sessions: 1,
+      recordedBy: role.id, ...value, sessions: 1,
       evidencePhotos: input.evidencePhotos.map(photo => ({ ...photo, recordedAt, recordedBy: role.id })),
       status: 'valid', requestId, inputKey, createdAt: recordedAt, recordedAt,
     };
@@ -396,7 +785,7 @@ export class DemoModel {
     row.status = 'revoked';
     row.revokeReason = why;
     row.revokedBy = role.id;
-    row.revokedAt = new Date().toISOString();
+    row.revokedAt = this._timestamp();
     (row.appointmentSnapshots || []).forEach(snapshot => {
       const appointment = this.state.appointments.find(item => item.id === snapshot.id);
       if (appointment?.status === 'completed' && appointment.serviceId === row.id) {
@@ -404,6 +793,7 @@ export class DemoModel {
         appointment.request = copy(snapshot.request ?? null);
         appointment.requestNote = snapshot.requestNote || '';
         delete appointment.serviceId;
+        this._validateAppointmentAssignment(appointment, '原服务已撤销，请核对当前负责人与执行人员');
       }
     });
     (row.taskSnapshots || []).forEach(snapshot => {
@@ -413,6 +803,12 @@ export class DemoModel {
         for (const field of ['completedBy', 'completedAt', 'completedByServiceId']) {
           if (Object.hasOwn(snapshot.before, field)) task[field] = snapshot.before[field];
           else delete task[field];
+        }
+        if (task.assigneeId !== 'boss' && !this.canSeeClient({ type: 'therapist', id: task.assigneeId }, task.clientId)) {
+          task.previousAssigneeId = task.assigneeId;
+          const owner = this._client(task.clientId).ownerId;
+          task.assigneeId = this.canSeeClient({ type: 'therapist', id: owner }, task.clientId) ? owner : 'boss';
+          task.reassignmentReason = '原服务已撤销，待办转交当前有权限的负责人';
         }
       }
     });
@@ -432,7 +828,7 @@ export class DemoModel {
       next.progress = copy(data.progress);
       if (!['pending', 'updated'].includes(next.progress.status) || !Array.isArray(next.progress.metrics)) throw new Error('请填写有效的康复进展记录');
       if (next.progress.status === 'updated' && !String(next.progress.summary || '').trim()) throw new Error('请填写阶段复评说明');
-      next.progressUpdatedAt = next.progress.status === 'updated' ? TODAY : null;
+      next.progressUpdatedAt = next.progress.status === 'updated' ? this.today : null;
     }
     let nextTask = null;
     if (String(data.taskTitle || '').trim()) {
@@ -451,25 +847,28 @@ export class DemoModel {
   }
 
   saveAppointment(data, role) {
-    const client = this._staff(role, data.clientId);
+    const client = this._bookingActor(role, data.clientId, data.storeId);
     const input = {
       clientId: client.id, date: validDate(data.date), time: validTime(data.time),
       storeId: required(data.storeId, '服务门店'), principalId: required(data.principalId, '服务康复师'),
       project: required(data.project, '服务项目'),
     };
-    if (input.date < TODAY) throw new Error('不能预约过去的日期');
+    if (input.date < this.today) throw new Error('不能预约过去的日期');
     this._store(input.storeId);
     this._therapist(input.principalId);
     if (!this.canSeeClient({ type: 'therapist', id: input.principalId }, client.id)) throw new Error('服务康复师尚未负责或参与过此客户的有效服务，请先由老板转交客户负责人，再安排服务');
     const existing = data.id ? this.state.appointments.find(item => item.id === data.id) : null;
     if (data.id && !existing) throw new Error('预约记录不存在');
+    if (existing) this._bookingActor(role, existing.clientId, existing.storeId);
     if (existing && existing.clientId !== client.id) throw new Error('不能将预约转给其他客户');
-    if (existing && !['confirmed', 'reschedule_requested'].includes(existing.status)) throw new Error('该预约已结束或已取消，不能编辑，请重新安排服务');
-    const conflict = this.state.appointments.find(item => item.id !== data.id && ['confirmed', 'reschedule_requested'].includes(item.status) && item.date === input.date && Math.abs(minutes(item.time) - minutes(input.time)) < 60 && (item.principalId === input.principalId || item.clientId === input.clientId));
+    if (existing && !pendingAppointment(existing.status)) throw new Error('该预约已结束或已取消，不能编辑，请重新安排服务');
+    if (existing?.arrivalAt && ['date', 'time', 'storeId'].some(key => existing[key] !== input[key])) throw new Error('此预约已到店，不能搬移到其他时间或门店，请先核对原预约后重新安排新预约');
+    const conflict = this.state.appointments.find(item => item.id !== data.id && pendingAppointment(item.status) && item.date === input.date && Math.abs(minutes(item.time) - minutes(input.time)) < 60 && (item.principalId === input.principalId || item.clientId === input.clientId));
     if (conflict) throw new Error('此时间与已有预约冲突，请检查康复师跨店安排及客户时间');
     const before = existing ? copy(existing) : null;
     const row = existing || { id: this._id('a') };
     Object.assign(row, input, { status: 'confirmed', requestNote: '', request: null });
+    delete row.reassignmentReason;
     if (!existing) this.state.appointments.push(row);
     this.state.tasks.filter(item => item.appointmentId === row.id && item.type === 'reschedule').forEach(item => { item.status = 'completed'; });
     this._log('appointment_saved', { appointmentId: row.id, clientId: client.id, before, after: copy(row) }, role);
@@ -477,7 +876,7 @@ export class DemoModel {
   }
 
   _closeAppointmentTasks(appointment, reason, role) {
-    const completedAt = new Date().toISOString();
+    const completedAt = this._timestamp();
     const tasks = this.state.tasks.filter(task => task.appointmentId === appointment.id &&
       task.status === 'pending' && ['reschedule', 'service_note'].includes(task.type));
     tasks.forEach(task => {
@@ -490,11 +889,19 @@ export class DemoModel {
     return tasks.map(task => task.id);
   }
 
+  _validateAppointmentAssignment(appointment, reason) {
+    if (pendingAppointment(appointment.status) && !this.canSeeClient({ type: 'therapist', id: appointment.principalId }, appointment.clientId)) {
+      appointment.status = 'pending_reassignment';
+      appointment.reassignmentReason = reason;
+    }
+    return appointment;
+  }
+
   cancelAppointment(id, reason, role) {
     const row = this.state.appointments.find(item => item.id === id);
     if (!row) throw new Error('预约记录不存在');
-    this._staff(role, row.clientId);
-    if (!['confirmed', 'reschedule_requested'].includes(row.status)) throw new Error('该预约已结束或已取消');
+    this._bookingActor(role, row.clientId, row.storeId);
+    if (!pendingAppointment(row.status)) throw new Error('该预约已结束或已取消');
     row.cancelReason = required(reason, '取消原因');
     row.status = 'cancelled';
     const closedTaskIds = this._closeAppointmentTasks(row, row.cancelReason, role);
@@ -505,17 +912,38 @@ export class DemoModel {
   markNoShow(id, reason, role) {
     const row = this.state.appointments.find(item => item.id === id);
     if (!row) throw new Error('预约记录不存在');
-    this._staff(role, row.clientId);
-    if (role.type !== 'boss' && row.principalId !== role.id) throw new Error('仅当次主康复师或老板有权限确认未到店');
+    this._bookingActor(role, row.clientId, row.storeId);
+    if (role.type !== 'boss' && role.type !== 'frontdesk' && row.principalId !== role.id) throw new Error('仅当次主康复师、授权前台或老板有权限确认未到店');
     if (!['confirmed', 'reschedule_requested'].includes(row.status)) throw new Error('该预约已结束，不能重复确认未到店');
-    if (row.date > TODAY) throw new Error('未来预约尚未发生，不能确认未到店');
+    if (row.arrivalAt) throw new Error('此预约已经确认到店，不能再确认未到店，请联系老板核对原记录');
+    if (row.date > this.today) throw new Error('未来预约尚未发生，不能确认未到店');
+    this._assertServiceStarted(row.date, row.time);
     const why = required(reason, '未到店原因');
     row.status = 'no_show';
     row.noShowReason = why;
     row.noShowBy = role.id;
-    row.noShowAt = new Date().toISOString();
+    row.noShowAt = this._timestamp();
     const closedTaskIds = this._closeAppointmentTasks(row, why, role);
     this._log('appointment_no_show', { appointmentId: id, clientId: row.clientId, reason: why, closedTaskIds }, role);
+    return row;
+  }
+
+  recordArrival(id, data, role) {
+    if (role?.type === 'boss') this._boss(role);
+    else if (role?.type === 'frontdesk') this._frontDesk(role.id);
+    else throw new Error('仅老板和授权门店前台有权限确认到店');
+    const row = this.state.appointments.find(item => item.id === id);
+    if (!row) throw new Error('预约记录不存在');
+    this._bookingActor(role, row.clientId, row.storeId);
+    const requestId = required(data.requestId, '到店提交标识', 80), notes = optionalText(data.notes, '到店备注', 1000);
+    if (row.date !== this.today) throw new Error('只能确认今天预约的实际到店；过去或未来日期请先核对服务安排，目前不支持补录历史到店');
+    if (row.arrivalAt) return row;
+    if (this.state.appointments.some(item => item.id !== id && item.arrivalBy === role.id && item.arrivalRequestId === requestId)) throw new Error('此到店提交请求已用于另一预约，请使用新的提交标识');
+    if (!['confirmed', 'reschedule_requested'].includes(row.status)) throw new Error('只能确认当前已安排的预约到店，该预约已结束或需要重新安排');
+    const stamp = this._timestamp();
+    row.arrivalAt = stamp; row.arrivalBy = role.id; row.arrivalByRole = role.type;
+    row.arrivalNotes = notes; row.arrivalRequestId = requestId;
+    this._log('appointment_arrived', { appointmentId: row.id, clientId: row.clientId, storeId: row.storeId, arrivalAt: stamp, notes }, role);
     return row;
   }
 
@@ -523,15 +951,16 @@ export class DemoModel {
     const row = this.state.appointments.find(item => item.id === id);
     if (!row) throw new Error('预约记录不存在');
     if (role?.type !== 'customer' || role.id !== row.clientId) throw new Error('仅客户本人有权限提交改约申请');
-    if (!['confirmed', 'reschedule_requested'].includes(row.status)) throw new Error('此预约已结束或已取消，不能改约');
+    if (!pendingAppointment(row.status)) throw new Error('此预约已结束或已取消，不能改约');
+    if (row.arrivalAt) throw new Error('此预约已经到店，请联系门店核对安排，需要改期时重新安排新预约');
     const request = { date: validDate(data.date), time: validTime(data.time), reason: required(data.reason || data.requestNote, '改约说明') };
-    if (request.date < TODAY) throw new Error('不能改约到过去的日期');
-    row.status = 'reschedule_requested';
+    if (request.date < this.today) throw new Error('不能改约到过去的日期');
+    if (row.status !== 'pending_reassignment') row.status = 'reschedule_requested';
     row.request = request;
     row.requestNote = request.reason;
     const existingTask = this.state.tasks.find(item => item.appointmentId === id && item.type === 'reschedule' && item.status === 'pending');
     if (existingTask) existingTask.title = `确认${this._client(row.clientId).name}的改约申请`;
-    else this.state.tasks.push({ id: this._id('task'), clientId: row.clientId, appointmentId: id, title: `确认${this._client(row.clientId).name}的改约申请`, type: 'reschedule', assigneeId: this._client(row.clientId).ownerId, dueDate: TODAY, status: 'pending' });
+    else this.state.tasks.push({ id: this._id('task'), clientId: row.clientId, appointmentId: id, title: `确认${this._client(row.clientId).name}的改约申请`, type: 'reschedule', assigneeId: this._client(row.clientId).ownerId, dueDate: this.today, status: 'pending' });
     this._log('reschedule_requested', { appointmentId: id, clientId: row.clientId, request }, role);
     return row;
   }
@@ -541,12 +970,14 @@ export class DemoModel {
     if (!row) throw new Error('待办事项不存在');
     if (role?.type === 'boss') this._boss(role);
     else if (role?.type !== 'therapist' || role.id !== row.assigneeId || !this.canSeeClient(role, row.clientId)) throw new Error('仅待办负责人或老板有权限完成');
-    if (row.type === 'reschedule' && this.state.appointments.find(item => item.id === row.appointmentId)?.status === 'reschedule_requested') throw new Error('请先确认新的预约时间或取消预约，再完成此待办');
+    const appointment = this.state.appointments.find(item => item.id === row.appointmentId);
+    if (row.type === 'service_note' && (!appointment || appointment.status !== 'completed' || !this.state.services.some(service => service.status === 'valid' && service.appointmentId === appointment.id))) throw new Error('请先按预约登记真实服务，再完成服务记录待办；没有预约时请由老板核对');
+    if (row.type === 'reschedule' && (!appointment || ['reschedule_requested', 'pending_reassignment'].includes(appointment.status))) throw new Error('请先确认新的预约时间或取消预约，再完成此待办');
     if (row.type === 'review_followup' && this.state.reviews.find(item => item.id === row.reviewId)?.followupStatus !== 'closed') throw new Error('请先填写反馈处理结果，再完成此待办');
     delete row.completedByServiceId;
     row.status = 'completed';
     row.completedBy = role.id;
-    row.completedAt = new Date().toISOString();
+    row.completedAt = this._timestamp();
     this._log('task_completed', { taskId: id, clientId: row.clientId }, role);
     return row;
   }
@@ -555,7 +986,7 @@ export class DemoModel {
     const service = this.state.services.find(item => item.id === serviceId);
     if (!service) throw new Error('服务记录不存在');
     if (role?.type !== 'customer' || role.id !== service.clientId) throw new Error('仅客户本人有权限评价本次服务');
-    if (service.status !== 'valid' || service.date > TODAY) throw new Error('仅有效且已完成的服务可以评价');
+    if (service.status !== 'valid' || service.date > this.today) throw new Error('仅有效且已完成的服务可以评价');
     if (this.state.reviews.some(item => item.serviceId === serviceId)) throw new Error('本次服务已评价，每次服务只能评价一次');
     const score = Number(data.score);
     if (!Number.isInteger(score) || score < 1 || score > 5) throw new Error('请选择 1 至 5 分的评分');
@@ -564,10 +995,10 @@ export class DemoModel {
     const row = {
       id: this._id('r'), serviceId, clientId: service.clientId, score,
       feedback: String(data.feedback ?? '').trim(), wantContact,
-      followupStatus: followup ? 'pending' : 'none', createdAt: new Date().toISOString(),
+      followupStatus: followup ? 'pending' : 'none', createdAt: this._timestamp(),
     };
     this.state.reviews.unshift(row);
-    if (followup) this.state.tasks.push({ id: this._id('task'), type: 'review_followup', reviewId: row.id, clientId: row.clientId, title: `跟进${this._client(row.clientId).name}的服务反馈`, assigneeId: 'boss', dueDate: TODAY, status: 'pending' });
+    if (followup) this.state.tasks.push({ id: this._id('task'), type: 'review_followup', reviewId: row.id, clientId: row.clientId, title: `跟进${this._client(row.clientId).name}的服务反馈`, assigneeId: 'boss', dueDate: this.today, status: 'pending' });
     this._log('review_submitted', { reviewId: row.id, serviceId, clientId: row.clientId, score }, role);
     return row;
   }
@@ -580,7 +1011,7 @@ export class DemoModel {
     row.resolution = required(resolution, '反馈处理结果');
     row.followupStatus = 'closed';
     row.resolvedBy = role.id;
-    row.resolvedAt = new Date().toISOString();
+    row.resolvedAt = this._timestamp();
     this.state.tasks.filter(item => item.reviewId === reviewId).forEach(item => { item.status = 'completed'; item.completedBy = role.id; });
     this._log('review_followup_closed', { reviewId, clientId: row.clientId, resolution: row.resolution }, role);
     return row;
@@ -605,11 +1036,28 @@ export class DemoModel {
     return row;
   }
 
+  addFrontDesk(data, role) {
+    this._boss(role);
+    const name = required(data.name, '前台姓名', 80), storeIds = this._frontDeskStoreIds(data.storeIds);
+    const row = { id: this._id('f'), name, storeIds, active: true };
+    this.state.frontDesks.push(row);
+    this._log('frontdesk_added', { frontDeskId: row.id, after: copy(row) }, role);
+    return row;
+  }
+
+  deactivateFrontDesk(id, role) {
+    this._boss(role);
+    const row = this._frontDesk(id);
+    row.active = false;
+    this._log('frontdesk_deactivated', { frontDeskId: id }, role);
+    return row;
+  }
+
   deactivateTherapist(id, role) {
     this._boss(role);
     const row = this._therapist(id);
     if (this.state.clients.some(item => item.ownerId === id)) throw new Error('该康复师仍有负责客户，请先转交客户再停用');
-    if (this.state.appointments.some(item => item.principalId === id && ['confirmed', 'reschedule_requested'].includes(item.status))) throw new Error('该康复师仍有预约，请先改派或取消预约再停用');
+    if (this.state.appointments.some(item => item.principalId === id && pendingAppointment(item.status))) throw new Error('该康复师仍有预约，请先改派或取消预约再停用');
     if (this.state.tasks.some(item => item.assigneeId === id && item.status === 'pending')) throw new Error('该康复师仍有未完成待办，请先处理后再停用');
     row.active = false;
     this._log('therapist_deactivated', { therapistId: id }, role);
@@ -625,26 +1073,29 @@ export class DemoModel {
     if (oldOwnerId === newOwnerId) throw new Error('新负责人和当前负责人相同');
     client.ownerId = newOwnerId;
     this.state.tasks.filter(item => item.clientId === clientId && item.assigneeId === oldOwnerId && item.status === 'pending').forEach(item => { item.assigneeId = newOwnerId; });
+    this.state.appointments.filter(item => item.clientId === clientId && pendingAppointment(item.status)).forEach(item => this._validateAppointmentAssignment(item, '客户负责人已转交，请核对新的服务安排'));
     this._log('client_transferred', { clientId, oldOwnerId, newOwnerId, reason: why }, role);
     return client;
   }
 
   importOpening(data, role) {
     this._boss(role);
-    const name = required(data.name, '客户姓名');
-    const phone = required(data.phone, '手机号').replace(/\s/g, '');
+    const name = required(data.name, '客户姓名', 80);
+    const phone = required(data.phone, '手机号', 20).replace(/\s/g, '');
     if (!/^1\d{10}$/.test(phone)) throw new Error('请输入 11 位手机号');
     if (this.state.clients.some(item => item.phone === phone)) throw new Error('该手机号已存在，请核对原客户档案，避免重复迁入');
     this._therapist(data.ownerId);
     this._store(data.storeId);
-    const amount = Number(data.amount), total = Number(data.total), remaining = Number(data.remaining ?? data.openingRemaining);
-    if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(total) || total <= 0 || !Number.isInteger(remaining) || remaining < 0 || remaining > total) throw new Error('请核对套餐金额、总次数和剩余次数');
+    const minor = amountMinor(data.amount), total = count(data.total, '套餐总次数');
+    const remaining = count(data.remaining ?? data.openingRemaining, '套餐剩余次数', 0, total);
+    if (minor < total) throw new Error('套餐金额不能少于总次数对应的分金额');
+    const packageName = required(data.packageName === undefined ? '运动功能恢复套餐' : data.packageName, '套餐名称', 80);
+    const sourceNotes = required(data.notes, '原档案核对说明');
     const clientId = this._id('c'), packageId = this._id('p');
     const client = seedClient(clientId, name, data.ownerId, data.storeId, packageId, phone);
-    const sourceNotes = String(data.notes ?? '').trim();
     client.openingNotes = sourceNotes;
     if (String(data.goal || '').trim()) client.goal = String(data.goal).trim();
-    const pack = { id: packageId, clientId, name: String(data.packageName || '运动功能恢复套餐').trim(), amount: money(amount), total, openingUsed: total - remaining, status: 'current' };
+    const pack = { id: packageId, clientId, name: packageName, amount: minor / 100, amountMinor: minor, total, openingUsed: total - remaining, status: 'current' };
     this.state.clients.push(client);
     this.state.packages.push(pack);
     this._log('opening_import', { clientId, packageId, total, remaining, openingUsed: total - remaining, sourceNotes, note: '纸质期初余额迁入，不计入系统消费业绩' }, role);
