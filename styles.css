@@ -413,3 +413,90 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
   .customer-mode .usage-row { flex-wrap: nowrap; }
   .customer-mode .usage-label .tag { display: none; }
 }
+
+/* Owner overview: three numbers, actionable reminders, short performance rows. */
+.boss-dashboard { max-width: 1100px; margin: 0 auto; }
+.boss-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 22px; }
+.boss-heading h1 { font-size: 28px; line-height: 1.3; margin-top: 5px; }
+.boss-heading .eyebrow { font-size: 12px; }
+.boss-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.boss-period { display: flex; padding: 4px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.boss-period button { min-height: 40px; padding: 0 21px; background: none; color: #546354; border-radius: 8px; font-size: 14px; }
+.boss-period button[aria-pressed="true"] { background: var(--forest); color: #fff; font-weight: 600; }
+.boss-store select { min-height: 48px; padding: 0 34px 0 14px; min-width: 135px; border: 1px solid var(--line); background: #fff; border-radius: 12px; font-size: 14px; }
+.boss-more { margin-left: auto; }
+.boss-more > summary { padding: 12px 3px; min-height: 44px; font-size: 13px; color: #50624f; cursor: pointer; }
+.boss-more[open] { width: 100%; margin: 0; }
+.boss-advanced { display: flex; flex-wrap: wrap; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 12px; background: #fff; align-items: flex-end; }
+.boss-advanced .field { flex: 1 1 150px; }
+.boss-filter-note { width: 100%; color: #637160; font-size: 12px; line-height: 1.6; }
+.boss-scope { margin: 12px 0 18px; color: #637160; font-size: 13px; }
+.boss-stats { display: grid; grid-template-columns: 1.35fr 1fr 1fr; gap: 14px; margin-bottom: 22px; }
+.boss-stat { background: #fff; padding: 21px 24px; border: 1px solid var(--line); border-radius: 16px; }
+.boss-stat > span { font-size: 14px; color: #53634f; }
+.boss-stat > strong { display: block; font-size: 36px; line-height: 1.4; font-weight: 650; font-variant-numeric: tabular-nums; color: var(--forest); margin: 7px 0 3px; }
+.boss-stat small { font-size: 12px; font-weight: 400; color: #637160; }
+.boss-stat > strong small { margin-left: 4px; }
+.boss-stat-main { background: var(--forest); border-color: var(--forest); }
+.boss-stat-main > span, .boss-stat-main > strong { color: #fff; }
+.boss-stat-main > small { color: #deeedf; }
+.boss-columns { display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 20px; margin-bottom: 20px; }
+.boss-panel { padding: 22px; background: #fff; border: 1px solid var(--line); border-radius: 16px; min-width: 0; }
+.boss-panel .section-head { margin-bottom: 7px; }
+.boss-panel h2 { font-size: 19px; }
+.boss-panel-note { font-size: 12px; color: #637160; margin: 0 0 14px; line-height: 1.6; }
+.boss-notice { border-top: 1px solid var(--line); }
+.boss-notice > summary { display: flex; align-items: center; gap: 10px; min-height: 57px; cursor: pointer; font-size: 14px; list-style: none; }
+.boss-notice > summary::-webkit-details-marker { display: none; }
+.boss-notice-count { margin-left: auto; color: #637160; font-size: 13px; white-space: nowrap; }
+.boss-notice-count.has-items { color: #825215; background: #fbf4e6; border-radius: 6px; padding: 3px 7px; font-weight: 600; }
+.boss-notice[open] > summary > .icon { transform: rotate(90deg); }
+.boss-notice-body { padding: 0 0 13px; }
+.boss-detail-row { padding: 13px 14px; background: #f6f8f4; border-radius: 10px; margin-bottom: 10px; font-size: 14px; }
+.boss-detail-row:last-child { margin-bottom: 0; }
+.boss-detail-row p { margin: 5px 0; overflow-wrap: anywhere; }
+.boss-detail-row .action-row { margin-top: 9px; }
+.boss-person { width: 100%; display: flex; align-items: center; gap: 10px; background: #fff; min-height: 68px; padding: 12px 0; text-align: left; border-top: 1px solid var(--line); }
+.boss-person-info { flex: 1; min-width: 0; }
+.boss-person-info > strong { display: block; font-size: 15px; color: var(--ink); }
+.boss-person-info > span { display: block; color: #637160; font-size: 12px; margin-top: 4px; }
+.boss-person-amount { color: var(--forest); font-size: 19px; font-weight: 650; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.boss-people + .boss-panel-note { margin: 11px 0 0; }
+.boss-store-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 0 30px; }
+.boss-store-row { display: flex; align-items: center; gap: 15px; min-height: 53px; border-top: 1px solid var(--line); font-size: 14px; }
+.boss-store-row > span { font-size: 12px; color: #637160; }
+.boss-store-row > .amount { margin-left: auto; }
+.boss-footer { display: flex; justify-content: center; gap: 12px; margin-top: 20px; flex-wrap: wrap; }
+.boss-dashboard summary:focus-visible { outline: 2px solid var(--forest); outline-offset: 4px; border-radius: 5px; }
+@media (max-width: 1000px) {
+  .boss-columns { grid-template-columns: 1fr; }
+}
+@media (max-width: 760px) {
+  .boss-heading { margin-bottom: 17px; }
+  .boss-heading h1 { font-size: 25px; }
+  .boss-heading > .btn { padding: 0 12px; min-height: 42px; font-size: 12px; }
+  .boss-heading > .btn .icon { display: none; }
+  .boss-toolbar { gap: 9px; }
+  .boss-period { flex: 1; }
+  .boss-period button { flex: 1; padding: 0 10px; min-height: 36px; font-size: 13px; }
+  .boss-store select { min-width: 112px; min-height: 46px; padding-left: 11px; padding-right: 23px; font-size: 13px; }
+  .boss-more { width: 100%; margin: 0; }
+  .boss-more > summary { padding: 8px 0; min-height: 36px; }
+  .boss-scope { margin: 0 0 14px; font-size: 12px; }
+  .boss-stats { gap: 8px; grid-template-columns: 1.35fr 1fr 1fr; margin-bottom: 16px; }
+  .boss-stat { padding: 13px 11px; border-radius: 12px; }
+  .boss-stat > span { font-size: 12px; white-space: nowrap; }
+  .boss-stat > strong { font-size: 26px; margin: 7px 0 1px; }
+  .boss-stat > small { display: block; font-size: 10px; line-height: 1.5; }
+  .boss-stat > strong small { font-size: 11px; margin-left: 1px; }
+  .boss-stat-main > strong { font-size: clamp(21px,6vw,26px); overflow-wrap: anywhere; }
+  .boss-columns { gap: 16px; margin-bottom: 16px; }
+  .boss-panel { padding: 17px; border-radius: 14px; }
+  .boss-panel h2 { font-size: 18px; }
+  .boss-panel .section-head .text-link { font-size: 12px; }
+  .boss-notice > summary { min-height: 54px; font-size: 14px; }
+  .boss-person-amount { font-size: 18px; }
+  .boss-store-list { grid-template-columns: 1fr; }
+  .boss-footer { justify-content: stretch; }
+  .boss-footer > .btn { flex: 1 1 145px; font-size: 12px; }
+}

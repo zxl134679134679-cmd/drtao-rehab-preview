@@ -92,17 +92,63 @@ function performance(ctx) {
   return `<div class="page-head"><div><span class="eyebrow">实际服务产生的业绩</span><h1>${tid ? `${x.esc(x.name('therapists', tid))}的业绩` : '康复师业绩'}</h1><p class="muted">以每次已完成服务为依据，点击明细核对客户、门店和服务人员。</p></div></div>${filters(ctx, x.role.type === 'boss')}<div class="stat-grid"><div class="stat"><span>消费业绩</span><strong>${x.money(total)}</strong></div><div class="stat"><span>主康复师服务</span><strong>${valid.length}<small> 次</small></strong></div><div class="stat"><span>协作参与</span><strong>${tid ? collabs.filter(s => s.status === 'valid').length : valid.reduce((sum, s) => sum + (s.participantIds || []).length, 0)}<small> 次</small></strong></div><div class="stat"><span>已撤销记录</span><strong>${services.filter(s => s.status === 'revoked').length}<small> 条</small></strong></div></div><div class="note">一次服务扣 1 次；消费业绩全部归本次主康复师。协作记录单独保留。</div>${ledger(ctx, services)}${tid ? `<section class="section card"><div class="section-head"><h2>协作服务记录</h2>${x.tag('参与记录')}</div><p class="muted">您参与了以下服务，消费业绩归相应主康复师。</p><div class="line-list">${collabs.length ? collabs.map(s => `<div class="row"><div class="row-main"><strong>${x.esc(x.client(s.clientId)?.name)} · ${x.esc(s.project)}</strong><div class="meta">${x.date(s.date)} · ${x.esc(x.name('stores', s.storeId))} · 主康复师 ${x.esc(x.name('therapists', s.principalId))}</div></div><div class="row-side">${x.tag(s.status === 'revoked' ? '已撤销' : '协作参与', s.status === 'revoked' ? 'warn' : '')}${x.link('查看明细', 'service-detail', s.id)}</div></div>`).join('') : '<div class="empty">当前日期范围内暂无协作服务。</div>'}</div></section>` : ''}`;
 }
 
+// Financial dates apply to service totals; current follow-ups keep their own dates.
+export function bossSummary(model, f = {}) {
+  const state = model.state;
+  const valid = model.serviceRows(f).filter(s => s.status === 'valid');
+  const {therapistId: ignoredTherapist, ...collaborationFilters} = f;
+  const collaborationRows = model.serviceRows(collaborationFilters).filter(s => s.status === 'valid');
+  const scope = item => (!f.storeId || item.storeId === f.storeId) && (!f.therapistId || item.principalId === f.therapistId);
+  const appointments = state.appointments.filter(a => ['confirmed','reschedule_requested'].includes(a.status) &&
+    (a.date < TODAY || a.status === 'reschedule_requested') && scope(a)).sort((a,b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+  const reviews = state.reviews.filter(r => r.followupStatus === 'pending' && scope(state.services.find(s => s.id === r.serviceId) || {}));
+  const clients = state.clients.filter(c => (!f.storeId || c.storeId === f.storeId) && (!f.therapistId || c.ownerId === f.therapistId));
+  const low = clients.filter(c => model.remaining(c.id) <= 2).sort((a,b) => model.remaining(a.id) - model.remaining(b.id));
+  const unplanned = clients.filter(c => !state.appointments.some(a => a.clientId === c.id && ['confirmed','reschedule_requested'].includes(a.status) && a.date >= TODAY));
+  const tasks = state.tasks.filter(t => !['completed','done'].includes(t.status) &&
+    (!f.storeId || state.clients.find(c => c.id === t.clientId)?.storeId === f.storeId) && (!f.therapistId || t.assigneeId === f.therapistId) &&
+    !(t.type === 'reschedule' && appointments.some(a => a.id === t.appointmentId)) &&
+    !(t.type === 'review_followup' && reviews.some(r => r.id === t.reviewId)))
+    .sort((a,b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
+  const followupClients = new Set([...appointments.map(a => a.clientId), ...reviews.map(r => state.services.find(s => s.id === r.serviceId)?.clientId || r.clientId),
+    ...low.map(c => c.id), ...unplanned.map(c => c.id), ...tasks.map(t => t.clientId)].filter(Boolean));
+  const therapists = state.therapists.filter(t => !f.therapistId || t.id === f.therapistId).map(t => {
+    const own = valid.filter(s => s.principalId === t.id);
+    return {...t, amount: own.reduce((sum,s) => sum + s.amount,0), count: own.length,
+      collaborations: collaborationRows.filter(s => s.participantIds.includes(t.id)).length};
+  }).sort((a,b) => b.amount - a.amount || b.count - a.count || a.name.localeCompare(b.name));
+  const stores = state.stores.filter(s => !f.storeId || s.id === f.storeId).map(store => {
+    const rows = valid.filter(s => s.storeId === store.id);
+    return {...store, amount: rows.reduce((sum,s) => sum + s.amount,0), count: rows.length};
+  });
+  return {valid, amount: valid.reduce((sum,s) => sum + s.amount,0), appointments, reviews, low, unplanned, tasks,
+    followupCount: followupClients.size, therapists, stores};
+}
+
 function overview(ctx) {
-  const x = h(ctx);
-  const all = x.rows(ctx.filters || {});
-  const valid = all.filter(s => s.status === 'valid');
-  const pending = ctx.model.pendingAppointments(x.role, ctx.filters || {});
-  const reviews = (x.state.reviews || []).filter(r => r.followupStatus === 'pending' && all.some(s => s.id === r.serviceId));
-  const therapists = x.state.therapists.filter(t => !ctx.filters?.therapistId || t.id === ctx.filters.therapistId);
-  return `<div class="page-head"><div><span class="eyebrow">所有门店，统一管理</span><h1>老板概览</h1><p class="muted">把服务、消费业绩与待跟进事项放在一起核对。</p></div>${x.action('登记服务', 'register', x.clients[0]?.id || '', 'btn-primary', 'plus')}</div>${filters(ctx)}
-  <div class="stat-grid"><div class="stat"><span>消费业绩</span><strong>${x.money(valid.reduce((sum, s) => sum + s.amount, 0))}</strong></div><div class="stat"><span>已完成服务</span><strong>${valid.length}<small> 次</small></strong></div><div class="stat"><span>到店情况待确认</span><strong>${pending.length}<small> 条</small></strong></div><div class="stat"><span>评价待回访</span><strong>${reviews.length}<small> 条</small></strong></div></div>
-  <section class="section card"><div class="section-head"><h2>人员消费业绩</h2><span class="muted">同一服务仅计一次</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>康复师</th><th>所属门店</th><th>主康复师服务</th><th>消费业绩</th><th>协作参与</th><th></th></tr></thead><tbody>${therapists.map(t => { const own = valid.filter(s => s.principalId === t.id); const part = valid.filter(s => (s.participantIds || []).includes(t.id) && s.principalId !== t.id); return `<tr><td><strong>${x.esc(t.name)}</strong></td><td>${x.esc(x.name('stores', t.storeId))}</td><td>${own.length} 次</td><td class="amount">${x.money(own.reduce((sum, s) => sum + s.amount, 0))}</td><td>${part.length} 次</td><td>${x.link('业绩明细', 'therapist-performance', t.id)}</td></tr>`; }).join('')}</tbody></table></div></section>
-  <div class="split-grid">${pendingArrivalList(ctx, pending)}<section class="section card"><div class="section-head"><h2>客户评价待回访</h2>${x.tag(`${reviews.length} 条`, reviews.length ? 'warn' : '')}</div><div class="line-list">${reviews.length ? reviews.map(r => { const s = x.find('services', r.serviceId); return `<div class="row"><div class="row-main"><strong>${x.esc(x.client(s?.clientId || r.clientId)?.name || '客户')} · ${x.esc(r.score || r.rating)} 分</strong><p>${x.esc(r.feedback || r.comment || r.text || '客户希望工作人员联系。')}</p><div class="meta">${x.date(s?.date)} · ${x.esc(x.name('stores', s?.storeId))}</div></div>${x.action('记录回访', 'followup', r.id, 'btn-small btn-outline')}</div>`; }).join('') : '<div class="empty">暂无需要回访的评价。</div>'}</div></section></div>${clientFollowups(ctx)}${taskList(ctx, x.pendingTasks)}${ledger(ctx, all, '全部服务记录')}`;
+  const x = h(ctx), f = ctx.filters || {}, b = bossSummary(ctx.model,f);
+  const period = f.from === TODAY && f.to === TODAY ? '今天' : f.from === `${TODAY.slice(0,7)}-01` && f.to === TODAY ? '本月' : !f.from && !f.to ? '全部时间' : '所选日期';
+  const scopeLabel = `${f.storeId ? x.name('stores',f.storeId) : '全部门店'}${f.therapistId ? ` · ${x.name('therapists',f.therapistId)}` : ''}`;
+  const notice = (title, count, unit, html) => `<details class="boss-notice"><summary><span>${title}</span><span class="boss-notice-count ${count ? 'has-items' : ''}">${count} ${unit}</span>${x.ico('chevron-right',18)}</summary><div class="boss-notice-body">${html}</div></details>`;
+  const appointmentRows = b.appointments.map(a => `<div class="boss-detail-row"><strong>${x.esc(x.client(a.clientId)?.name)} · ${a.date < TODAY ? '到店情况待确认' : '申请改约'}</strong><p class="meta">${x.date(a.date)} ${x.esc(a.time)} · ${x.esc(x.name('stores',a.storeId))} · ${x.esc(x.name('therapists',a.principalId))}</p><div class="action-row">${x.action('核实与处理','appointment-history',a.clientId,'btn-small btn-primary')}</div></div>`).join('');
+  const reviewRows = b.reviews.map(r => { const s = x.find('services',r.serviceId); return `<div class="boss-detail-row"><strong>${x.esc(x.client(s?.clientId || r.clientId)?.name)} · ${r.score} 分评价</strong><p>${x.esc(r.feedback || '客户希望工作人员联系')}</p>${x.action('记录回访','followup',r.id,'btn-small btn-primary')}</div>`; }).join('');
+  const clientRows = (clients,kind) => clients.map(c => `<div class="boss-detail-row"><strong>${x.esc(c.name)}${kind === 'low' ? ` · 剩余 ${ctx.model.remaining(c.id)} 次` : ''}</strong><p class="meta">${x.esc(x.name('stores',c.storeId))} · 负责人 ${x.esc(x.name('therapists',c.ownerId))}</p><div class="action-row">${kind === 'unplanned' ? x.action('安排下次服务','appointment-create',c.id,'btn-small btn-primary') : ctx.model.remaining(c.id) === 0 ? x.action('续接套餐','renew-package',c.id,'btn-small btn-primary') : x.action('查看套餐','package',c.id,'btn-small btn-outline')}${x.link('客户档案','client-detail',c.id)}</div></div>`).join('');
+  const taskRows = b.tasks.map(t => `<div class="boss-detail-row"><strong>${x.esc(x.client(t.clientId)?.name)} · ${x.esc(t.title)}</strong><p class="meta">${x.esc(x.name('therapists',t.assigneeId))} · ${x.date(t.dueDate)}${t.dueDate && t.dueDate < TODAY ? ' · 已逾期' : ''}</p><div class="action-row">${x.link('客户档案','client-detail',t.clientId)}${x.action(['reschedule','review_followup'].includes(t.type) ? '处理' : '完成待办','task-complete',t.id,'btn-small btn-outline')}</div></div>`).join('');
+  return `<div class="boss-dashboard">
+    <header class="boss-heading"><div><span class="eyebrow">${x.date(TODAY)} · 示例数据</span><h1>老板看板</h1></div>${x.action('客户管理','nav','clients','btn-outline','users')}</header>
+    <div class="boss-toolbar"><div class="boss-period" aria-label="业绩时间范围">${[['today','今天'],['month','本月'],['all','全部']].map(([id,label]) => `<button type="button" data-action="boss-period" data-id="${id}" aria-pressed="${period === (id === 'all' ? '全部时间' : label)}">${label}</button>`).join('')}</div><label class="boss-store"><span class="sr-only">看板门店</span><select data-boss-store aria-label="看板门店"><option value="">全部门店</option>${x.state.stores.map(s => `<option value="${x.esc(s.id)}" ${f.storeId === s.id ? 'selected' : ''}>${x.esc(s.name)}</option>`).join('')}</select></label><details class="boss-more"><summary>更多筛选</summary><form data-form="filters" class="boss-advanced"><input type="hidden" name="storeId" value="${x.esc(f.storeId || '')}"><label class="field"><span>康复师</span><select name="therapistId"><option value="">全部康复师</option>${x.state.therapists.map(t => `<option value="${x.esc(t.id)}" ${f.therapistId === t.id ? 'selected' : ''}>${x.esc(t.name)}</option>`).join('')}</select></label><label class="field"><span>开始日期</span><input type="date" name="from" value="${x.esc(f.from || '')}"></label><label class="field"><span>结束日期</span><input type="date" name="to" value="${x.esc(f.to || '')}"></label><div class="action-row"><button type="submit" class="btn btn-primary">应用筛选</button>${x.action('恢复今天','boss-reset','','btn-quiet')}</div><p class="boss-filter-note">业绩、预约与反馈按服务门店及主康复师查看；客户提醒按所属门店及负责人；工作待办按客户所属门店及执行人。</p></form></details></div>
+    <p class="boss-scope">${x.esc(scopeLabel)} · ${period}${period === '所选日期' ? ` ${f.from ? x.date(f.from) : '不限开始'}—${f.to ? x.date(f.to) : '不限结束'}` : ''}</p>
+    <div class="boss-stats"><div class="boss-stat boss-stat-main"><span>消费业绩</span><strong>${x.money(b.amount)}</strong><small>来自实际登记的服务</small></div><div class="boss-stat"><span>完成服务</span><strong>${b.valid.length}<small> 次</small></strong><small>${period}已登记</small></div><div class="boss-stat"><span>待跟进客户</span><strong>${b.followupCount}<small> 位</small></strong><small>当前提醒 · 按客户去重</small></div></div>
+    <div class="boss-columns"><section class="boss-panel"><div class="section-head"><h2>需要处理</h2><span class="muted">点开即可处理</span></div><p class="boss-panel-note">${b.followupCount ? '查看当前提醒，不受业绩日期影响。' : '当前没有待跟进客户。'}</p>
+      ${notice('预约待核实 / 改约',b.appointments.length,'条',appointmentRows || '<p class="empty">当前没有待处理预约。</p>')}
+      ${notice('客户反馈待回访',b.reviews.length,'条',reviewRows || '<p class="empty">当前没有待回访反馈。</p>')}
+      ${notice('套餐剩余不足',b.low.length,'位',clientRows(b.low,'low') || '<p class="empty">当前没有剩余 2 次及以下的客户。</p>')}
+      ${notice('未安排下次服务',b.unplanned.length,'位',clientRows(b.unplanned,'unplanned') || '<p class="empty">当前客户已有今天或之后的服务安排。</p>')}
+      ${notice('工作待办',b.tasks.length,'项',taskRows || '<p class="empty">当前待办已完成。</p>')}
+    </section><section class="boss-panel"><div class="section-head"><h2>康复师业绩</h2>${x.link('全部明细','nav','performance')}</div><p class="boss-panel-note">${period} · 点击人员查看实际服务</p><div class="boss-people">${b.therapists.map(t => `<button type="button" class="boss-person" data-action="therapist-performance" data-id="${x.esc(t.id)}"><span class="boss-person-info"><strong>${x.esc(t.name)}</strong><span>${x.esc(x.name('stores',t.storeId))} · 主服务 ${t.count} 次${t.collaborations ? ` · 协作 ${t.collaborations} 次` : ''}${t.active === false ? ' · 已停用' : ''}</span></span><span class="boss-person-amount">${x.money(t.amount)}</span>${x.ico('chevron-right',17)}</button>`).join('') || '<p class="empty">当前范围没有康复师。</p>'}</div><p class="boss-panel-note">消费业绩归主康复师，协作不重复计算。</p></section></div>
+    <section class="boss-panel boss-store-panel"><div class="section-head"><h2>门店服务</h2><span class="muted">${period} · 按实际服务门店</span></div><div class="boss-store-list">${b.stores.map(s => `<div class="boss-store-row"><strong>${x.esc(s.name)}</strong><span>登记 ${s.count} 次</span><strong class="amount">${x.money(s.amount)}</strong></div>`).join('')}</div></section>
+    <div class="boss-footer">${x.action('查看服务明细','nav','performance','btn-outline','clipboard-text')}${x.action('门店与人员管理','nav','team','btn-quiet')}</div>
+  </div>`;
 }
 
 function team(ctx) {

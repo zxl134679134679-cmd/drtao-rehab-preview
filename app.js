@@ -69,6 +69,7 @@ function switchRole(value, targetView) {
   if (window.matchMedia('(max-width: 760px)').matches) $('.preview-controls').open = false;
   view = targetView || (type === 'customer' ? 'home' : type === 'boss' ? 'overview' : 'work');
   filters = {storeId: '', therapistId: '', from: '', to: '', query: ''};
+  if (type === 'boss') { filters.from = TODAY; filters.to = TODAY; }
   render(true);
 }
 function navigation() {
@@ -145,7 +146,7 @@ function appointmentHistoryDialog(id) {
     const pending = ['confirmed','reschedule_requested'].includes(a.status);
     const status = pending && a.date < TODAY ? '到店情况待确认' : labels[a.status] || '待确认';
     const staff = role.type !== 'customer';
-    return `<article class="record-item"><div class="section-head"><h3>${date(a.date)} · ${esc(a.time)}</h3><span class="tag ${a.status === 'completed' ? 'tag-green' : a.status === 'no_show' || (pending && a.date < TODAY) ? 'tag-warn' : ''}">${status}</span></div><p>${esc(a.project)}</p><p class="meta">${esc(name('therapists',a.principalId))} · ${esc(name('stores',a.storeId))}</p>${a.status === 'no_show' ? `<p>未到店说明：${esc(a.noShowReason)}</p><p class="meta">本次未扣次数，未产生消费业绩。</p>` : a.status === 'cancelled' ? `<p>取消说明：${esc(a.cancelReason)}</p><p class="meta">本次未扣次数。</p>` : ''}<div class="action-row">${a.status === 'completed' && a.serviceId ? link('查看对应服务','service-detail',a.serviceId) : ''}${pending && staff && a.date <= TODAY ? button('按预约登记服务','register-appointment',a.id,'btn-primary') : ''}${pending && staff && a.date <= TODAY && (role.type === 'boss' || role.id === a.principalId) ? button('记录未到店','appointment-no-show',a.id,'btn-outline') : ''}${pending && staff ? link('调整安排','appointment-edit',a.id) : ''}</div></article>`;
+    return `<article class="record-item"><div class="section-head"><h3>${date(a.date)} · ${esc(a.time)}</h3><span class="tag ${a.status === 'completed' ? 'tag-green' : a.status === 'no_show' || (pending && a.date < TODAY) ? 'tag-warn' : ''}">${status}</span></div><p>${esc(a.project)}</p><p class="meta">${esc(name('therapists',a.principalId))} · ${esc(name('stores',a.storeId))}</p>${a.status === 'reschedule_requested' ? `<div class="note"><strong>客户申请改至 ${date(a.request?.date)} ${esc(a.request?.time || '')}</strong><p>改约说明：${esc(a.requestNote || '未填写说明')}</p></div>` : ''}${a.status === 'no_show' ? `<p>未到店说明：${esc(a.noShowReason)}</p><p class="meta">本次未扣次数，未产生消费业绩。</p>` : a.status === 'cancelled' ? `<p>取消说明：${esc(a.cancelReason)}</p><p class="meta">本次未扣次数。</p>` : ''}<div class="action-row">${a.status === 'completed' && a.serviceId ? link('查看对应服务','service-detail',a.serviceId) : ''}${pending && staff && a.date <= TODAY ? button('按预约登记服务','register-appointment',a.id,'btn-primary') : ''}${pending && staff && a.date <= TODAY && (role.type === 'boss' || role.id === a.principalId) ? button('记录未到店','appointment-no-show',a.id,'btn-outline') : ''}${pending && staff ? `${link('调整安排','appointment-edit',a.id)}${link('取消预约','appointment-cancel',a.id)}` : ''}</div></article>`;
   }).join('') || '<div class="empty">还没有预约记录。</div>'}`};
 }
 
@@ -328,6 +329,15 @@ document.addEventListener('click', event => {
       closeDialog(); view = id; render(true); return;
     }
     if (action === 'reset-filters') { filters = {storeId:'',therapistId:'',from:'',to:'',query:''}; render(); return; }
+    if (action === 'boss-period' || action === 'boss-reset') {
+      assertBoss();
+      if (action === 'boss-reset') filters = {storeId:'',therapistId:'',from:TODAY,to:TODAY,query:''};
+      else if (id === 'today') filters = {...filters,from:TODAY,to:TODAY};
+      else if (id === 'month') filters = {...filters,from:`${TODAY.slice(0,7)}-01`,to:TODAY};
+      else if (id === 'all') filters = {...filters,from:'',to:''};
+      else throw new Error('请选择有效的日期范围');
+      render(); return;
+    }
     if (action === 'therapist-performance') { assertBoss(); filters.therapistId = id; view = 'performance'; render(true); return; }
     if (action === 'task-complete') {
       assertStaff();
@@ -346,6 +356,7 @@ document.addEventListener('click', event => {
 });
 document.addEventListener('change', event => {
   if (event.target.id === 'role-select') switchRole(event.target.value);
+  if (event.target.hasAttribute('data-boss-store')) { assertBoss(); filters.storeId = event.target.value; render(); }
   if (event.target.dataset.preference === 'reminder' && role.type === 'customer') { preferences.set(role.id,event.target.checked); toast('已保存本次预览的提醒偏好'); }
   if (event.target.name === 'clientId' && ['appointment-create','appointment-edit'].includes($('#sheet-body form')?.dataset.form)) constrainStaffChoices($('#sheet-body form').dataset.form,event.target.value);
   if (event.target.name === 'principalId' && $('#sheet-body form')?.dataset.form === 'register') updateParticipants();
