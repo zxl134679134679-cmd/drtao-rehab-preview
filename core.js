@@ -1,4 +1,5 @@
 export const TODAY = '2026-10-08';
+export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
 
 const copy = value => JSON.parse(JSON.stringify(value));
 const money = value => Math.round((value + Number.EPSILON) * 100) / 100;
@@ -21,6 +22,78 @@ const validTime = value => {
 };
 const minutes = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 const pendingProgress = () => ({ status: 'pending', summary: '待康复师完成评估后更新', metrics: [] });
+
+// Read raster headers as well as the declared MIME type. SVG and remote URLs
+// are never evidence attachments; photo dimensions must match the actual file.
+function evidenceImageSize(type, bytes) {
+  const ascii = (offset, length) => String.fromCharCode(...bytes.slice(offset, offset + length));
+  const uint32 = offset => bytes[offset] * 0x1000000 + bytes[offset + 1] * 0x10000 + bytes[offset + 2] * 0x100 + bytes[offset + 3];
+  const uint24le = offset => bytes[offset] + bytes[offset + 1] * 0x100 + bytes[offset + 2] * 0x10000;
+  if (type === 'png' && bytes.length >= 24 &&
+      bytes.slice(0, 8).every((byte, index) => byte === [137, 80, 78, 71, 13, 10, 26, 10][index]) && ascii(12, 4) === 'IHDR') {
+    return { width: uint32(16), height: uint32(20) };
+  }
+  if (type === 'jpeg' && bytes[0] === 0xff && bytes[1] === 0xd8) {
+    let offset = 2;
+    while (offset + 4 <= bytes.length) {
+      if (bytes[offset++] !== 0xff) break;
+      while (bytes[offset] === 0xff) offset++;
+      const marker = bytes[offset++];
+      if (marker === 0xd9 || marker === 0xda) break;
+      if (marker === 0x01 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+      const length = bytes[offset] * 256 + bytes[offset + 1];
+      if (length < 2 || offset + length > bytes.length) break;
+      if ([0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf].includes(marker) && length >= 8) {
+        return { width: bytes[offset + 5] * 256 + bytes[offset + 6], height: bytes[offset + 3] * 256 + bytes[offset + 4] };
+      }
+      offset += length;
+    }
+  }
+  if (type === 'webp' && bytes.length >= 30 && ascii(0, 4) === 'RIFF' && ascii(8, 4) === 'WEBP') {
+    const chunk = ascii(12, 4);
+    if (chunk === 'VP8X') return { width: 1 + uint24le(24), height: 1 + uint24le(27) };
+    if (chunk === 'VP8L' && bytes[20] === 0x2f) {
+      return { width: 1 + (((bytes[22] & 0x3f) << 8) | bytes[21]), height: 1 + (((bytes[24] & 0x0f) << 10) | (bytes[23] << 2) | (bytes[22] >> 6)) };
+    }
+    if (chunk === 'VP8 ' && bytes[23] === 0x9d && bytes[24] === 0x01 && bytes[25] === 0x2a) {
+      return { width: (bytes[26] | (bytes[27] << 8)) & 0x3fff, height: (bytes[28] | (bytes[29] << 8)) & 0x3fff };
+    }
+  }
+  throw new Error('留底照片格式无效，请重新拍照或选择 JPEG、PNG、WebP 照片');
+}
+
+function serviceEvidencePhotos(photos) {
+  if (!Array.isArray(photos) || photos.length < 1) throw new Error('请至少添加 1 张本次服务留底照片');
+  if (photos.length > EVIDENCE_LIMITS.maxCount) throw new Error(`每次服务最多添加 ${EVIDENCE_LIMITS.maxCount} 张留底照片`);
+  const ids = new Set();
+  return photos.map(photo => {
+    if (!photo || typeof photo !== 'object') throw new Error('留底照片数据无效，请重新添加');
+    const id = required(photo.id, '留底照片标识');
+    const name = required(photo.name, '留底照片名称');
+    if (id.length > 80 || name.length > 160 || ids.has(id)) throw new Error('留底照片标识或名称无效，请重新添加');
+    ids.add(id);
+    const { width, height } = photo;
+    if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 ||
+        width > EVIDENCE_LIMITS.maxEdge || height > EVIDENCE_LIMITS.maxEdge) {
+      throw new Error(`留底照片尺寸无效，最长边须不超过 ${EVIDENCE_LIMITS.maxEdge} 像素`);
+    }
+    if (typeof photo.dataUrl !== 'string' || photo.dataUrl.length > Math.ceil(EVIDENCE_LIMITS.maxBytes / 3) * 4 + 32) {
+      throw new Error('留底照片须压缩至每张不超过 512 KB');
+    }
+    const matched = /^data:image\/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(photo.dataUrl);
+    if (!matched || matched[2].length % 4 !== 0) throw new Error('留底照片格式无效，请重新拍照或选择 JPEG、PNG、WebP 照片');
+    const payload = matched[2];
+    const byteLength = payload.length / 4 * 3 - (payload.endsWith('==') ? 2 : payload.endsWith('=') ? 1 : 0);
+    if (byteLength > EVIDENCE_LIMITS.maxBytes) throw new Error('留底照片须压缩至每张不超过 512 KB');
+    let bytes;
+    try { bytes = Uint8Array.from(atob(payload), char => char.charCodeAt(0)); }
+    catch { throw new Error('留底照片数据无效，请重新添加'); }
+    const actual = evidenceImageSize(matched[1], bytes);
+    if (actual.width !== width || actual.height !== height) throw new Error('留底照片尺寸与文件不一致，请重新添加');
+    // Keep only validated input fields; a caller cannot supply record ownership.
+    return { id, name, dataUrl: photo.dataUrl, width, height };
+  });
+}
 
 function seedClient(id, name, ownerId, storeId, packageId, phone) {
   return {
@@ -197,6 +270,18 @@ export class DemoModel {
     return client.ownerId === role.id || this.state.services.some(item => item.clientId === clientId && item.status === 'valid' && (item.principalId === role.id || item.participantIds.includes(role.id)));
   }
 
+  canSeeEvidence(role, serviceId) {
+    const service = this.state.services.find(item => item.id === serviceId);
+    const client = service && this.state.clients.find(item => item.id === service.clientId);
+    if (!service || !client) return false;
+    if (role?.type === 'boss') return role.id === 'boss';
+    if (role?.type === 'customer') return role.id === client.id;
+    if (role?.type !== 'therapist' || !this.state.therapists.some(item => item.id === role.id && item.active)) return false;
+    // Evidence access follows this service, including revoked records. Taking
+    // part in a different service does not expose another service's photos.
+    return client.ownerId === role.id || service.principalId === role.id || service.participantIds.includes(role.id);
+  }
+
   visibleClients(role) {
     return this.state.clients.filter(item => this.canSeeClient(role, item.id));
   }
@@ -239,12 +324,14 @@ export class DemoModel {
       principalId: required(data.principalId, '主康复师'),
       participantIds: [...new Set(data.participantIds || [])].filter(id => id !== data.principalId).sort(),
       notes: required(data.notes, '本次服务记录'),
+      evidencePhotos: serviceEvidencePhotos(data.evidencePhotos),
     };
     if (String(data.appointmentId || '').trim()) input.appointmentId = String(data.appointmentId).trim();
     const inputKey = JSON.stringify(input);
     const existing = this.state.services.find(item => item.requestId === requestId && item.recordedBy === role.id);
     if (existing) {
-      if (existing.inputKey && existing.inputKey !== inputKey) throw new Error('同一提交请求的内容发生变化，请重新打开登记表');
+      if (!existing.inputKey) throw new Error('历史服务记录不能重复提交，请重新打开登记表');
+      if (existing.inputKey !== inputKey) throw new Error('同一提交请求的内容发生变化，请重新打开登记表');
       return existing;
     }
     if (input.date > TODAY) throw new Error('不能登记尚未发生的未来服务');
@@ -271,10 +358,12 @@ export class DemoModel {
       appointment = unresolved[0];
     }
     if (this.remaining(client.id) < 1) throw new Error('套餐次数已用完，请先由老板确认套餐');
+    const recordedAt = new Date().toISOString();
     const row = {
       id: this._id('s'), ...input, packageId: client.packageId, ownerId: client.ownerId,
       recordedBy: role.id, amount: this.unitValue(client.packageId), sessions: 1,
-      status: 'valid', requestId, inputKey, createdAt: new Date().toISOString(),
+      evidencePhotos: input.evidencePhotos.map(photo => ({ ...photo, recordedAt, recordedBy: role.id })),
+      status: 'valid', requestId, inputKey, createdAt: recordedAt, recordedAt,
     };
     this.state.services.unshift(row);
     if (appointment) row.appointmentId = appointment.id;
@@ -293,7 +382,8 @@ export class DemoModel {
       task.completedAt = row.createdAt;
       task.completedByServiceId = row.id;
     });
-    this._log('service_registered', { serviceId: row.id, clientId: client.id, amount: row.amount }, role);
+    this._log('service_registered', { serviceId: row.id, clientId: client.id, amount: row.amount,
+      evidencePhotoIds: row.evidencePhotos.map(photo => photo.id), evidencePhotoCount: row.evidencePhotos.length }, role);
     return row;
   }
 

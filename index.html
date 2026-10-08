@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#005e34">
   <title>涛博士运动康复 · 交互预览</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20261008-photos">
 </head>
 <body>
   <div id="preview" class="preview-layout">
@@ -33,7 +33,11 @@
     <div class="sheet-head"><h2 id="sheet-title"></h2><button class="icon-button" data-action="close-dialog" aria-label="关闭"></button></div>
     <div id="sheet-body" class="sheet-body"></div>
   </dialog>
+  <dialog id="photo-viewer" class="photo-viewer" aria-labelledby="photo-title">
+    <div class="sheet-head"><h2 id="photo-title">留底照片</h2><button type="button" class="icon-button" data-action="close-photo" aria-label="关闭照片"></button></div>
+    <div class="photo-viewer-body"><img id="photo-image" alt=""><p id="photo-caption" class="meta"></p></div>
+  </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=20261008-photos"></script>
 </body>
 </html>

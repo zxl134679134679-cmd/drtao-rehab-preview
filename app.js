@@ -1,5 +1,5 @@
-import { DemoModel, TODAY } from './core.js';
-import { renderStaff, staffDialog } from './staff.js';
+import { DemoModel, TODAY, EVIDENCE_LIMITS } from './core.js?v=20261008-photos';
+import { renderStaff, staffDialog } from './staff.js?v=20261008-photos';
 
 let model = new DemoModel();
 let role = {type: 'customer', id: 'c1'};
@@ -11,9 +11,12 @@ let dialogContext = null;
 let focusBeforeDialog = null;
 let toastTimer;
 let nextRequest = 0;
+let nextPhoto = 0;
+let photoFocusBefore = null;
 const $ = selector => document.querySelector(selector);
 const main = $('#app-main');
 const sheet = $('#sheet');
+const photoViewer = $('#photo-viewer');
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const find = (kind, id) => model.state[kind].find(row => row.id === id);
 const name = (kind, id) => id === 'boss' ? '老板' : find(kind, id)?.name || '待安排';
@@ -153,8 +156,99 @@ function serviceDialog(id) {
   const s = assertService(id);
   const r = reviewFor(id);
   const canOpenClient = model.canSeeClient(role, s.clientId);
-  return {title: '服务明细', html: `<span class="tag ${s.status === 'valid' ? 'tag-green' : 'tag-warn'}">${s.status === 'valid' ? '已完成' : '已撤销'}</span><h3>${esc(s.project)}</h3><div class="detail-grid">${pair('客户',name('clients',s.clientId))}${pair('服务日期',`${date(s.date)} ${s.time}`)}${pair('服务门店',name('stores',s.storeId))}${pair('本次主康复师',name('therapists',s.principalId))}${pair('参与康复师',s.participantIds.map(t => name('therapists',t)).join('、') || '独立服务')}${pair('登记时客户负责人',name('therapists',s.ownerId))}${pair('登记人',name('therapists',s.recordedBy))}${pair('使用套餐',find('packages',s.packageId)?.name || '原套餐')}${pair('套餐次数',s.status === 'valid' ? `使用 ${s.sessions} 次` : '已恢复原套餐 1 次')}${role.type !== 'customer' ? pair('消费业绩',s.status === 'valid' ? `${money(s.amount)}，归${name('therapists',s.principalId)}` : `${money(s.amount)} 已冲回`) : ''}</div><h3>这次为您做了什么</h3><p>${esc(s.notes)}</p>${s.status === 'revoked' ? `<div class="note"><strong>撤销说明</strong><p>${esc(s.revokeReason)}</p><p class="meta">处理人 ${esc(name('therapists',s.revokedBy))} · 原记录保留</p></div>` : ''}${r ? `<div class="note"><strong>客户评价 ${r.score} 分</strong><p>${esc(r.feedback || '未填写文字反馈')}</p><p class="meta">${r.followupStatus === 'closed' ? '已完成回访' : r.followupStatus === 'pending' ? '工作人员待跟进' : '已记录'}</p></div>` : ''}<div class="action-row">${role.type === 'customer' && s.status === 'valid' ? button(r ? '查看我的评价' : '评价本次服务','review',id,'btn-primary','star') : ''}${role.type !== 'customer' && canOpenClient ? button('打开客户档案','client-detail',s.clientId,'btn-outline') : ''}${role.type === 'boss' && s.status === 'valid' ? button('撤销错误登记','revoke-service',id,'btn-quiet') : ''}${role.type === 'boss' && r?.followupStatus === 'pending' ? button('记录回访','followup',r.id,'btn-primary') : ''}</div>`};
+  return {title: '服务明细', html: `<span class="tag ${s.status === 'valid' ? 'tag-green' : 'tag-warn'}">${s.status === 'valid' ? '已完成' : '已撤销'}</span><h3>${esc(s.project)}</h3><div class="detail-grid">${pair('客户',name('clients',s.clientId))}${pair('服务日期',`${date(s.date)} ${s.time}`)}${pair('服务门店',name('stores',s.storeId))}${pair('本次主康复师',name('therapists',s.principalId))}${pair('参与康复师',s.participantIds.map(t => name('therapists',t)).join('、') || '独立服务')}${pair('登记时客户负责人',name('therapists',s.ownerId))}${pair('登记人',name('therapists',s.recordedBy))}${pair('使用套餐',find('packages',s.packageId)?.name || '原套餐')}${pair('套餐次数',s.status === 'valid' ? `使用 ${s.sessions} 次` : '已恢复原套餐 1 次')}${role.type !== 'customer' ? pair('消费业绩',s.status === 'valid' ? `${money(s.amount)}，归${name('therapists',s.principalId)}` : `${money(s.amount)} 已冲回`) : ''}</div><h3>这次为您做了什么</h3><p>${esc(s.notes)}</p>${serviceEvidence(s)}${s.status === 'revoked' ? `<div class="note"><strong>撤销说明</strong><p>${esc(s.revokeReason)}</p><p class="meta">处理人 ${esc(name('therapists',s.revokedBy))} · 原记录保留</p></div>` : ''}${r ? `<div class="note"><strong>客户评价 ${r.score} 分</strong><p>${esc(r.feedback || '未填写文字反馈')}</p><p class="meta">${r.followupStatus === 'closed' ? '已完成回访' : r.followupStatus === 'pending' ? '工作人员待跟进' : '已记录'}</p></div>` : ''}<div class="action-row">${role.type === 'customer' && s.status === 'valid' ? button(r ? '查看我的评价' : '评价本次服务','review',id,'btn-primary','star') : ''}${role.type !== 'customer' && canOpenClient ? button('打开客户档案','client-detail',s.clientId,'btn-outline') : ''}${role.type === 'boss' && s.status === 'valid' ? button('撤销错误登记','revoke-service',id,'btn-quiet') : ''}${role.type === 'boss' && r?.followupStatus === 'pending' ? button('记录回访','followup',r.id,'btn-primary') : ''}</div>`};
 }
+function serviceEvidence(service) {
+  const photos = service.evidencePhotos || [];
+  if (!photos.length) return '<section class="service-evidence"><h3>消课留底照片</h3><p class="meta">历史记录暂无留底照片。</p></section>';
+  if (!model.canSeeEvidence(role, service.id)) return '<section class="service-evidence"><h3>消课留底照片</h3><p class="meta">已留底，仅客户本人、当前负责康复师、本次服务人员及老板可查看。</p></section>';
+  return `<section class="service-evidence"><div class="section-head"><h3>消课留底照片</h3><span class="tag tag-green">${photos.length} 张</span></div><p class="meta">登记人 ${esc(name('therapists', service.recordedBy))} · 登记时间 ${esc(new Date(service.recordedAt || service.createdAt).toLocaleString('zh-CN'))}</p><div class="evidence-grid">${photos.map((photo, i) => `<figure class="evidence-tile"><button type="button" class="evidence-thumbnail" data-action="service-photo" data-id="${esc(service.id)}" data-photo-id="${esc(photo.id)}" aria-label="查看留底照片 ${i + 1}"><img src="${esc(photo.dataUrl)}" width="${photo.width}" height="${photo.height}" alt="本次服务留底照片 ${i + 1}" loading="lazy" decoding="async"></button><figcaption>照片 ${i + 1} · 点开查看</figcaption></figure>`).join('')}</div><p class="meta">照片随服务记录保留${service.status === 'revoked' ? '，本次消课已撤销，原照片仍保留供核对' : ''}。</p></section>`;
+}
+
+function updateEvidencePicker() {
+  const section = $('#sheet-body [data-evidence-section]');
+  if (!section || !dialogContext) return;
+  const photos = dialogContext.evidencePhotos || [];
+  const busy = dialogContext.photoBusy || $('#sheet-body form')?.dataset.busy === 'true';
+  section.setAttribute('aria-busy', String(Boolean(busy)));
+  section.querySelector('[data-evidence-status]').textContent = dialogContext.photoBusy ? '正在处理照片，请稍候…' : photos.length ? `已添加 ${photos.length} / ${EVIDENCE_LIMITS.maxCount} 张，可点开核对。` : '尚未添加照片。请先留底，再确认消课。';
+  section.querySelector('[data-evidence-list]').innerHTML = photos.map((photo, i) => `<figure class="evidence-tile"><button type="button" class="evidence-thumbnail" data-action="draft-photo" data-id="${esc(photo.id)}" aria-label="预览照片 ${i + 1}" ${busy ? 'disabled' : ''}><img src="${esc(photo.dataUrl)}" width="${photo.width}" height="${photo.height}" alt="待保存的留底照片 ${i + 1}"></button><figcaption><span>照片 ${i + 1}</span><button type="button" class="text-link" data-action="remove-photo" data-id="${esc(photo.id)}" aria-label="删除照片 ${i + 1}" ${busy ? 'disabled' : ''}>删除</button></figcaption></figure>`).join('');
+  section.querySelectorAll('[data-action="evidence-pick"], [data-evidence-picker]').forEach(el => { el.disabled = Boolean(busy) || photos.length >= EVIDENCE_LIMITS.maxCount; });
+  const error = section.querySelector('[data-evidence-error]');
+  error.hidden = !dialogContext.photoError;
+  error.textContent = dialogContext.photoError || '';
+}
+
+async function prepareEvidencePhoto(file) {
+  const accepted = ['image/jpeg', 'image/png', 'image/webp'];
+  if (!accepted.includes(file.type) && !(file.type === '' && /\.(jpe?g|png|webp)$/i.test(file.name))) throw new Error('请选择 JPG、PNG 或 WebP 图片。当前格式无法读取时，可拍照重试。');
+  if (!file.size || file.size > 15 * 1024 * 1024) throw new Error('单张原图请控制在 15 MB 以内，或拍照重试。');
+  const url = URL.createObjectURL(file);
+  const image = new Image();
+  try {
+    image.src = url;
+    try { await image.decode(); } catch { throw new Error('这张图片无法读取，请重新拍照或选择其他图片。'); }
+    const scale = Math.min(1, EVIDENCE_LIMITS.maxEdge / Math.max(image.naturalWidth, image.naturalHeight));
+    const width = Math.max(1, Math.round(image.naturalWidth * scale));
+    const height = Math.max(1, Math.round(image.naturalHeight * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width; canvas.height = height;
+    const paint = canvas.getContext('2d');
+    if (!paint) throw new Error('浏览器暂时无法处理照片，请重新打开页面后再试。');
+    paint.fillStyle = '#fff'; paint.fillRect(0, 0, width, height);
+    paint.drawImage(image, 0, 0, width, height);
+    for (const quality of [0.82, 0.68, 0.52, 0.36, 0.24]) {
+      const dataUrl = canvas.toDataURL('image/jpeg', quality);
+      const bytes = Math.ceil((dataUrl.length - dataUrl.indexOf(',') - 1) * 3 / 4);
+      if (bytes <= EVIDENCE_LIMITS.maxBytes) return {id: `photo-${++nextPhoto}`, name: `${file.name.replace(/\.[^.]*$/, '').slice(0, 110) || '服务照片'}.jpg`, dataUrl, width, height};
+    }
+    throw new Error('这张照片处理后仍然过大，请更换图片或重新拍照。');
+  } finally { URL.revokeObjectURL(url); }
+}
+
+async function addEvidencePhotos(input) {
+  const context = dialogContext;
+  const files = [...input.files];
+  input.value = '';
+  if (!context || !files.length || context.photoBusy || $('#sheet-body form')?.dataset.busy === 'true') return;
+  context.photoError = '';
+  const existing = context.evidencePhotos || [];
+  if (existing.length + files.length > EVIDENCE_LIMITS.maxCount) {
+    context.photoError = `每次最多留 ${EVIDENCE_LIMITS.maxCount} 张，请减少选择数量。已添加的照片仍保留。`;
+    updateEvidencePicker(); return;
+  }
+  context.photoBusy = true; updateEvidencePicker();
+  try {
+    const prepared = [];
+    for (const file of files) {
+      const photo = await prepareEvidencePhoto(file);
+      if (context !== dialogContext) return;
+      if (![...existing, ...prepared].some(p => p.dataUrl === photo.dataUrl)) prepared.push(photo);
+    }
+    if (!prepared.length) context.photoError = '所选照片已经添加，无需重复选择。';
+    context.evidencePhotos = [...existing, ...prepared];
+    saveDraft();
+  } catch (error) { if (context === dialogContext) context.photoError = error.message; }
+  finally { context.photoBusy = false; if (context === dialogContext) updateEvidencePicker(); }
+}
+
+function showPhoto(photo, title, caption) {
+  photoFocusBefore = document.activeElement;
+  $('#photo-title').textContent = title;
+  $('#photo-image').src = photo.dataUrl;
+  $('#photo-image').alt = title;
+  $('#photo-caption').textContent = caption;
+  $('#photo-viewer .icon-button').innerHTML = icon('x', 22);
+  photoViewer.showModal();
+  $('#photo-viewer .icon-button').focus();
+}
+function closePhoto() { if (photoViewer.open) photoViewer.close(); }
+photoViewer.addEventListener('close', () => {
+  $('#photo-image').removeAttribute('src');
+  if (photoFocusBefore?.isConnected) photoFocusBefore.focus();
+  photoFocusBefore = null;
+});
+
 function clientDialog(id) {
   const c = assertClient(id);
   const next = appointments(id)[0];
@@ -193,7 +287,7 @@ function storesDialog(id) {
   return {title: '门店与服务安排', html: `<p class="muted">套餐各店通用，请按预约中的实际服务门店到店。</p>${model.state.stores.map(store => `<div class="record-item"><h3>${esc(store.name)}</h3><p>${esc(store.address)}</p><p class="meta">${model.state.therapists.filter(t => t.active && t.storeId === store.id).map(t => esc(t.name)).join('、') || '人员待安排'}</p></div>`).join('')}<p class="notice">以上地址为虚构示例，正式版会接入真实门店地址与导航。</p>`};
 }
 function tourDialog() {
-  return {title: '试一遍完整服务流程', html: `<p>建议先用许安然的 3,000 元 / 10 次套餐体验，初始剩余 10 次。</p><div class="plan-timeline"><div class="timeline-item"><span class="timeline-dot"></span><div><h3>1. 看客户首页</h3><p class="muted">查看计划、负责康复师和剩余次数。</p>${button('以许安然身份查看','tour-customer','','btn-outline')}</div></div><div class="timeline-item"><span class="timeline-dot"></span><div><h3>2. 登记一次跨店服务</h3><p class="muted">以周亦宁登记，在 A店服务，选择两位协作人员，填写服务小结。剩余次数变为 9。</p>${button('打开服务登记','tour-register','','btn-primary')}</div></div><div class="timeline-item"><span class="timeline-dot"></span><div><h3>3. 核对业绩与明细</h3><p class="muted">主康复师增加 300 元，协作人员保留参与记录；全店业绩只增加 300 元。</p>${button('查看老板概览','tour-boss','','btn-outline')}</div></div><div class="timeline-item"><span class="timeline-dot"></span><div><h3>4. 体验评价和撤销</h3><p class="muted">切回客户填写评价；老板可在服务明细填写原因后撤销，次数和业绩同步恢复。</p>${button('查看客户服务记录','tour-records','','btn-outline')}</div></div></div>`};
+  return {title: '试一遍完整服务流程', html: `<p>建议先用许安然的 3,000 元 / 10 次套餐体验，初始剩余 10 次。</p><div class="plan-timeline"><div class="timeline-item"><span class="timeline-dot"></span><div><h3>1. 看客户首页</h3><p class="muted">查看计划、负责康复师和剩余次数。</p>${button('以许安然身份查看','tour-customer','','btn-outline')}</div></div><div class="timeline-item"><span class="timeline-dot"></span><div><h3>2. 登记一次跨店服务</h3><p class="muted">以周亦宁登记，在 A店服务，选择两位协作人员，填写服务小结并添加测试照片。剩余次数变为 9。</p>${button('打开服务登记','tour-register','','btn-primary')}</div></div><div class="timeline-item"><span class="timeline-dot"></span><div><h3>3. 核对业绩与明细</h3><p class="muted">主康复师增加 300 元，协作人员保留参与记录；全店业绩只增加 300 元。</p>${button('查看老板概览','tour-boss','','btn-outline')}</div></div><div class="timeline-item"><span class="timeline-dot"></span><div><h3>4. 体验评价和撤销</h3><p class="muted">切回客户填写评价；老板可在服务明细填写原因后撤销，次数和业绩同步恢复。</p>${button('查看客户服务记录','tour-records','','btn-outline')}</div></div></div>`};
 }
 
 const staffTypes = new Set(['register','edit-plan','appointment-create','appointment-edit','followup','add-store','add-therapist','transfer-client','import-opening','revoke-service','register-appointment','renew-package']);
@@ -239,7 +333,7 @@ function buildDialog(type, id) {
   }
   if (type === 'privacy') {
     assertClient(id);
-    return {title:'我的档案与隐私',html:'<p>客户端查看本人的计划、套餐与服务记录。康复师查看自己负责或实际参与服务的客户，老板统一管理各店记录。</p><p class="muted">本次预览使用虚构数据，角色切换仅用于体验。正式版本需要真实身份验证和服务器权限校验。</p>'};
+    return {title:'我的档案与隐私',html:'<p>客户端查看本人的计划、套餐与服务记录。康复师查看自己负责或实际参与服务的客户，老板统一管理各店记录。</p><p>服务留底照片由客户本人、当前负责康复师、本次主/协作康复师及老板查看。参与该客户其他服务，不会自动获得本次照片权限。</p><p class="muted">本次预览使用虚构数据，角色切换仅用于体验。正式版本需要真实身份验证和服务器权限校验。</p>'};
   }
   if (type === 'help') {
     assertClient(id);
@@ -259,15 +353,15 @@ function saveDraft() {
   if (!dialogContext || !sheet.open) return;
   const el = $('#sheet-body form');
   if (!el || el.dataset.succeeded) return;
-  const entries = [...new FormData(el).entries()];
-  drafts.set(dialogContext.key,{entries,requestId:dialogContext.requestId});
+  const entries = [...new FormData(el).entries()].filter(([, value]) => typeof value === 'string');
+  drafts.set(dialogContext.key,{entries,requestId:dialogContext.requestId,evidencePhotos:(dialogContext.evidencePhotos || []).map(photo => ({...photo}))});
 }
 function restoreDraft(saved) {
   if (!saved) return;
   const f = $('#sheet-body form');
   if (!f) return;
   for (const el of f.elements) {
-    if (!el.name) continue;
+    if (!el.name || el.type === 'file') continue;
     // Appointment details come from the latest confirmed arrangement, never an old draft.
     if (dialogContext?.type === 'register-appointment' &&
         ['appointmentId','clientId','storeId','principalId','date','time','project'].includes(el.name)) continue;
@@ -282,9 +376,10 @@ function openDialog(type,id = '') {
   saveDraft();
   const key = draftKey(type,id);
   const saved = drafts.get(key);
-  dialogContext = {type,id,key,requestId:saved?.requestId || `preview-${++nextRequest}`};
+  dialogContext = {type,id,key,requestId:saved?.requestId || `preview-${++nextRequest}`,evidencePhotos:(saved?.evidencePhotos || []).map(photo => ({...photo})),photoBusy:false,photoError:''};
   $('#sheet-title').textContent = content.title;
   $('#sheet-body').innerHTML = content.html;
+  sheet.classList.toggle('evidence-sheet', Boolean($('#sheet-body [data-evidence-section]') || type === 'service-detail'));
   $('.sheet-head .icon-button').innerHTML = icon('x',22);
   restoreDraft(saved);
   constrainStaffChoices(type,id);
@@ -292,6 +387,7 @@ function openDialog(type,id = '') {
     updateParticipants();
     const collaborators = $('#sheet-body .ease-register-collabs');
     if (collaborators && collaborators.querySelector('input:checked')) collaborators.open = true;
+    updateEvidencePicker();
   }
   if (!sheet.open) { focusBeforeDialog = document.activeElement; sheet.showModal(); }
   $('#sheet-body').scrollTop = 0;
@@ -300,12 +396,14 @@ function openDialog(type,id = '') {
   $('#sheet-title').focus();
 }
 function closeDialog(keepDraft = true) {
+  closePhoto();
   if (keepDraft) saveDraft();
   if (sheet.open) sheet.close();
   dialogContext = null;
   if (focusBeforeDialog?.isConnected) focusBeforeDialog.focus();
 }
 function showSuccess(title,html) {
+  closePhoto();
   $('#sheet-title').textContent = title;
   $('#sheet-body').innerHTML = `<div class="success-icon">${icon('circle-check',40)}</div>${html}<div class="dialog-footer">${button('完成','close-dialog','','btn-primary')}</div>`;
   dialogContext = null;
@@ -325,6 +423,30 @@ document.addEventListener('click', event => {
   const action = target.dataset.action;
   const id = target.dataset.id || '';
   try {
+    if (action === 'close-photo') return closePhoto();
+    if (action === 'evidence-pick') {
+      assertStaff();
+      if (!['register','register-appointment'].includes(dialogContext?.type) || dialogContext.photoBusy || $('#sheet-body form')?.dataset.busy === 'true') return;
+      const picker = $('#sheet-body [data-evidence-picker="' + (id === 'camera' ? 'camera' : 'album') + '"]');
+      if (picker && !picker.disabled) picker.click();
+      return;
+    }
+    if (action === 'remove-photo' || action === 'draft-photo') {
+      assertStaff();
+      if (!['register','register-appointment'].includes(dialogContext?.type) || dialogContext.photoBusy || $('#sheet-body form')?.dataset.busy === 'true') return;
+      const photo = dialogContext.evidencePhotos.find(p => p.id === id);
+      if (!photo) throw new Error('照片不存在，请重新选择。');
+      if (action === 'draft-photo') return showPhoto(photo,'待保存的留底照片',`${photo.name} · 尚未提交消课`);
+      dialogContext.evidencePhotos = dialogContext.evidencePhotos.filter(p => p.id !== id);
+      dialogContext.photoError = ''; saveDraft(); updateEvidencePicker(); return;
+    }
+    if (action === 'service-photo') {
+      const service = assertService(id);
+      if (!model.canSeeEvidence(role, id)) throw new Error('您没有查看本次留底照片的权限');
+      const photo = service.evidencePhotos?.find(p => p.id === target.dataset.photoId);
+      if (!photo) throw new Error('照片不存在');
+      return showPhoto(photo,`${name('clients',service.clientId)}的留底照片`,`${date(service.date)} ${service.time} · ${name('stores',service.storeId)} · ${service.project}${service.status === 'revoked' ? ' · 本次消课已撤销，原照片保留' : ''}`);
+    }
     if (action === 'close-dialog') return closeDialog();
     if (action === 'nav') {
       const allowed = role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team'] : ['work','clients','performance'];
@@ -364,6 +486,7 @@ document.addEventListener('click', event => {
   } catch (error) { toast(error.message); }
 });
 document.addEventListener('change', event => {
+  if (event.target.hasAttribute('data-evidence-picker')) { void addEvidencePhotos(event.target); return; }
   if (event.target.id === 'role-select') switchRole(event.target.value);
   if (event.target.hasAttribute('data-boss-store')) { assertBoss(); filters.storeId = event.target.value; render(); }
   if (event.target.dataset.preference === 'reminder' && role.type === 'customer') { preferences.set(role.id,event.target.checked); toast('已保存本次预览的提醒偏好'); }
@@ -404,6 +527,16 @@ document.addEventListener('submit', async event => {
   if (f.dataset.busy === 'true' || f.dataset.succeeded === 'true') return;
   if (!f.reportValidity()) return;
   const type = f.dataset.form;
+  if (['register','register-appointment'].includes(type)) {
+    if (dialogContext?.photoBusy) { formError(f,'照片正在处理，请完成后再确认消课。'); return; }
+    if (!dialogContext?.evidencePhotos?.length) {
+      dialogContext.photoError = '请至少添加 1 张本次服务的留底照片，再确认消课。';
+      updateEvidencePicker();
+      f.querySelector('[data-evidence-section]')?.scrollIntoView({block:'nearest'});
+      f.querySelector('[data-action="evidence-pick"]')?.focus();
+      return;
+    }
+  }
   const fd = new FormData(f);
   const data = Object.fromEntries(fd);
   if (type === 'filters') {
@@ -413,6 +546,7 @@ document.addEventListener('submit', async event => {
   if (type === 'client-search') { filters.query = data.query; render(); return; }
   saveDraft();
   f.dataset.busy = 'true';
+  updateEvidencePicker();
   const submittingRole = {...role};
   const context = dialogContext;
   const submits = [...f.querySelectorAll('button[type="submit"]')];
@@ -428,9 +562,9 @@ document.addEventListener('submit', async event => {
     }
     let result;
     if (type === 'register' || type === 'register-appointment') {
-      result = model.registerService({...data,participantIds:fd.getAll('participantIds'),requestId:context.requestId},role);
+      result = model.registerService({...data,participantIds:fd.getAll('participantIds'),evidencePhotos:context.evidencePhotos.map(photo => ({...photo})),requestId:context.requestId},role);
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
-      showSuccess('本次服务已登记',`<h3>${esc(name('clients',result.clientId))} · ${esc(result.project)}</h3><div class="success-summary detail-grid">${pair('套餐剩余',`${model.remaining(result.clientId)} 次`)}${pair('消费业绩',`${money(result.amount)}，归${name('therapists',result.principalId)}`)}</div><p class="muted">协作人员只保留参与记录，本次仅扣 1 次。</p><div class="action-row">${button('查看服务明细','service-detail',result.id,'btn-outline')}${button('安排下一次服务','appointment-create',result.clientId,'btn-outline')}</div>`); return;
+      showSuccess('本次服务已登记',`<h3>${esc(name('clients',result.clientId))} · ${esc(result.project)}</h3><div class="success-summary detail-grid">${pair('套餐剩余',`${model.remaining(result.clientId)} 次`)}${pair('消费业绩',`${money(result.amount)}，归${name('therapists',result.principalId)}`)}${pair('照片留底',`${result.evidencePhotos.length} 张，可在服务明细查看`)}</div><p class="muted">协作人员只保留参与记录，本次仅扣 1 次。</p><div class="action-row">${button('查看服务明细','service-detail',result.id,'btn-outline')}${button('安排下一次服务','appointment-create',result.clientId,'btn-outline')}</div>`); return;
     }
     if (type === 'edit-plan') {
       const summary = String(data.progressSummary || '').trim();
@@ -468,16 +602,22 @@ document.addEventListener('submit', async event => {
   finally {
     f.dataset.busy = 'false';
     submits.forEach(el => { el.disabled = false; el.textContent = el.dataset.original; });
+    updateEvidencePicker();
   }
 });
 
 function exportPreview() {
   const ids = new Set(model.visibleClients(role).map(c => c.id));
   const state = model.state;
-  const data = role.type === 'boss' ? state : {
+  const exportService = s => {
+    const {inputKey, evidencePhotos, ...record} = s;
+    const photos = model.canSeeEvidence(role, s.id) ? evidencePhotos || [] : undefined;
+    return role.type === 'customer' ? {id:s.id,clientId:s.clientId,storeId:s.storeId,date:s.date,time:s.time,project:s.project,principalId:s.principalId,participantIds:s.participantIds,sessions:s.sessions,status:s.status,notes:s.notes,revokeReason:s.revokeReason,recordedAt:s.recordedAt || s.createdAt,recordedBy:s.recordedBy,evidencePhotos:photos} : {...record,...(photos ? {evidencePhotos:photos} : {})};
+  };
+  const data = role.type === 'boss' ? {...state,services:state.services.map(exportService)} : {
     clients:state.clients.filter(c => ids.has(c.id)),
     packages:state.packages.filter(p => ids.has(p.clientId)),
-    services:state.services.filter(s => ids.has(s.clientId)).map(s => role.type === 'customer' ? {id:s.id,clientId:s.clientId,storeId:s.storeId,date:s.date,time:s.time,project:s.project,principalId:s.principalId,participantIds:s.participantIds,sessions:s.sessions,status:s.status,notes:s.notes,revokeReason:s.revokeReason} : s),
+    services:state.services.filter(s => ids.has(s.clientId) || (role.type === 'therapist' && (s.principalId === role.id || s.participantIds.includes(role.id)))).map(exportService),
     appointments:state.appointments.filter(a => ids.has(a.clientId)),
     tasks:state.tasks.filter(t => ids.has(t.clientId) && (role.type === 'customer' ? ['plan','assessment','review','reschedule'].includes(t.type) : t.assigneeId === role.id)),
     reviews:state.reviews.filter(r => ids.has(r.clientId))

@@ -695,3 +695,36 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
 .ease-register-collabs[open] > summary > .icon { transform: rotate(90deg); }
 .ease-register-summary { padding: 12px 14px; margin-bottom: 10px; }
 .ease-register-summary .meta { margin: 4px 0 0; }
+
+/* Photo evidence stays within the service form and is loaded in details only. */
+fieldset.field.evidence-field { border: 1px solid var(--line); border-radius: 12px; padding: 14px; margin: 6px 0 0; min-width: 0; }
+fieldset.field.evidence-field legend { padding: 0 6px; font-size: 14px; font-weight: 600; color: var(--ink); }
+.evidence-field legend small { margin-left: 6px; font-weight: 400; color: #5f6d64; font-size: 12px; }
+.evidence-field .meta { font-size: 12px; line-height: 1.65; margin: 3px 0 10px; }
+.evidence-pick-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.evidence-pick-actions .btn { min-height: 44px; flex: 1; white-space: nowrap; }
+.field input[data-evidence-picker][hidden] { display: none; }
+.evidence-field .evidence-status { margin: 10px 0; }
+.evidence-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
+.evidence-tile { min-width: 0; margin: 0; }
+.evidence-thumbnail { display: block; width: 100%; aspect-ratio: 1; padding: 0; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; background: #f2f5f1; cursor: pointer; }
+.evidence-thumbnail img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.evidence-tile figcaption { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 3px; min-height: 44px; font-size: 12px; color: #5f6d64; }
+.evidence-tile .text-link { font-size: 12px; min-height: 44px; }
+.evidence-error { font-size: 13px; line-height: 1.5; color: #a52c27; margin: 6px 0; }
+.evidence-demo-note { font-size: 11px; color: #5f6d64; line-height: 1.6; margin: 10px 0 0; }
+.evidence-sheet { max-width: none; }
+.service-evidence { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 20px 0; padding: 14px 0; }
+.service-evidence .section-head h3 { margin: 0; }
+.service-evidence .evidence-grid { margin-top: 12px; }
+.photo-viewer { width: min(740px,calc(100vw - 28px)); max-width: none; max-height: calc(100dvh - 28px); border: 0; border-radius: 16px; padding: 0; color: var(--ink); background: #fff; }
+.photo-viewer::backdrop { background: rgba(9,29,20,.72); }
+.photo-viewer-body { padding: 16px; overflow: auto; }
+.photo-viewer-body img { display: block; width: 100%; max-height: calc(100dvh - 180px); object-fit: contain; background: #f2f5f1; border-radius: 8px; }
+.photo-viewer-body .meta { overflow-wrap: anywhere; line-height: 1.6; margin: 12px 0 0; }
+@media (max-width: 760px) {
+  fieldset.field.evidence-field { padding: 12px; }
+  .evidence-grid { gap: 8px; }
+  .photo-viewer { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 12px; }
+  .photo-viewer-body { padding: 12px; }
+}
