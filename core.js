@@ -1094,6 +1094,10 @@ export class DemoModel {
     const clientId = this._id('c'), packageId = this._id('p');
     const client = seedClient(clientId, name, data.ownerId, data.storeId, packageId, phone);
     client.openingNotes = sourceNotes;
+    client.phase = '待康复师确认';
+    client.nextStep = '由负责康复师核对原档案并完善康复计划';
+    client.planNotes = '历史档案已迁入，康复计划待负责康复师确认后发布。';
+    client.homeAdvice = '待负责康复师核对后补充';
     if (String(data.goal || '').trim()) client.goal = String(data.goal).trim();
     const pack = { id: packageId, clientId, name: packageName, amount: minor / 100, amountMinor: minor, total, openingUsed: total - remaining, status: 'current' };
     this.state.clients.push(client);

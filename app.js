@@ -1,7 +1,7 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS } from './core.js?v=20261008-frontdesk';
-import { renderStaff, staffDialog } from './staff.js?v=20261008-frontdesk';
-import { cashDialog, updateCashFields } from './cash.js?v=20261008-frontdesk';
-import { receptionDialog, receptionStores, assertReceptionAppointment } from './reception.js?v=20261008-frontdesk';
+import { DemoModel, TODAY, EVIDENCE_LIMITS } from './core.js?v=20261009-legacy-import';
+import { renderStaff, staffDialog } from './staff.js?v=20261009-legacy-import';
+import { cashDialog, updateCashFields } from './cash.js?v=20261009-legacy-import';
+import { receptionDialog, receptionStores, assertReceptionAppointment } from './reception.js?v=20261009-legacy-import';
 
 let model = new DemoModel();
 let role = {type: 'customer', id: 'c1'};
@@ -299,6 +299,7 @@ function tourDialog() {
 
 const staffTypes = new Set(['register','edit-plan','appointment-create','appointment-edit','followup','add-store','add-therapist','add-frontdesk','transfer-client','import-opening','revoke-service','register-appointment','renew-package']);
 function buildDialog(type, id) {
+  if(type==='import-opening-batch') { assertBoss();return {title:'表格批量录入旧客户',html:'<p class="muted" role="status">正在加载本地表格检查工具…</p>'}; }
   if(role.type==='frontdesk'&&!['record-receipt','cash-ledger','receipt-detail','refund-detail','settle-receipt','record-arrival','appointment-create','appointment-edit','appointment-cancel','appointment-no-show','reset','tour','mini-info'].includes(type))throw new Error('此操作由康复师或老板处理');
   if(type==='record-arrival')return receptionDialog(type,id,ctx());
   if (['record-receipt','cash-ledger','receipt-detail','refund-detail','refund-receipt','settle-receipt','void-receipt','void-refund'].includes(type)) {
@@ -369,6 +370,7 @@ function buildDialog(type, id) {
 function draftKey(type,id) { return `${role.type}:${role.id}:${type}:${id}`; }
 function saveDraft() {
   if (!dialogContext || !sheet.open) return;
+  if(dialogContext.type==='import-opening-batch')return;
   const el = $('#sheet-body form');
   if (!el || el.dataset.succeeded) return;
   const entries = [...new FormData(el).entries()].filter(([, value]) => typeof value === 'string');
@@ -392,12 +394,14 @@ function openDialog(type,id = '') {
   const content = buildDialog(type,id);
   if (!content) throw new Error('当前没有可操作的内容');
   saveDraft();
+  dialogContext?.legacyController?.destroy();
   const key = draftKey(type,id);
-  const saved = drafts.get(key);
+  const saved = type==='import-opening-batch'?null:drafts.get(key);
   dialogContext = {type,id,key,requestId:saved?.requestId || `preview-${++nextRequest}`,evidencePhotos:(saved?.evidencePhotos || []).map(photo => ({...photo})),photoBusy:false,photoError:''};
   $('#sheet-title').textContent = content.title;
   $('#sheet-body').innerHTML = content.html;
   sheet.classList.toggle('evidence-sheet', Boolean($('#sheet-body [data-evidence-section]') || type === 'service-detail'));
+  sheet.classList.toggle('legacy-sheet',type==='import-opening-batch');
   $('.sheet-head .icon-button').innerHTML = icon('x',22);
   restoreDraft(saved);
   updateCashFields($('#sheet-body form'));
@@ -413,16 +417,37 @@ function openDialog(type,id = '') {
   // Focus the dialog heading to avoid opening a mobile keyboard on read-only views.
   $('#sheet-title').tabIndex = -1;
   $('#sheet-title').focus();
+  if(type==='import-opening-batch')void loadLegacyDialog(dialogContext);
+}
+async function loadLegacyDialog(context) {
+  const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
+  try {
+    const legacy=await import('./legacy.js?v=20261009-legacy-import');
+    if(!active())return;
+    $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
+    context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,
+      applyModel:candidate=>{model=candidate;},
+      beforeCommit:async()=>{
+        await new Promise(resolve=>setTimeout(resolve,160));
+        if(active()&&$('#network-toggle').checked){$('#network-toggle').checked=false;throw new Error('模拟提交失败：整批未录入，修正后可重新确认。');}
+      },
+      onSuccess:outcome=>{
+        filters.query='';render();
+        showSuccess(`已录入 ${outcome.importedCount} 位虚构客户`,`<p>这批客户已加入本次演示，套餐余额已保留。</p><p class="notice">未追记历史服务、消费业绩或实收。刷新页面会恢复初始示例。</p>${button('查看客户列表','nav','clients','btn-outline')}`);
+      }});
+  } catch(error) { if(active())$('#sheet-body').innerHTML=`<p class="form-error" role="alert">${esc(error.message || '表格工具暂未加载，请关闭后重新打开。')}</p>`; }
 }
 function closeDialog(keepDraft = true) {
   closePhoto();
   if (keepDraft) saveDraft();
+  dialogContext?.legacyController?.destroy();
   if (sheet.open) sheet.close();
   dialogContext = null;
   if (focusBeforeDialog?.isConnected) focusBeforeDialog.focus();
 }
 function showSuccess(title,html) {
   closePhoto();
+  dialogContext?.legacyController?.destroy();
   $('#sheet-title').textContent = title;
   $('#sheet-body').innerHTML = `<div class="success-icon">${icon('circle-check',40)}</div>${html}<div class="dialog-footer">${button('完成','close-dialog','','btn-primary')}</div>`;
   dialogContext = null;
@@ -549,6 +574,7 @@ document.addEventListener('submit', async event => {
   if (!f.dataset.form) return;
   event.preventDefault();
   if (f.dataset.busy === 'true' || f.dataset.succeeded === 'true') return;
+  if(f.dataset.form==='import-opening-batch'){void dialogContext?.legacyController?.submit();return;}
   if (!f.reportValidity()) return;
   const type = f.dataset.form;
   if (['register','register-appointment'].includes(type)) {

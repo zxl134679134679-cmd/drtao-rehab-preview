@@ -1,4 +1,4 @@
-import { cashOverview } from './cash.js?v=20261008-frontdesk';
+import { cashOverview } from './cash.js?v=20261009-legacy-import';
 
 export function receptionStores(ctx) {
   const account=ctx.model.state.frontDesks.find(r=>r.id===ctx.role.id&&r.active!==false);
