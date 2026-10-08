@@ -386,6 +386,20 @@ export class DemoModel {
     return row;
   }
 
+  _closeAppointmentTasks(appointment, reason, role) {
+    const completedAt = new Date().toISOString();
+    const tasks = this.state.tasks.filter(task => task.appointmentId === appointment.id &&
+      task.status === 'pending' && ['reschedule', 'service_note'].includes(task.type));
+    tasks.forEach(task => {
+      task.status = 'completed';
+      task.completedBy = role.id;
+      task.completedAt = completedAt;
+      task.closedByAppointmentStatus = appointment.status;
+      task.completionReason = reason;
+    });
+    return tasks.map(task => task.id);
+  }
+
   cancelAppointment(id, reason, role) {
     const row = this.state.appointments.find(item => item.id === id);
     if (!row) throw new Error('预约记录不存在');
@@ -393,8 +407,8 @@ export class DemoModel {
     if (!['confirmed', 'reschedule_requested'].includes(row.status)) throw new Error('该预约已结束或已取消');
     row.cancelReason = required(reason, '取消原因');
     row.status = 'cancelled';
-    this.state.tasks.filter(item => item.appointmentId === id && item.type === 'reschedule').forEach(item => { item.status = 'completed'; });
-    this._log('appointment_cancelled', { appointmentId: id, clientId: row.clientId, reason: row.cancelReason }, role);
+    const closedTaskIds = this._closeAppointmentTasks(row, row.cancelReason, role);
+    this._log('appointment_cancelled', { appointmentId: id, clientId: row.clientId, reason: row.cancelReason, closedTaskIds }, role);
     return row;
   }
 
@@ -410,10 +424,8 @@ export class DemoModel {
     row.noShowReason = why;
     row.noShowBy = role.id;
     row.noShowAt = new Date().toISOString();
-    this.state.tasks.filter(item => item.appointmentId === id && item.type === 'reschedule' && item.status === 'pending').forEach(item => {
-      item.status = 'completed'; item.completedBy = role.id; item.completedAt = row.noShowAt;
-    });
-    this._log('appointment_no_show', { appointmentId: id, clientId: row.clientId, reason: why }, role);
+    const closedTaskIds = this._closeAppointmentTasks(row, why, role);
+    this._log('appointment_no_show', { appointmentId: id, clientId: row.clientId, reason: why, closedTaskIds }, role);
     return row;
   }
 

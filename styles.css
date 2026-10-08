@@ -500,3 +500,198 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
   .boss-footer { justify-content: stretch; }
   .boss-footer > .btn { flex: 1 1 145px; font-size: 12px; }
 }
+
+/* Customer paths: a clear plan, the next appointment, and direct actions. */
+.ease-customer-home .hero { padding: 16px 20px 29px; }
+.ease-customer-home .hero-label { font-size: 14px; margin-bottom: 6px; }
+.ease-customer-home .hero-title { font-size: 26px; margin-bottom: 10px; line-height: 1.35; }
+.ease-customer-home .next-step { font-size: 13px; margin-top: 10px; padding-top: 9px; }
+.ease-customer-home .btn.hero-button { margin-top: 10px; font-size: 15px; }
+.ease-customer-home .customer-surface { padding: 0 20px; }
+.ease-customer-home .detail-section { padding: 14px 0; }
+.ease-customer-home .detail-section.ease-usage-section { padding: 13px 0; }
+.ease-usage { background: transparent; display: flex; align-items: center; justify-content: space-between; gap: 14px; text-align: left; width: 100%; padding: 0; min-height: 54px; }
+.ease-usage-label { display: flex; gap: 8px; align-items: center; font-size: 15px; font-weight: 600; }
+.ease-usage-label .tag { font-size: 10px; }
+.ease-usage-total { display: block; font-size: 12px; color: #5f6d64; margin-top: 6px; }
+.ease-usage-value { display: flex; align-items: center; gap: 6px; color: var(--forest); font-size: 13px; white-space: nowrap; }
+.ease-usage-value strong { font-size: 36px; line-height: 1.2; font-weight: 650; font-variant-numeric: tabular-nums; }
+.ease-balance-note { background: #faf4e8; color: #73501f; border-radius: 9px; margin-top: 10px; padding: 10px 12px; font-size: 12px; }
+.ease-balance-note .text-link { padding: 5px 0 0; }
+.ease-section-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ease-section-head h2 { display: flex; align-items: center; gap: 8px; font-size: 17px; }
+.ease-section-head .text-link { font-size: 12px; padding: 0; min-height: 44px; white-space: nowrap; }
+.ease-customer-home .ease-next .service-date { font-size: 21px; margin-top: 2px; }
+.ease-customer-home .ease-next .service-project { font-size: 15px; margin-top: 3px; }
+.ease-customer-home .ease-next .service-meta { font-size: 12px; margin-top: 4px; color: #5f6d64; }
+.ease-inline-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.ease-inline-actions .btn { min-height: 44px; padding: 8px 13px; font-size: 12px; }
+.ease-inline-actions .btn-quiet { border: 1px solid var(--line); }
+.ease-request-note { padding: 9px 11px; margin-top: 9px; border-radius: 8px; background: #f0f6ec; color: #35593c; font-size: 12px; line-height: 1.7; }
+.ease-customer-home .progress-row .muted { color: #5f6d64; font-size: 12px; padding-left: 9px; }
+.ease-customer-home .progress-row { gap: 10px; }
+.ease-customer-home .ease-recent h3 { font-size: 15px; margin-top: 1px; }
+.ease-customer-home .ease-recent .meta { margin-top: 3px; color: #5f6d64; }
+.ease-empty { font-size: 13px; color: #5f6d64; line-height: 1.8; }
+.ease-empty > p { color: var(--ink); margin: 7px 0 2px; }
+.ease-empty > span { display: block; font-size: 12px; }
+.ease-customer-page { padding-bottom: 18px; }
+.ease-customer-page .page-head { margin: 20px; }
+.ease-record-list { padding: 0 20px; display: grid; gap: 14px; }
+.ease-record-card { padding: 16px; border: 1px solid var(--line); border-radius: 14px; }
+.ease-record-card h2 { font-size: 17px; margin: 7px 0 3px; }
+.ease-record-date { font-size: 13px; color: #5f6d64; }
+.ease-record-note { border-top: 1px solid var(--line); margin-top: 12px; }
+.ease-record-note > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-size: 12px; color: #5f6d64; }
+.ease-record-note > summary::after { content: '+'; margin-left: auto; font-size: 18px; }
+.ease-record-note[open] > summary::after { content: '−'; }
+.ease-record-note > p { padding-bottom: 8px; font-size: 13px; overflow-wrap: anywhere; }
+.ease-review-prompt { margin: 0 20px 16px; padding: 12px; border-radius: 12px; background: #f0f6ec; display: flex; align-items: center; gap: 12px; font-size: 12px; color: #35593c; }
+.ease-review-prompt > span { flex: 1; line-height: 1.7; }
+.ease-review-prompt > .btn { white-space: nowrap; padding: 8px 13px; }
+.ease-page-links { display: flex; flex-wrap: wrap; gap: 8px 20px; margin: 12px 20px 0; }
+.ease-page-links .text-link { min-height: 44px; font-size: 12px; }
+.ease-customer-page .profile-card { padding: 23px 20px 19px; }
+.ease-customer-page .profile-card h1 { font-size: 22px; }
+.ease-team { padding: 15px 17px; border-radius: 14px; background: #f3f7f0; margin: 0 20px 18px; }
+.ease-team h2 { font-size: 16px; }
+.ease-team-info { display: grid; gap: 6px; margin: 10px 0 3px; font-size: 12px; color: #5f6d64; }
+.ease-team-info strong { color: var(--ink); font-size: 14px; margin-left: 8px; }
+.ease-team .text-link { min-height: 44px; padding: 0; font-size: 12px; }
+.ease-profile-menu { margin: 0 20px; }
+.ease-menu-item, .ease-home-advice > summary { display: flex; gap: 11px; align-items: center; min-height: 56px; width: 100%; text-align: left; padding: 9px 0; border-bottom: 1px solid var(--line); background: none; font-size: 14px; list-style: none; cursor: pointer; }
+.ease-menu-item > .icon:last-child, .ease-home-advice > summary > .icon:last-child { margin-left: auto; }
+.ease-home-advice > summary::-webkit-details-marker { display: none; }
+.ease-home-advice[open] > summary > .icon:last-child { transform: rotate(90deg); }
+.ease-home-advice > div { padding: 12px 14px; background: #f5f8f3; border-radius: 8px; font-size: 13px; }
+.ease-home-advice .text-link { font-size: 12px; min-height: 44px; }
+.ease-reminder { margin: 15px 20px 0; font-size: 12px; color: #5f6d64; }
+.ease-reminder > summary { min-height: 44px; cursor: pointer; padding: 10px 0; }
+.ease-reminder .check { padding: 5px 0 8px; }
+.ease-brand-caption { margin: 16px 20px 0; font-size: 11px; color: #5f6d64; text-align: center; }
+@media (max-width: 380px) {
+  .ease-customer-home .hero-title { font-size: 24px; }
+  .ease-customer-home .fact-line { font-size: 12px; gap: 9px; }
+  .ease-customer-home .fact-line strong { font-size: 14px; }
+  .ease-usage-label .tag { display: none; }
+}
+
+/* Therapist paths: today's service cards and complete, collapsible follow-ups. */
+.ease-work, .ease-client-list, .ease-performance { max-width: 1080px; margin: 0 auto; }
+.ease-work-head-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+.ease-work-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin: 0 0 20px; }
+.ease-work-stat { border: 1px solid var(--line); border-radius: 14px; background: #fff; padding: 17px 20px; min-width: 0; }
+.ease-work-stat > span { display: block; color: #5f6d64; font-size: 13px; }
+.ease-work-stat > strong { display: block; color: var(--forest); font-size: 29px; line-height: 1.4; margin: 6px 0 3px; font-weight: 650; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ease-work-stat small { font-size: 11px; color: #5f6d64; font-weight: 400; }
+.ease-work-stat-amount { background: var(--forest); border-color: var(--forest); }
+.ease-work-stat-amount > span, .ease-work-stat-amount > strong { color: #fff; }
+.ease-work-stat-amount > small { color: #deeedf; }
+.ease-work-main, .ease-work-more { padding: 20px; border: 1px solid var(--line); border-radius: 16px; background: #fff; margin-bottom: 18px; }
+.ease-work-main .section-head, .ease-work-more .section-head { margin-bottom: 13px; }
+.ease-work-more .section-head .text-link { font-size: 12px; min-height: 44px; padding: 0; }
+.ease-service-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,310px),1fr)); gap: 14px; align-items: start; }
+.ease-service-card { padding: 17px; border: 1px solid var(--line); border-radius: 12px; background: #fff; min-width: 0; }
+.ease-service-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.ease-service-head h3 { font-size: 19px; margin-top: 3px; }
+.ease-service-time { font-size: 16px; color: var(--forest); font-weight: 650; }
+.ease-service-project { font-size: 14px; font-weight: 500; margin-bottom: 5px; }
+.ease-service-card .meta { color: #5f6d64; font-size: 12px; }
+.ease-service-actions { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-top: 13px; }
+.ease-service-actions .text-link { font-size: 12px; min-height: 44px; }
+.ease-service-options { border-top: 1px solid var(--line); margin-top: 12px; }
+.ease-service-options > summary { display: flex; align-items: center; gap: 7px; min-height: 44px; cursor: pointer; font-size: 12px; color: #5f6d64; list-style: none; }
+.ease-service-options > summary::-webkit-details-marker { display: none; }
+.ease-service-options .action-row { margin: 0; }
+.ease-service-warning { font-size: 12px; color: #73501f; margin-top: 8px; }
+.ease-work-notice { border-top: 1px solid var(--line); background: #fff; }
+.ease-work-notice > summary { min-height: 58px; display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; font-size: 14px; }
+.ease-work-notice > summary::-webkit-details-marker { display: none; }
+.ease-work-notice > summary strong { font-weight: 500; }
+.ease-fold-count { margin-left: auto; font-size: 12px; color: #5f6d64; white-space: nowrap; }
+.ease-work-urgent .ease-fold-count { padding: 3px 7px; border-radius: 6px; background: #faf0df; color: #73501f; font-weight: 600; }
+.ease-work-notice[open] > summary > .icon:last-child, .ease-service-options[open] > summary > .icon:last-child, .ease-performance-filters[open] > summary > .icon:last-child { transform: rotate(90deg); }
+.ease-fold-body { padding: 3px 0 16px; }
+.ease-fold-body .row { gap: 12px; }
+.ease-fold-body .row-main { min-width: 0; }
+.ease-fold-body .row-main strong, .ease-fold-body .row-main .meta { overflow-wrap: anywhere; }
+.ease-fold-body .meta { font-size: 12px; color: #5f6d64; }
+.ease-reminder-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.ease-register-clients { display: grid; gap: 10px; margin-top: 15px; }
+.ease-register-client { width: 100%; padding: 13px; border-radius: 10px; border: 1px solid var(--line); background: #fff; display: flex; align-items: center; gap: 12px; text-align: left; min-height: 68px; }
+.ease-register-client > span:first-child { flex: 1; min-width: 0; }
+.ease-register-client strong { font-size: 15px; display: block; }
+.ease-register-client > span > span { display: block; color: #5f6d64; font-size: 12px; margin-top: 5px; }
+.ease-register-balance { color: var(--forest); font-size: 13px; white-space: nowrap; }
+.ease-client-card { padding: 18px; }
+.ease-client-card .section-head { align-items: start; margin-bottom: 12px; }
+.ease-client-card .section-head h2 { font-size: 18px; }
+.ease-client-card .meta { font-size: 12px; color: #5f6d64; }
+.ease-client-schedule { display: grid; gap: 4px; background: #f5f8f3; padding: 11px 13px; border-radius: 9px; margin-bottom: 10px; }
+.ease-client-schedule > span { font-size: 11px; color: #5f6d64; }
+.ease-client-schedule > strong { color: var(--forest); font-size: 15px; }
+.ease-client-schedule > small { color: #5f6d64; font-size: 12px; }
+.ease-client-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.ease-client-actions .btn { flex: 1; }
+.ease-list-count { font-size: 12px; color: #5f6d64; margin: -5px 0 13px; }
+.ease-performance-filters { margin-bottom: 18px; }
+.ease-performance-filters > summary { display: flex; align-items: center; justify-content: space-between; cursor: pointer; min-height: 44px; font-size: 13px; color: #5f6d64; }
+.ease-performance-filters > summary strong { font-weight: 500; }
+.ease-performance-filters .filters { margin: 10px 0 0; }
+.ease-performance-note { font-size: 12px; color: #5f6d64; margin-bottom: 12px; }
+.ease-collaboration-records { padding: 0 20px; border: 1px solid var(--line); border-radius: 14px; }
+@media (max-width: 760px) {
+  .ease-work .page-head, .ease-client-list .page-head { gap: 13px; margin-bottom: 17px; }
+  .ease-work h1, .ease-client-list h1, .ease-performance h1 { font-size: 24px; }
+  .ease-work-head-actions { width: 100%; }
+  .ease-work-head-actions .btn { flex: 1; }
+  .ease-work-stats { gap: 8px; margin-bottom: 16px; }
+  .ease-work-stat { padding: 12px 10px; border-radius: 12px; }
+  .ease-work-stat > span { font-size: 11px; }
+  .ease-work-stat > strong { font-size: 25px; }
+  .ease-work-stat-amount > strong { font-size: clamp(20px,5.8vw,25px); }
+  .ease-work-stat small { font-size: 10px; line-height: 1.6; }
+  .ease-work-main, .ease-work-more { padding: 15px; border-radius: 14px; margin-bottom: 16px; }
+  .ease-work-main h2, .ease-work-more h2 { font-size: 17px; }
+  .ease-service-card { padding: 14px; }
+  .ease-service-head h3 { font-size: 18px; }
+  .ease-service-list { grid-template-columns: 1fr; }
+  .ease-work-more > .section-head { gap: 8px; margin-bottom: 4px; }
+  .ease-work-more > .section-head .text-link { font-size: 11px; }
+  .ease-work-notice > summary { min-height: 55px; font-size: 13px; gap: 8px; }
+  .ease-fold-body .row { flex-wrap: wrap; }
+  .ease-fold-body .row > .action-row { margin: 3px 0 0; }
+  .ease-client-list .page-head > .btn { min-height: 44px; }
+  .ease-performance .section.card { border: 0; background: transparent; padding: 0; }
+  .ease-performance .table-wrap { overflow: visible; }
+  .ease-performance .data-table { display: block; width: 100%; min-width: 0; }
+  .ease-performance .data-table thead { display: none; }
+  .ease-performance .data-table tbody { display: grid; gap: 14px; }
+  .ease-performance .data-table tr { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+  .ease-performance .data-table td { display: block; min-width: 0; white-space: normal; padding: 7px 0; border: 0; font-size: 13px; overflow-wrap: anywhere; }
+  .ease-performance .data-table td::before { content: attr(data-label); display: block; color: #5f6d64; font-size: 10px; margin-bottom: 3px; }
+  .ease-performance .data-table td:first-child, .ease-performance .data-table td:nth-child(3), .ease-performance .data-table td:last-child { grid-column: 1 / -1; }
+  .ease-performance .data-table td:first-child { grid-row: 1; }
+  .ease-performance .data-table td:nth-child(2) { grid-column: 1; grid-row: 2; }
+  .ease-performance .data-table td:nth-child(4) { grid-column: 2; grid-row: 2; }
+  .ease-performance .data-table td:nth-child(4) .amount { font-size: 18px; }
+  .ease-performance .data-table td:first-child .text-link { font-size: 16px; min-height: 32px; }
+  .ease-performance .data-table td:last-child { border-top: 1px solid var(--line); padding: 8px 0 0; }
+  .ease-performance .data-table td:last-child::before { display: none; }
+  .ease-performance .data-table td:last-child .text-link { min-height: 44px; }
+  .ease-performance .data-table td .meta { color: #5f6d64; font-size: 12px; }
+  .ease-collaboration-records { padding: 0 15px; }
+}
+
+.ease-work-alert { padding: 0 20px; background: #fff; border: 1px solid #e8dbc6; border-radius: 14px; margin-bottom: 18px; }
+.ease-work-alert .ease-work-notice { border-top: 0; }
+.ease-register-collabs { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
+.ease-register-collabs > summary { min-height: 44px; padding: 10px 0; cursor: pointer; font-size: 13px; color: #5f6d64; }
+.ease-register-collabs .field { margin: 0 0 12px; }
+@media (max-width: 760px) { .ease-work-alert { padding: 0 15px; margin-bottom: 16px; } }
+
+.ease-register-collabs > summary { display: flex; align-items: center; justify-content: space-between; gap: 8px; list-style: none; }
+.ease-register-collabs > summary::-webkit-details-marker { display: none; }
+.ease-register-collabs[open] > summary > .icon { transform: rotate(90deg); }
+.ease-register-summary { padding: 12px 14px; margin-bottom: 10px; }
+.ease-register-summary .meta { margin: 4px 0 0; }
