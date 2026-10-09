@@ -1,5 +1,5 @@
 import { DemoModel, TODAY, EVIDENCE_LIMITS } from './core.js?v=20261009-legacy-import';
-import { renderStaff, staffDialog } from './staff.js?v=20261009-legacy-import';
+import { renderStaff, staffDialog } from './staff.js?v=20261009-photo-hint';
 import { cashDialog, updateCashFields } from './cash.js?v=20261009-legacy-import';
 import { receptionDialog, receptionStores, assertReceptionAppointment } from './reception.js?v=20261009-legacy-import';
 
@@ -177,6 +177,8 @@ function updateEvidencePicker() {
   if (!section || !dialogContext) return;
   const photos = dialogContext.evidencePhotos || [];
   const busy = dialogContext.photoBusy || $('#sheet-body form')?.dataset.busy === 'true';
+  const hint = $('#sheet-body [data-registration-photo-hint]');
+  if (hint) hint.textContent = dialogContext.photoBusy ? '留底照片正在处理，请稍候。' : photos.length ? `已添加 ${photos.length} 张留底照片，确认小结后可登记。` : '还需添加至少 1 张留底照片，再确认登记。';
   section.setAttribute('aria-busy', String(Boolean(busy)));
   section.querySelector('[data-evidence-status]').textContent = dialogContext.photoBusy ? '正在处理照片，请稍候…' : photos.length ? `已添加 ${photos.length} / ${EVIDENCE_LIMITS.maxCount} 张，可点开核对。` : '尚未添加照片。请先留底，再确认消课。';
   section.querySelector('[data-evidence-list]').innerHTML = photos.map((photo, i) => `<figure class="evidence-tile"><button type="button" class="evidence-thumbnail" data-action="draft-photo" data-id="${esc(photo.id)}" aria-label="预览照片 ${i + 1}" ${busy ? 'disabled' : ''}><img src="${esc(photo.dataUrl)}" width="${photo.width}" height="${photo.height}" alt="待保存的留底照片 ${i + 1}"></button><figcaption><span>照片 ${i + 1}</span><button type="button" class="text-link" data-action="remove-photo" data-id="${esc(photo.id)}" aria-label="删除照片 ${i + 1}" ${busy ? 'disabled' : ''}>删除</button></figcaption></figure>`).join('');
@@ -184,6 +186,7 @@ function updateEvidencePicker() {
   const error = section.querySelector('[data-evidence-error]');
   error.hidden = !dialogContext.photoError;
   error.textContent = dialogContext.photoError || '';
+  section.querySelectorAll('[data-action="evidence-pick"]').forEach(el => el.setAttribute('aria-describedby', dialogContext.photoError ? 'evidence-help evidence-error' : 'evidence-help'));
 }
 
 async function prepareEvidencePhoto(file) {
@@ -582,8 +585,8 @@ document.addEventListener('submit', async event => {
     if (!dialogContext?.evidencePhotos?.length) {
       dialogContext.photoError = '请至少添加 1 张本次服务的留底照片，再确认消课。';
       updateEvidencePicker();
-      f.querySelector('[data-evidence-section]')?.scrollIntoView({block:'nearest'});
-      f.querySelector('[data-action="evidence-pick"]')?.focus();
+      f.querySelector('[data-action="evidence-pick"]')?.focus({preventScroll:true});
+      f.querySelector('[data-evidence-section]')?.scrollIntoView({block:'start'});
       return;
     }
   }
@@ -693,8 +696,11 @@ function exportPreview() {
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='涛博士-演示记录.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000); toast('已导出当前身份可见的演示记录');
 }
 
-// Collapse the controls on phones while retaining easy access to role switching.
-if (window.matchMedia('(max-width: 700px)').matches) $('.preview-controls').open = false;
+// Use the layout breakpoint for the initial view and when entering a phone layout.
+// A manual toggle stays in place while the viewport remains on the same side.
+const compactPreview = window.matchMedia('(max-width: 760px)');
+$('.preview-controls').open = !compactPreview.matches;
+compactPreview.addEventListener('change', event => { $('.preview-controls').open = !event.matches; });
 const previewEntry=new URLSearchParams(location.search).get('preview');
 if(previewEntry==='boss')switchRole('boss:boss');
 else if(previewEntry==='frontdesk'&&model.state.frontDesks?.find(f=>f.active!==false))switchRole(`frontdesk:${model.state.frontDesks.find(f=>f.active!==false).id}`);
