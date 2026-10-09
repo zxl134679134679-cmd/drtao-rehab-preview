@@ -6,7 +6,7 @@ import { DemoModel, ensureStorePackageExamples } from './core.js';
 import { ensureEvaluations } from './evaluations.js';
 import { ensurePaperIntakes, paperIntakeDialog } from './paper-intake.js';
 import { renderReception, receptionIntakeSuccess } from './reception.js';
-import { renderStaff } from './staff.js';
+import { renderStaff, personnelDialog } from './staff.js';
 import { renderManager, managerDialog } from './manager.js';
 import { scheduleDialog } from './schedules-ui.js';
 
@@ -41,7 +41,7 @@ test('actual application dispatch opens paper forms for authorized staff and nev
   const m=fixture(),source=await readFile(new URL('./app.js',import.meta.url),'utf8');
   const start=source.indexOf('function buildDialog('),end=source.indexOf('\nfunction draftKey(',start);
   const role={type:'manager',id:'m1'};
-  const scope={model:m,role,customerBookingTypes:new Set(),paperIntakeDialog,managerDialog,scheduleDialog,ctx:()=>ctx(m,role,'manager-overview')};
+  const scope={model:m,role,customerBookingTypes:new Set(),paperIntakeDialog,managerDialog,scheduleDialog, personnelDialog,ctx:()=>ctx(m,role,'manager-overview')};
   vm.runInNewContext(source.slice(start,end)+'\nglobalThis.open=buildDialog;',scope);
   assert.match(scope.open('paper-intake-create','c1').html,/客户希望达到的目标/);
   assert.throws(()=>scope.open('paper-intake-create','c2'));

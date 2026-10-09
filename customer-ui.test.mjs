@@ -1,3 +1,4 @@
+import { personnelDialog } from './staff.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -32,7 +33,7 @@ function originalFunction(name, next) {
 // is replaced. DOM and download transport are outside this finite test scope.
 function appReader(m, role, view = 'home') {
   const scope = { model: m, role, view, filters: {}, TODAY, hourTimeField,
-    customerBookingTypes, customerRequestDialog, renderCustomerHome, renderBookingInbox, renderRequestHistory, scheduleDialog,
+    customerBookingTypes, customerRequestDialog, renderCustomerHome, renderBookingInbox, renderRequestHistory, scheduleDialog, personnelDialog,
     serviceEvidence: () => '', preferences: new Map(), Intl, Date };
   const helperNames = ['esc','find','name','icon','money','date','weekday','button','link','hidden','field','textarea','form','pair','ctx','customerCtx','clientServices','appointments','reviewFor','currentClient','canEditPlan'];
   const helpers = helperNames.map(name => {

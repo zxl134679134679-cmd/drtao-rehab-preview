@@ -1,0 +1,22 @@
+/* Keep personnel management readable on the same phone used for reception. */
+.personnel-page .section-head { flex-wrap: wrap; align-items: flex-start; }
+.personnel-page .section-head > div, .personnel-page .row-main { min-width: 0; }
+.personnel-page .muted, .personnel-page .meta, .personnel-page strong { overflow-wrap: anywhere; }
+.personnel-page .personnel-contact { margin: 3px 0 0; }
+.personnel-page .data-table td .action-row { justify-content: flex-start; }
+@media (max-width: 640px) {
+  .personnel-page > .page-head > .action-row { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); width: 100%; }
+  .personnel-page > .page-head > .action-row > .btn:first-child { grid-column: 1 / -1; }
+  .personnel-page > .page-head > .action-row > .btn { width: 100%; white-space: nowrap; }
+  .personnel-page .table-wrap { overflow: visible; }
+  .personnel-page .data-table, .personnel-page .data-table tbody { display: block; width: 100%; min-width: 0; }
+  .personnel-page .data-table thead { display: none; }
+  .personnel-page .data-table tr { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 10px 14px; padding: 16px 0; border-bottom: 1px solid var(--line); }
+  .personnel-page .data-table tr:first-child { padding-top: 0; }
+  .personnel-page .data-table tr:last-child { border-bottom: 0; padding-bottom: 0; }
+  .personnel-page .data-table td { display: block; padding: 0; border: 0; min-width: 0; white-space: normal; }
+  .personnel-page .data-table td:first-child, .personnel-page .data-table td:last-child { grid-column: 1 / -1; }
+  .personnel-page .data-table td::before { content: attr(data-label); display: block; color: var(--muted); font-size: 11px; margin-bottom: 4px; }
+  .personnel-page .row > .action-row { width: 100%; justify-content: flex-start; }
+  .personnel-page .section-head p { margin-bottom: 0; }
+}

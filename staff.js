@@ -1,8 +1,8 @@
 /* Employee and owner views for the in-memory review prototype. */
-import { renderPaperIntakeInbox } from './paper-intake.js?v=20261009-scheduling';
-import { cashOverview } from './cash.js?v=20261009-scheduling';
-import { hourTimeField } from './hour-picker.js?v=20261009-scheduling';
-import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261009-scheduling';
+import { renderPaperIntakeInbox } from './paper-intake.js?v=20261009-personnel';
+import { cashOverview } from './cash.js?v=20261009-personnel';
+import { hourTimeField } from './hour-picker.js?v=20261009-personnel';
+import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261009-personnel';
 const TODAY = '2026-10-08';
 
 function h(ctx) {
@@ -270,8 +270,56 @@ function overview(ctx) {
 }
 
 function team(ctx) {
+  assertPersonnelBoss(ctx);
   const x = h(ctx);
-  return `<div class="page-head"><div><span class="eyebrow">门店与人员</span><h1>随着新门店一起成长</h1><p class="muted">新增门店和账号后，继续使用同一套客户档案和服务记录。</p></div><div class="action-row">${x.action('新增门店', 'add-store', '', 'btn-outline', 'plus')}${x.action('新增康复师', 'add-therapist', '', 'btn-primary', 'users')}</div></div><section class="section"><div class="section-head"><h2>门店</h2><span class="muted">${x.state.stores.length} 家门店</span></div><div class="client-grid">${x.state.stores.map(s => `<article class="card person-card"><span class="eyebrow">${x.ico('map-pin', 18)} 服务门店</span><h2>${x.esc(s.name)}</h2><p class="muted">${x.esc(s.address || '地址待完善')}</p><div class="meta">${x.state.therapists.filter(t => t.storeId === s.id && t.active !== false).length} 位康复师 · 客户档案跨店共享</div></article>`).join('')}</div></section><section class="section card"><div class="section-head"><h2>康复师账号</h2><span class="muted">停用账号会保留历史服务</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>康复师</th><th>所属门店</th><th>负责客户</th><th>账号状态</th><th>操作</th></tr></thead><tbody>${x.state.therapists.map(t => `<tr><td><strong>${x.esc(t.name)}</strong></td><td>${x.esc(x.name('stores', t.storeId))}</td><td>${x.state.clients.filter(c => c.ownerId === t.id).length} 位</td><td>${x.tag(t.active === false ? '已停用' : '使用中', t.active === false ? '' : 'green')}</td><td><div class="action-row">${x.link('业绩明细', 'therapist-performance', t.id)}${t.active !== false ? x.action('停用', 'deactivate-therapist', t.id, 'btn-small btn-quiet') : ''}</div></td></tr>`).join('')}</tbody></table></div></section><section class="section card"><div class="section-head"><div><h2>前台账号</h2><p class="muted">按门店接待、安排预约与录入收款。退款、更正和套餐调整由老板处理。</p></div>${x.action('新增前台','add-frontdesk','','btn-outline','plus')}</div><div class="line-list">${(x.state.frontDesks||[]).map(f=>`<div class="row"><div><strong>${x.esc(f.name)}</strong><p class="meta">${x.esc(f.storeIds.map(id=>x.name('stores',id)).join('、'))} · ${f.active===false?'已停用':'使用中'}</p></div><div class="action-row">${x.action('工作记录','frontdesk-work',f.id,'btn-small btn-outline')}${f.active!==false?x.action('停用','deactivate-frontdesk',f.id,'btn-small btn-quiet'):''}</div></div>`).join('')||'<p class="muted">尚未添加前台账号。</p>'}</div></section><section class="section card"><div class="section-head"><div><h2>店长账号</h2><p class="muted">每位店长绑定一家门店，查看本店工作。退款、更正和人员管理由老板处理；客户私人评价仅老板可见。</p></div>${x.action('新增店长','add-manager','','btn-outline','plus')}</div><div class="line-list">${(x.state.storeManagers||[]).map(m=>`<div class="row"><div><strong>${x.esc(m.name)}</strong><p class="meta">${x.esc(x.name('stores',m.storeId))} · ${m.active?'使用中':'已停用'}</p></div>${m.active?x.action('停用','deactivate-manager',m.id,'btn-small btn-quiet'):''}</div>`).join('')||'<p class="muted">尚未添加店长账号。</p>'}</div></section><section class="section card"><div class="section-head"><div><h2>旧档案迁入</h2><p class="muted">录入客户、负责人和期初剩余次数。历史已使用次数不自动计入新系统消费业绩。</p></div>${x.action('录入一位客户', 'import-opening', '', 'btn-outline', 'plus')}</div></section>`;
+  const status = person => x.tag(person.active === false ? '已停用' : '使用中', person.active === false ? '' : 'green');
+  const contact = person => `<p class="meta personnel-contact">手机号：${x.esc(person.phone || '未填写手机号')}</p>`;
+  const staffRow = (person, kind) => `<div class="row"><div class="row-main"><strong>${x.esc(person.name)}</strong>${contact(person)}<p class="meta">${x.esc(kind === 'frontdesk' ? (person.storeIds || []).map(id => x.name('stores', id)).join('、') : x.name('stores', person.storeId))} · ${kind === 'frontdesk' ? '前台' : '店长'} ${status(person)}</p></div><div class="action-row">${x.action('编辑资料', `edit-${kind}`, person.id, 'btn-small btn-outline')}${kind === 'frontdesk' ? x.action('工作记录', 'frontdesk-work', person.id, 'btn-small btn-quiet') : ''}${person.active !== false ? x.action('停用', `deactivate-${kind}`, person.id, 'btn-small btn-quiet') : ''}</div></div>`;
+  return `<div class="personnel-page"><div class="page-head"><div><span class="eyebrow">老板工作台</span><h1>人员管理</h1><p class="muted">资料和权限由老板维护。新增时选好岗位和门店；已有人员点击“编辑资料”。</p></div><div class="action-row">${x.action('新增康复师', 'add-therapist', '', 'btn-primary', 'plus')}${x.action('新增前台', 'add-frontdesk', '', 'btn-outline', 'plus')}${x.action('新增店长', 'add-manager', '', 'btn-outline', 'plus')}</div></div>
+    <section class="section card"><div class="section-head"><div><h2>康复师</h2><p class="muted">负责客户、评估、服务与消课。停用后保留历史服务。</p></div><span class="muted">${x.state.therapists.filter(t => t.active !== false).length} 位在职</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>姓名 / 手机号</th><th>所属门店</th><th>负责客户</th><th>状态</th><th>操作</th></tr></thead><tbody>${x.state.therapists.map(t => `<tr><td data-label="康复师"><strong>${x.esc(t.name)}</strong>${contact(t)}</td><td data-label="所属门店">${x.esc(x.name('stores', t.storeId))}</td><td data-label="负责客户">${x.state.clients.filter(c => c.ownerId === t.id).length} 位</td><td data-label="状态">${status(t)}</td><td data-label="操作"><div class="action-row">${x.action('编辑资料', 'edit-therapist', t.id, 'btn-small btn-outline')}${x.link('业绩明细', 'therapist-performance', t.id)}${t.active !== false ? x.action('停用', 'deactivate-therapist', t.id, 'btn-small btn-quiet') : ''}</div></td></tr>`).join('')}</tbody></table>${!x.state.therapists.length ? '<p class="empty">还没有康复师，请点击“新增康复师”。</p>' : ''}</div></section>
+    <section class="section card"><div class="section-head"><div><h2>前台</h2><p class="muted">在授权门店建档、接待、预约和录入收款；排班只能申请调整。</p></div>${x.action('新增前台', 'add-frontdesk', '', 'btn-outline', 'plus')}</div><div class="line-list">${(x.state.frontDesks || []).map(person => staffRow(person, 'frontdesk')).join('') || '<p class="empty">还没有前台，请点击“新增前台”。</p>'}</div></section>
+    <section class="section card"><div class="section-head"><div><h2>店长</h2><p class="muted">查看本店工作、建档和管理本店排班。人员管理、退款更正及私人评价由老板处理。</p></div>${x.action('新增店长', 'add-manager', '', 'btn-outline', 'plus')}</div><div class="line-list">${(x.state.storeManagers || []).map(person => staffRow(person, 'manager')).join('') || '<p class="empty">还没有店长，请点击“新增店长”。</p>'}</div></section>
+    <section class="section"><div class="section-head"><div><h2>门店</h2><p class="muted">${x.state.stores.length} 家门店 · 新店也在这里统一管理</p></div>${x.action('新增门店', 'add-store', '', 'btn-outline', 'plus')}</div><div class="client-grid">${x.state.stores.map(s => `<article class="card person-card"><span class="eyebrow">${x.ico('map-pin', 18)} 服务门店</span><h2>${x.esc(s.name)}</h2><p class="muted">${x.esc(s.address || '地址待完善')}</p><div class="meta">${x.state.therapists.filter(t => t.storeId === s.id && t.active !== false).length} 位康复师 · ${s.active === false ? '已停用' : '营业中'}</div></article>`).join('')}</div></section>
+    <section class="section card"><div class="section-head"><div><h2>旧档案迁入</h2><p class="muted">录入客户、负责人和期初剩余次数。历史已使用次数不自动计入新系统消费业绩。</p></div>${x.action('录入一位客户', 'import-opening', '', 'btn-outline', 'plus')}</div></section></div>`;
+}
+
+function assertPersonnelBoss(ctx) {
+  if (ctx.role?.type !== 'boss' || ctx.role.id !== 'boss') throw new Error('人员资料和权限仅老板可以维护');
+}
+
+const personnelTypes = new Set(['add-therapist', 'add-frontdesk', 'add-manager', 'edit-therapist', 'edit-frontdesk', 'edit-manager']);
+
+// Profile fields retain the same employee id; editing a name never reallocates
+// historical services, receipts or appointments to a new person.
+export function personnelDialog(type, id, ctx) {
+  if (!personnelTypes.has(type)) return null;
+  assertPersonnelBoss(ctx);
+  const x = h(ctx), editing = type.startsWith('edit-'), kind = type.replace(/^(?:add|edit)-/, '');
+  const collection = { therapist: 'therapists', frontdesk: 'frontDesks', manager: 'storeManagers' }[kind];
+  const label = { therapist: '康复师', frontdesk: '前台', manager: '店长' }[kind];
+  const person = editing ? x.find(collection, id) : null;
+  if (editing && !person) throw new Error('该人员不存在，请返回人员管理查看最新资料');
+  const bound = kind === 'frontdesk' ? person?.storeIds || [] : person?.storeId ? [person.storeId] : [];
+  const stores = x.state.stores.filter(store => store.active !== false || bound.includes(store.id));
+  const storeLabel = store => `${store.name}${store.active === false ? '（已停用·当前绑定）' : ''}`;
+  const hidden = (name, value) => `<input type="hidden" name="${name}" value="${x.esc(value)}">`;
+  const field = (label, name, value, extra = '', inputType = 'text') => `<label class="field"><span>${x.esc(label)}</span><input name="${name}" type="${inputType}" value="${x.esc(value || '')}" ${extra}></label>`;
+  const text = (label, name, value, extra = '') => `<label class="field span-all"><span>${x.esc(label)}</span><textarea name="${name}" rows="3" ${extra}>${x.esc(value || '')}</textarea></label>`;
+  const storeField = kind === 'frontdesk'
+    ? `<fieldset class="field span-all"><legend>授权门店（至少选一家）</legend><div class="checkbox-grid">${stores.map(store => `<label class="check"><input type="checkbox" name="storeIds" value="${x.esc(store.id)}"${bound.includes(store.id) ? ' checked' : ''}><span>${x.esc(storeLabel(store))}</span></label>`).join('')}</div><span class="meta">前台只能接待和处理已授权门店的工作。</span></fieldset>`
+    : `<label class="field"><span>${kind === 'manager' ? '负责门店' : '所属门店'}</span><select name="storeId" required><option value=""${person?.storeId ? '' : ' selected'}>请选择门店</option>${stores.map(store => `<option value="${x.esc(store.id)}"${person?.storeId === store.id ? ' selected' : ''}>${x.esc(storeLabel(store))}</option>`).join('')}</select></label>`;
+  const permissions = {
+    therapist: '查看本人负责或参与的客户，填写评估、登记实际服务和查看本人业绩。',
+    frontdesk: '在授权门店建档、接待、安排预约及录入收款；可以查看排班、申请调整。退款和更正由老板处理。',
+    manager: '负责一家门店，查看本店工作、建档、修改和审批本店排班。人员管理、退款更正和客户私人评价由老板处理。',
+  }[kind];
+  const statusField = editing
+    ? `<label class="field"><span>人员状态</span><select name="active" required><option value="true"${person.active !== false ? ' selected' : ''}>使用中</option><option value="false"${person.active === false ? ' selected' : ''}>已停用</option></select><span class="meta">停用后不能再使用该身份；重新选择“使用中”可恢复。</span></label>`
+    : hidden('active', 'true');
+  const identityFields = editing ? `${hidden('id', person.id)}${hidden('expectedVersion', person.profileVersion ?? 0)}` : '';
+  const historyHint = editing ? `<div class="note span-all"><strong>历史记录保留</strong><p>姓名和资料修改后仍是同一位人员，历史服务、业绩及收款归属保留。</p>${kind === 'therapist' ? '<p>换店或停用前需先处理负责客户、未完成预约与待办；换店还需先核对今日及以后的工作排班。</p>' : ''}</div>` : '';
+  const title = `${editing ? '编辑' : '新增'}${label}${editing ? '资料' : ''}`;
+  return { title, html: `<form data-form="${type}">${identityFields}<p class="muted">${editing ? '修改资料、门店或状态，填写原因后保存。' : '填写姓名、手机号和门店，确认岗位权限后添加。'}</p><p class="meta">公开预览请只填写虚构资料；正式登录与信息保存将在正式系统接入。</p><div class="form-grid">${field('姓名', 'name', person?.name, 'required maxlength="80" autocomplete="off"')}${field('手机号（可选）', 'phone', person?.phone, 'maxlength="11" pattern="1[3-9][0-9]{9}" inputmode="numeric" autocomplete="off" placeholder="11位手机号，可稍后补充"', 'tel')}${storeField}${statusField}${text('人员备注（可选）', 'notes', person?.notes, 'maxlength="500" placeholder="例如：专长、交接说明或其他人员资料"')}<div class="note span-all"><strong>${label}权限</strong><p>${x.esc(permissions)}</p><span class="meta">岗位权限由系统固定配置，无需逐项勾选。</span></div>${historyHint}${editing ? text('修改原因', 'reason', '', 'required maxlength="500" placeholder="说明这次资料、门店或状态的修改原因"') : ''}${!stores.length ? '<p class="notice span-all">暂无可分配的门店，请先新增门店。</p>' : ''}</div><div class="dialog-footer"><button class="btn btn-primary" type="submit"${!stores.length ? ' disabled' : ''}>${editing ? '保存人员资料' : `确认添加${label}`}</button>${x.action('返回', 'close-dialog', '', 'btn-quiet')}</div></form>` };
 }
 
 export function renderStaff(ctx) {
@@ -289,6 +337,7 @@ export function renderStaff(ctx) {
 }
 
 export function staffDialog(type, id, ctx) {
+  if (personnelTypes.has(type)) return personnelDialog(type, id, ctx);
   const TODAY = ctx.model.today || "2026-10-08";
   const x = h(ctx);
   const targetPackage = type === 'renew-package' ? x.find('packages', id) : null;
@@ -353,11 +402,6 @@ export function staffDialog(type, id, ctx) {
   if (type === 'add-store') {
     return {title: '新增门店', html: form('add-store', `<p class="muted">新店使用同一套客户档案，服务记录会标记实际服务门店。</p><div class="form-grid">${input('门店名称', 'name', '', 'text', 'required maxlength="30" placeholder="例如：C店 · 市北"')}${textarea('门店地址', 'address', '', 'required maxlength="120"')}</div>`, '新增门店')};
   }
-
-  if (type === 'add-therapist') {
-    return {title: '新增康复师', html: form('add-therapist', `<p class="muted">账号加入后，可以分配客户和安排服务。正式版本再接入真实手机号登录。</p><div class="form-grid">${input('姓名', 'name', '', 'text', 'required maxlength="20"')}${select('所属门店', 'storeId', x.state.stores, x.state.stores[0]?.id)}</div>`, '新增康复师')};
-  }
-  if(type==='add-frontdesk')return {title:'新增前台账号',html:form(type,`<p class="muted">前台负责接待、预约和记收款。仅能操作下方分配的门店。</p><div class="form-grid">${input('姓名','name','','text','required maxlength="80"')}<fieldset class="field span-all"><legend>授权门店（至少选一家）</legend><div class="checkbox-grid">${x.state.stores.map(s=>`<label class="check"><input type="checkbox" name="storeIds" value="${x.esc(s.id)}"><span>${x.esc(s.name)}</span></label>`).join('')}</div></fieldset></div>`,'新增前台')};
 
   if (type === 'transfer-client') {
     if (!c) return null;

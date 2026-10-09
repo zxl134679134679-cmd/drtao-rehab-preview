@@ -1,20 +1,20 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-scheduling';
-import { renderStaff, staffDialog, updateServicePackageChoices } from './staff.js?v=20261009-scheduling';
-import { renderManager, managerDialog } from './manager.js?v=20261009-scheduling';
-import { hourTimeField } from './hour-picker.js?v=20261009-scheduling';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-scheduling';
-import { cashDialog, updateCashFields } from './cash.js?v=20261009-scheduling';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-scheduling';
-import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-scheduling';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-personnel';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261009-personnel';
+import { renderManager, managerDialog } from './manager.js?v=20261009-personnel';
+import { hourTimeField } from './hour-picker.js?v=20261009-personnel';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-personnel';
+import { cashDialog, updateCashFields } from './cash.js?v=20261009-personnel';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-personnel';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-personnel';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows } from './customer-booking.js?v=20261009-scheduling';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-scheduling';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows } from './customer-booking.js?v=20261009-personnel';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-personnel';
 
-import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-scheduling';
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-personnel';
 
-import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-scheduling';
-import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-scheduling';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261009-scheduling';
+import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-personnel';
+import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-personnel';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261009-personnel';
 
 let model = new DemoModel();
 ensureStorePackageExamples(model);
@@ -107,7 +107,7 @@ function switchRole(value, targetView) {
   render(true);
 }
 function navigation() {
-  const items = role.type === 'customer' ? [['home','预约','calendar'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','工作台','home'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['reception-assessments','评估','chart-bar'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:role.type==='manager'?[['manager-overview','本店概览','home'],['manager-clients','客户','users'],['manager-records','工作记录','clipboard-text'],['manager-team','人员','user']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','门店与人员','building-store']];
+  const items = role.type === 'customer' ? [['home','预约','calendar'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','工作台','home'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['reception-assessments','评估','chart-bar'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:role.type==='manager'?[['manager-overview','本店概览','home'],['manager-clients','客户','users'],['manager-records','工作记录','clipboard-text'],['manager-team','人员','user']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','人员管理','users']];
   if(role.type!=='customer')items.push(['schedules',role.type==='therapist'?'我的排班':'排班','calendar']);
   return items.map(([key,label,ico]) => `<button class="nav-item ${view === key ? 'active' : ''}" data-action="nav" data-id="${key}" ${view === key ? 'aria-current="page"' : ''}>${icon(ico === 'home' && view === key ? 'home-filled' : ico,25)}<span class="nav-label">${label}</span></button>`).join('');
 }
@@ -335,6 +335,7 @@ function tourDialog() {
 const evaluationTypes = new Set(['assessment-create','assessment-history','assessment-detail','assessment-confirm','assessment-void','frontdesk-work','frontdesk-evaluate','frontdesk-evaluation-detail','frontdesk-evaluation-void']);
 const staffTypes = new Set(['register','edit-plan','appointment-create','appointment-edit','followup','add-store','add-therapist','add-frontdesk','transfer-client','import-opening','revoke-service','register-appointment','renew-package']);
 function buildDialog(type, id) {
+  if(['add-therapist','add-frontdesk','add-manager','edit-therapist','edit-frontdesk','edit-manager'].includes(type))return personnelDialog(type,id,ctx());
   if(['schedule-edit','schedule-request','schedule-decision','schedule-notification'].includes(type))return scheduleDialog(type,id,ctx());
   if (customerBookingTypes.has(type)) return customerRequestDialog(type,id,customerCtx());
   if(role.type==='manager') {
@@ -347,10 +348,6 @@ function buildDialog(type, id) {
   if(type==='create-store-package') {
     assertBoss();const client=assertClient(id);
     return {title:'办理本店套餐',html:form(type,hidden('clientId',id)+'<p><strong>'+esc(client.name)+'</strong></p><p class="notice">选定所属门店后，套餐只能在该店消课。此操作只建立套餐，不记收款；已收到的钱需另行登记，避免收入重复。</p><div class="form-grid"><label class="field"><span>套餐所属门店</span><select name="storeId" required>'+model.state.stores.map(store=>'<option value="'+esc(store.id)+'"'+(store.id===client.storeId?' selected':'')+'>'+esc(store.name)+'</option>').join('')+'</select></label>'+field('套餐名称','name','运动功能恢复套餐','text','required maxlength="80"')+field('套餐总次数','total','','number','required min="1" max="999" step="1" placeholder="例如 60"')+field('实际套餐金额（元）','amount','','number','required min="0.01" step="0.01" placeholder="例如 24000 或 25200"')+'</div>','建立本店套餐')};
-  }
-  if(type==='add-manager') {
-    assertBoss();
-    return {title:'新增店长账号',html:form(type,`<p class="muted">绑定一家门店，查看本店客户、预约、服务、收支及人员工作。私人客户评价仅老板可见。</p><div class="form-grid">${field('姓名','name','','text','required maxlength="80"')}<label class="field"><span>负责门店</span><select name="storeId" required>${model.state.stores.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label></div>`,'新增店长')};
   }
   if(type==='deactivate-manager') {
     assertBoss();const manager=find('storeManagers',id);if(!manager?.active)throw new Error('请选择在职店长');
@@ -461,7 +458,13 @@ function openDialog(type,id = '') {
   saveDraft();
   dialogContext?.legacyController?.destroy();
   const key = draftKey(type,id);
-  const saved = type==='import-opening-batch'?null:drafts.get(key);
+  let saved = type==='import-opening-batch'?null:drafts.get(key);
+  if(saved && ['edit-therapist','edit-frontdesk','edit-manager'].includes(type)) {
+    const collection={ 'edit-therapist':'therapists','edit-frontdesk':'frontDesks','edit-manager':'storeManagers' }[type];
+    const latest=model.state[collection].find(person=>person.id===id)?.profileVersion ?? 0;
+    const drafted=saved.entries.find(([name])=>name==='expectedVersion')?.[1];
+    if(String(latest)!==String(drafted)){drafts.delete(key);saved=null;toast('人员资料已更新，已打开最新资料，请重新核对后填写。');}
+  }
   dialogContext = {type,id,key,requestId:saved?.requestId || `preview-${++nextRequest}`,evidencePhotos:(saved?.evidencePhotos || []).map(photo => ({...photo})),photoBusy:false,photoError:''};
   $('#sheet-title').textContent = content.title;
   $('#sheet-body').innerHTML = content.html;
@@ -498,7 +501,7 @@ function openDialog(type,id = '') {
 async function loadLegacyDialog(context) {
   const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
   try {
-    const legacy=await import('./legacy.js?v=20261009-scheduling');
+    const legacy=await import('./legacy.js?v=20261009-personnel');
     if(!active())return;
     $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
     context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,
@@ -783,11 +786,24 @@ document.addEventListener('submit', async event => {
     if (role.type !== submittingRole.type || role.id !== submittingRole.id || context !== dialogContext) throw new Error('操作已取消，请重新打开页面后提交');
     if ($('#network-toggle').checked && type !== 'reset') {
       $('#network-toggle').checked = false;
+      if(['add-therapist','add-frontdesk','add-manager','edit-therapist','edit-frontdesk','edit-manager'].includes(type))throw new Error('模拟提交失败：人员资料和权限未改变，填写内容已保留，请重试。');
       if(['schedule-save','schedule-request','schedule-decision'].includes(type))throw new Error('模拟提交失败：填写内容已保留，排班和通知未改变，请重试。');
       if (['reception-create-client','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','assessment-void','frontdesk-evaluate','frontdesk-evaluation-void'].includes(type)) throw new Error('模拟提交失败：记录未保存，填写内容已保留，请重试。');
       throw new Error(['record-receipt','settle-receipt','refund-receipt','void-receipt','void-refund'].includes(type)?'模拟提交失败：内容已保留，收支未改变，请重试。':type==='record-arrival'?'模拟提交失败：到店状态未改变，请重试。':'模拟提交失败：内容已保留，未扣次数，请重试。');
     }
     let result;
+    if(['add-therapist','add-frontdesk','add-manager','edit-therapist','edit-frontdesk','edit-manager'].includes(type)) {
+      model._boss(role);
+      if(!['true','false'].includes(data.active))throw new Error('请选择有效的人员状态');
+      const editing=type.startsWith('edit-'), kind=type.replace(/^(?:add|edit)-/,'');
+      const input={...data,active:data.active==='true',requestId:context.requestId,...(kind==='frontdesk'?{storeIds:fd.getAll('storeIds')}:{})};
+      const method=editing?{therapist:'updateTherapist',frontdesk:'updateFrontDesk',manager:'updateStoreManager'}[kind]:{therapist:'addTherapist',frontdesk:'addFrontDesk',manager:'addStoreManager'}[kind];
+      result=model[method](input,role);
+      drafts.delete(context.key);f.dataset.succeeded='true';render();
+      const label={therapist:'康复师',frontdesk:'前台',manager:'店长'}[kind];
+      const stores=(kind==='frontdesk'?result.storeIds:[result.storeId]).map(id=>name('stores',id)).join('、');
+      showSuccess(editing?'人员资料已更新':`${label}已添加`, `<div class="detail-grid">${pair('姓名',result.name)}${pair('岗位',label)}${pair('门店',stores)}${pair('人员状态',result.active?'使用中':'已停用')}</div><p class="notice">${editing?'历史业务记录和人员归属保留，修改原因已记录。':'已加入本次预览，可切换到该身份体验对应工作。'}${!editing&&kind==='therapist'&&result.active?' 新康复师需先设置工作排班，再安排预约。':''}</p><p class="muted">本次资料仅保存在当前页面，刷新会恢复示例；正式账号和长期保存将在正式系统接入。</p><div class="action-row">${button('返回人员管理','nav','team','btn-primary')}${kind==='therapist'&&result.active?button('设置排班','nav','schedules','btn-outline'):''}</div>`);return;
+    }
     if(['schedule-save','schedule-request','schedule-decision'].includes(type)){
       const input={...data,requestId:context.requestId};
       result=type==='schedule-save'?saveSchedule(model,input,role):type==='schedule-request'?requestScheduleChange(model,input,role):decideScheduleChange(model,data.id,input,role);
@@ -866,10 +882,7 @@ document.addEventListener('submit', async event => {
       showSuccess('评价已提交',`<h3>感谢您的真实反馈</h3><p>${result.followupStatus === 'pending' ? '您的反馈已进入老板的待跟进列表。' : '您的评价仅老板可查看，会帮助我们完善后续服务。'}</p>`); return;
     } else if (type === 'followup') model.closeFollowup(data.reviewId,data.result,role);
     else if (type === 'add-store') model.addStore(data,role);
-    else if (type === 'add-therapist') model.addTherapist(data,role);
-    else if(type==='add-frontdesk')model.addFrontDesk({...data,storeIds:fd.getAll('storeIds')},role);
     else if(type==='deactivate-frontdesk')model.deactivateFrontDesk(data.id,role);
-    else if(type==='add-manager')model.addStoreManager(data,role);
     else if(type==='deactivate-manager')model.deactivateStoreManager(data.id,role);
     else if (type === 'transfer-client') model.transferClient(data.clientId,data.ownerId,data.reason,role);
     else if (type === 'import-opening') model.importOpening(data,role);
@@ -902,10 +915,11 @@ function exportPreview() {
     const photos = model.canSeeEvidence(role, s.id) ? evidencePhotos || [] : undefined;
     return role.type === 'customer' ? {id:s.id,clientId:s.clientId,storeId:s.storeId,date:s.date,time:s.time,project:s.project,principalId:s.principalId,participantIds:s.participantIds,sessions:s.sessions,status:s.status,notes:s.notes,revokeReason:s.revokeReason,recordedAt:s.recordedAt || s.createdAt,recordedBy:s.recordedBy,evidencePhotos:photos} : {...record,...(photos ? {evidencePhotos:photos} : {})};
   };
+  const cleanAudit=row=>{const {inputKey,requestId,personnelOperation,...safe}=row;return safe;};
   const cleanCash=row=>{const {inputKey,requestId,requestType,...safe}=row;return safe;};
   const frontStores=role.type==='frontdesk'?receptionStores(ctx()):[];
   const frontStoreIds=role.type==='frontdesk'?new Set(frontStores.map(s=>s.id)):null;
-  const data = role.type==='manager'?model.managerSnapshot(role):role.type === 'boss' ? {...state,services:state.services.map(exportService),receipts:state.receipts.map(cleanCash),refunds:state.refunds.map(cleanCash)} : role.type==='frontdesk'?{
+  const data = role.type==='manager'?model.managerSnapshot(role):role.type === 'boss' ? {...state,audit:state.audit.map(cleanAudit),services:state.services.map(exportService),receipts:state.receipts.map(cleanCash),refunds:state.refunds.map(cleanCash)} : role.type==='frontdesk'?{
     clients:state.clients.filter(c=>ids.has(c.id)).map(c=>({id:c.id,name:c.name,phone:c.phone,age:c.age,problem:c.problem,storeId:c.storeId,ownerId:c.ownerId,storeSessions:frontStores.map(store=>({storeId:store.id,storeName:store.name,remainingSessions:model.remainingInStore(c.id,store.id)}))})),
     appointments:state.appointments.filter(a=>frontStoreIds.has(a.storeId)).map(a=>({id:a.id,clientId:a.clientId,storeId:a.storeId,date:a.date,time:a.time,principalId:a.principalId,status:a.status,arrivalAt:a.arrivalAt,arrivalBy:a.arrivalBy})),
     receipts:state.receipts.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),refunds:state.refunds.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),

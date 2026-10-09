@@ -1,5 +1,5 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-scheduling';
-import { assertScheduleAvailability } from './schedules.js?v=20261009-scheduling';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-personnel';
+import { assertScheduleAvailability } from './schedules.js?v=20261009-personnel';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -19,6 +19,22 @@ const optionalText = (value, label, maxLength = 2000) => {
   const text = value.trim();
   if (text.length > maxLength) throw new Error(`${label}长度不能超过 ${maxLength} 字`);
   return text;
+};
+const PERSONNEL_KINDS = Object.freeze({
+  therapist: { collection: 'therapists', prefix: 't', label: '康复师', idKey: 'therapistId' },
+  frontdesk: { collection: 'frontDesks', prefix: 'f', label: '前台', idKey: 'frontDeskId' },
+  manager: { collection: 'storeManagers', prefix: 'm', label: '店长', idKey: 'managerId' },
+});
+const personnelVersion = value => count(value, '人员资料版本', 0, Number.MAX_SAFE_INTEGER - 1);
+const personnelActive = value => {
+  if (value === true || value === 'true') return true;
+  if (value === false || value === 'false') return false;
+  throw new Error('请选择在职或停用的人员状态');
+};
+const personnelPhone = value => {
+  const phone = optionalText(value, '人员手机号', 20).replace(/\s/g, '');
+  if (phone && !/^1[3-9]\d{9}$/.test(phone)) throw new Error('人员手机号请输入有效的 11 位手机号，或留空稍后补充');
+  return phone;
 };
 const CASH_CHANNELS = Object.freeze(['direct', 'douyin', 'meituan', 'other_platform']);
 const amountMinor = (value, label = '套餐金额') => {
@@ -1295,59 +1311,119 @@ export class DemoModel {
   }
 
   addTherapist(data, role) {
-    this._boss(role);
-    this._store(data.storeId);
-    const row = { id: this._id('t'), name: required(data.name, '康复师姓名'), storeId: data.storeId, active: true };
-    this.state.therapists.push(row);
-    this._log('therapist_added', { therapistId: row.id, after: row }, role);
-    return row;
+    return this._addPersonnel('therapist', data, role);
   }
 
   addFrontDesk(data, role) {
-    this._boss(role);
-    const name = required(data.name, '前台姓名', 80), storeIds = this._frontDeskStoreIds(data.storeIds);
-    const row = { id: this._id('f'), name, storeIds, active: true };
-    this.state.frontDesks.push(row);
-    this._log('frontdesk_added', { frontDeskId: row.id, after: copy(row) }, role);
-    return row;
+    return this._addPersonnel('frontdesk', data, role);
   }
 
   addStoreManager(data, role) {
+    return this._addPersonnel('manager', data, role);
+  }
+
+  updateTherapist(data, role) { return this._updatePersonnel('therapist', data, role); }
+  updateFrontDesk(data, role) { return this._updatePersonnel('frontdesk', data, role); }
+  updateStoreManager(data, role) { return this._updatePersonnel('manager', data, role); }
+
+  _personnelInput(kind, data, current = null) {
+    const config = PERSONNEL_KINDS[kind];
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('请填写有效的人员资料');
+    const input = {
+      name: required(data.name, `${config.label}姓名`, 80),
+      phone: personnelPhone(data.phone === undefined ? current?.phone : data.phone),
+      notes: optionalText(data.notes === undefined ? current?.notes : data.notes, '人员备注', 500),
+      active: personnelActive(data.active === undefined ? current?.active ?? true : data.active),
+    };
+    if (!current && input.active !== true) throw new Error('新增人员须为在职状态，请先新增后再停用');
+    const stores = kind === 'frontdesk' ? this._frontDeskStoreIds(data.storeIds) : [this._store(required(data.storeId, '负责门店', 80)).id];
+    const priorStores = current ? kind === 'frontdesk' ? current.storeIds : [current.storeId] : [];
+    for (const storeId of stores) {
+      if (this._store(storeId).active === false && (input.active || !priorStores.includes(storeId))) throw new Error('负责门店已停用，请选择营业门店或停用人员账号');
+    }
+    if (kind === 'frontdesk') input.storeIds = stores; else input.storeId = stores[0];
+    return input;
+  }
+
+  _assertPersonnelPhone(phone, currentId = '', currentKind = '') {
+    if (!phone) return;
+    const duplicate = Object.entries(PERSONNEL_KINDS).some(([kind, config]) => this.state[config.collection].some(row => !(kind === currentKind && row.id === currentId) && personnelPhone(row.phone) === phone));
+    if (duplicate) throw new Error('该手机号已用于另一位人员，请先核对人员资料，避免重复建人');
+  }
+
+  _personnelReplay(operation, requestId, inputKey, role) {
+    if (!requestId) return null;
+    const prior = this.state.audit.find(row => row.personnelOperation && row.requestId === requestId && row.actorId === role.id && row.actorType === role.type);
+    if (!prior) return null;
+    if (prior.personnelOperation !== operation || prior.inputKey !== inputKey) throw new Error('此提交标识已用于不同的人员或内容，请重新打开后再提交');
+    return copy(prior.after);
+  }
+
+  _writePersonnel(kind, operation, current, input, role, metadata = {}) {
     this._boss(role);
-    const name = required(data.name, '店长姓名', 80);
-    const store = this._store(required(data.storeId, '负责门店', 80));
-    const row = { id: this._id('m'), name, storeId: store.id, active: true };
-    this.state.storeManagers.push(row);
-    this._log('manager_added', { managerId: row.id, storeId: store.id }, role);
-    return row;
+    const config = PERSONNEL_KINDS[kind], stamp = this._timestamp();
+    const staged = Object.assign(Object.create(Object.getPrototypeOf(this)), this, { now: () => stamp, state: { ...this.state, [config.collection]: this.state[config.collection].map(copy), audit: [...this.state.audit] } });
+    const existingIds = new Set(Object.values(staged.state).filter(Array.isArray).flatMap(rows => rows.map(row => row.id)));
+    let personnelId = current?.id;
+    if (!current) do { personnelId = staged._id(config.prefix); } while (existingIds.has(personnelId));
+    const row = { ...(current ? copy(current) : { id: personnelId }), ...copy(input), profileVersion: current ? personnelVersion(current.profileVersion ?? 0) + 1 : 1 };
+    const index = staged.state[config.collection].findIndex(item => item.id === row.id);
+    if (index < 0) staged.state[config.collection].push(row); else staged.state[config.collection][index] = row;
+    staged._log(`${kind}_${operation}`, { [config.idKey]: row.id, ...(row.storeId ? { storeId: row.storeId } : {}), before: current ? copy(current) : null, after: copy(row), ...metadata }, role);
+    this.state[config.collection] = staged.state[config.collection]; this.state.audit = staged.state.audit; this.sequence = staged.sequence;
+    return copy(row);
+  }
+
+  _addPersonnel(kind, data, role) {
+    this._boss(role);
+    const input = this._personnelInput(kind, data), requestId = data.requestId === undefined ? '' : required(data.requestId, '提交标识', 150), operation = `${kind}_added`, inputKey = JSON.stringify(input);
+    const prior = this._personnelReplay(operation, requestId, inputKey, role); if (prior) return prior;
+    this._assertPersonnelPhone(input.phone);
+    return this._writePersonnel(kind, 'added', null, input, role, requestId ? { personnelOperation: operation, requestId, inputKey } : {});
+  }
+
+  _assertTherapistWorkHandled(id, verb) {
+    if (this.state.clients.some(item => item.ownerId === id)) throw new Error(`该康复师仍有负责客户，请先转交客户再${verb}`);
+    if (this.state.appointments.some(item => (item.principalId === id || item.participantIds?.includes(id)) && pendingAppointment(item.status))) throw new Error(`该康复师仍有本人或协作预约，请先改派或取消预约再${verb}`);
+    if (this.state.tasks.some(item => item.assigneeId === id && item.status === 'pending')) throw new Error(`该康复师仍有未完成待办，请先处理后再${verb}`);
+  }
+
+  _updatePersonnel(kind, data, role) {
+    this._boss(role);
+    const id = required(data?.id, '人员标识', 80), config = PERSONNEL_KINDS[kind], current = this.state[config.collection].find(row => row.id === id);
+    if (!current) throw new Error(`${config.label}人员不存在，请重新打开人员管理`);
+    const input = this._personnelInput(kind, data, current), expectedVersion = personnelVersion(data.expectedVersion), reason = required(data.reason, '修改原因', 500), requestId = required(data.requestId, '提交标识', 150);
+    const operation = `${kind}_updated`, inputKey = JSON.stringify({ id, ...input, expectedVersion, reason });
+    const prior = this._personnelReplay(operation, requestId, inputKey, role); if (prior) return prior;
+    if (personnelVersion(current.profileVersion ?? 0) !== expectedVersion) throw new Error('人员资料已更新，版本发生变化。请重新打开并核对后再提交');
+    this._assertPersonnelPhone(input.phone, id, kind);
+    if (kind === 'therapist') {
+      const moving = input.storeId !== current.storeId;
+      if (moving || current.active && !input.active) this._assertTherapistWorkHandled(id, moving ? '更换门店' : '停用');
+      if (moving && this.state.staffSchedules?.some(row => row.therapistId === id && row.date >= this.today && row.status === 'work')) throw new Error('该康复师仍有今天或以后的工作排班，请先核对处理排班，再更换所属门店；系统不会自动移动原排班');
+    }
+    if (Object.keys(input).every(key => JSON.stringify(input[key]) === JSON.stringify(current[key] ?? (key === 'phone' || key === 'notes' ? '' : undefined)))) throw new Error('人员资料没有变化，无需重复保存');
+    return this._writePersonnel(kind, 'updated', current, input, role, { reason, personnelOperation: operation, requestId, inputKey });
+  }
+
+  _deactivatePersonnel(kind, id, role) {
+    this._boss(role);
+    const config = PERSONNEL_KINDS[kind], row = this.state[config.collection].find(item => item.id === id && item.active === true);
+    if (!row) throw new Error(`${config.label}不存在或已停用`);
+    if (kind === 'therapist') this._assertTherapistWorkHandled(id, '停用');
+    return this._writePersonnel(kind, 'deactivated', row, { active: false }, role, { reason: '老板停用人员账号' });
   }
 
   deactivateStoreManager(id, role) {
-    this._boss(role);
-    this.managerStoreId({ type: 'manager', id });
-    const row = this.state.storeManagers.find(item => item.id === id);
-    row.active = false;
-    this._log('manager_deactivated', { managerId: id, storeId: row.storeId }, role);
-    return row;
+    return this._deactivatePersonnel('manager', id, role);
   }
 
   deactivateFrontDesk(id, role) {
-    this._boss(role);
-    const row = this._frontDesk(id);
-    row.active = false;
-    this._log('frontdesk_deactivated', { frontDeskId: id }, role);
-    return row;
+    return this._deactivatePersonnel('frontdesk', id, role);
   }
 
   deactivateTherapist(id, role) {
-    this._boss(role);
-    const row = this._therapist(id);
-    if (this.state.clients.some(item => item.ownerId === id)) throw new Error('该康复师仍有负责客户，请先转交客户再停用');
-    if (this.state.appointments.some(item => item.principalId === id && pendingAppointment(item.status))) throw new Error('该康复师仍有预约，请先改派或取消预约再停用');
-    if (this.state.tasks.some(item => item.assigneeId === id && item.status === 'pending')) throw new Error('该康复师仍有未完成待办，请先处理后再停用');
-    row.active = false;
-    this._log('therapist_deactivated', { therapistId: id }, role);
-    return row;
+    return this._deactivatePersonnel('therapist', id, role);
   }
 
   transferClient(clientId, newOwnerId, reason, role) {

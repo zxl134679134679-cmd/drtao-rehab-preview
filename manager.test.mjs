@@ -11,7 +11,7 @@ import { ensureEvaluations, recordAssessment, confirmAssessment, voidAssessment,
 import { renderManager, managerDialog } from './manager.js';
 import { receptionStores, receptionDialog, assertReceptionAppointment } from './reception.js';
 import { appointmentBatchDialog } from './companion-booking.js';
-import { staffDialog } from './staff.js';
+import { staffDialog, personnelDialog } from './staff.js';
 import { cashDialog } from './cash.js';
 import { assessmentRows, frontDeskEvaluationRows, evaluationDialog } from './evaluations.js';
 import { customerBookingRows } from './customer-booking.js';
@@ -339,7 +339,7 @@ function appReaders(m, role) {
   const find = (kind, id) => m.state[kind]?.find(row => row.id === id);
   const scope = {
     model: m, role, filters: {}, find, esc, ctx: () => ctx(m, role),
-    managerDialog, receptionStores, receptionDialog, assertReceptionAppointment, appointmentBatchDialog, staffDialog, cashDialog,
+    managerDialog, receptionStores, receptionDialog, assertReceptionAppointment, appointmentBatchDialog, staffDialog, personnelDialog, cashDialog,
     assessmentRows, frontDeskEvaluationRows, evaluationDialog, customerBookingRows, paperIntakeRows, customerBookingTypes, customerRequestDialog,
     scheduleRows, scheduleRequestRows, bossScheduleNotifications, scheduleDialog,
     customerCtx: () => ({...ctx(m,role),ui:{}}),
