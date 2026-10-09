@@ -205,7 +205,7 @@ export class DemoModel {
     const source = state === undefined ? seedState() : state;
     const collections = ['stores', 'therapists', 'clients', 'packages', 'services', 'appointments', 'tasks', 'reviews', 'audit'];
     if (!source || collections.some(key => !Array.isArray(source[key]))) throw new Error('业务状态缺少有效的数据集合');
-    for (const key of ['receipts', 'refunds', 'frontDesks']) {
+    for (const key of ['receipts', 'refunds', 'frontDesks', 'appointmentBatches']) {
       if (source[key] !== undefined && !Array.isArray(source[key])) throw new Error('业务状态缺少有效的数据集合');
       collections.push(key);
     }
@@ -213,6 +213,7 @@ export class DemoModel {
     this.state.receipts ??= [];
     this.state.refunds ??= [];
     this.state.frontDesks ??= [];
+    this.state.appointmentBatches ??= [];
     if (!Number.isSafeInteger(sequence) || sequence < 0) throw new Error('业务序列无效');
     const ids = collections.flatMap(key => this.state[key].map(row => row?.id));
     if (ids.some(id => typeof id !== 'string' || !id.trim())) throw new Error('业务状态包含无效记录标识');
@@ -883,6 +884,50 @@ export class DemoModel {
     this.state.tasks.filter(item => item.appointmentId === row.id && item.type === 'reschedule').forEach(item => { item.status = 'completed'; });
     this._log('appointment_saved', { appointmentId: row.id, clientId: client.id, before, after: copy(row) }, role);
     return row;
+  }
+
+  saveAppointmentBatch(data, role) {
+    if (!Array.isArray(data.items) || data.items.length < 2 || data.items.length > 20) throw new Error('一起预约需安排2至20位不同客户');
+    const input = {
+      storeId: required(data.storeId, '服务门店', 80), date: validDate(data.date), time: validTime(data.time),
+      project: required(data.project, '服务项目', 120),
+      items: data.items.map(item => ({clientId:required(item?.clientId,'客户',80),principalId:required(item?.principalId,'服务康复师',80)})),
+    };
+    if (!input.time.endsWith(':00')) throw new Error('一起预约请选择整点开始时间');
+    if (new Set(input.items.map(item => item.clientId)).size !== input.items.length) throw new Error('同一组不能重复选择客户，请每人使用自己的档案');
+    if (new Set(input.items.map(item => item.principalId)).size !== input.items.length) throw new Error('每位客户须安排不同康复师，不能同一时间重复占用');
+    const requestId = required(data.requestId, '提交标识', 80);
+    input.items.forEach(item => this._bookingActor(role,item.clientId,input.storeId));
+    const inputKey = JSON.stringify(input);
+    const existing = this.state.appointmentBatches.find(batch => batch.requestId === requestId && batch.recordedBy === role.id && batch.recordedRole === role.type);
+    if (existing) {
+      if (existing.inputKey !== inputKey) throw new Error('同一提交请求的预约内容发生变化，请重新打开一起预约');
+      const rows = existing.appointmentIds.map(id => this.state.appointments.find(row => row.id === id));
+      for (const row of rows) {
+        if (!row) throw new Error('原同行预约记录不完整，请由老板核对');
+        this._bookingActor(role,row.clientId,row.storeId);
+      }
+      return rows;
+    }
+    // Stage only the collections this operation writes. Service photos and
+    // financial records remain shared read-only, keeping mobile saves light.
+    const staged = Object.assign(Object.create(Object.getPrototypeOf(this)), this, {state:{
+      ...this.state, appointments:[...this.state.appointments], tasks:this.state.tasks.map(copy),
+      audit:[...this.state.audit], appointmentBatches:[...this.state.appointmentBatches],
+    }});
+    const groupId = staged._id('group');
+    const rows = input.items.map((item,index) => {
+      try {
+        const row = staged.saveAppointment({...input,...item,items:undefined},role);
+        row.groupId = groupId;
+        return row;
+      } catch (error) { throw new Error(`第${index + 1}位客户：${error.message}。整组预约未保存`); }
+    });
+    staged.state.appointmentBatches.push({id:groupId,requestId,inputKey,recordedBy:role.id,recordedRole:role.type,appointmentIds:rows.map(row=>row.id),createdAt:staged._timestamp()});
+    staged._log('appointment_batch_saved',{groupId,storeId:input.storeId,appointmentIds:rows.map(row=>row.id)},role);
+    this.state = staged.state;
+    this.sequence = staged.sequence;
+    return rows;
   }
 
   _closeAppointmentTasks(appointment, reason, role) {

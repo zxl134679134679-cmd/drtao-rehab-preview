@@ -825,3 +825,12 @@ fieldset.field.evidence-field legend { padding: 0 6px; font-size: 14px; font-wei
   .photo-viewer { width: calc(100vw - 20px); max-height: calc(100dvh - 20px); border-radius: 12px; }
   .photo-viewer-body { padding: 12px; }
 }
+
+/* One appointment per person, grouped for staff to arrange companions. */
+.booking-member-list { display: grid; gap: 12px; margin: 18px 0 12px; }
+.booking-member { border: 1px solid var(--line); border-radius: 14px; padding: 16px; background: #fafcf8; }
+.booking-member .section-head { margin-bottom: 10px; }
+.booking-member h3 { margin: 0; font-size: 15px; }
+.booking-member .form-grid { margin: 0; }
+.booking-add { width: 100%; margin-bottom: 10px; }
+@media (max-width: 760px) { .booking-member { padding: 12px; } }
