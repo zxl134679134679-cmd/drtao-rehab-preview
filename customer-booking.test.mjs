@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
 import { DemoModel } from './core.js';
+import { confirmedTestSchedules, confirmTestShift } from './scheduling-test-fixture.mjs';
 
 const moduleUrl = new URL('./customer-booking.js', import.meta.url);
 const booking = existsSync(moduleUrl) ? await import(moduleUrl) : {};
@@ -12,7 +13,7 @@ const frontB = { type: 'frontdesk', id: 'f2' };
 const owner = { type: 'therapist', id: 't1' };
 const managerA = { type: 'manager', id: 'm1' };
 const managerB = { type: 'manager', id: 'm2' };
-const model = () => new DemoModel({ today: '2026-10-09', now: () => '2026-10-09T04:00:00.000Z' });
+const model = () => confirmedTestSchedules(new DemoModel({ today: '2026-10-09', now: () => '2026-10-09T04:00:00.000Z' }));
 const input = (extra = {}) => ({ storeId: 'a', date: '2026-10-12', time: '14:30', principalId: 't1', project: '康复服务', requestId: 'customer-request-1', ...extra });
 const snapshot = m => JSON.stringify({ state: m.state, sequence: m.sequence });
 const finance = m => JSON.stringify({ packages: m.state.packages, services: m.state.services, receipts: m.state.receipts, refunds: m.state.refunds, remaining: m.state.clients.map(c => [c.id, m.remaining(c.id)]), performance: m.state.therapists.map(t => [t.id, m.performance(t.id)]) });
@@ -94,6 +95,7 @@ test('an authorized front desk confirms using its own identity while managers an
 
 test('cross-store front desk confirmation keeps the real existing client visibility boundary', () => {
   const m = ready();
+  confirmTestShift(m, { therapistId: 't1', storeId: 'b', date: '2026-10-12' });
   // This customer has no B-store history. A pending request does not grant the
   // B-store front desk new authority over the customer's shared archive.
   const row = submit(m, input({ storeId: 'b' }), { type: 'customer', id: 'c3' });
@@ -192,6 +194,7 @@ test('an already confirmed real appointment prevents a second request even if it
 
 test('a safe confirmation hint hides unavailable actions while preserving cross-store and owner authority', () => {
   const m = ready();
+  confirmTestShift(m, { therapistId: 't1', storeId: 'b', date: '2026-10-12' });
   const row = submit(m, input({ storeId: 'b' }), { type: 'customer', id: 'c3' });
   const permission = role => api('customerBookingConfirmation')(m, row.id, role);
   assert.equal(permission(frontB).canConfirm, false); assert.match(permission(frontB).reason, /负责人|老板/);
@@ -204,6 +207,7 @@ test('a safe confirmation hint hides unavailable actions while preserving cross-
 
 test('the customer can request either store with their existing owner without mistaking home store for an available shift', () => {
   const m = ready(), before = finance(m);
+  confirmTestShift(m, { therapistId: 't1', storeId: 'b', date: '2026-10-12' });
   assert.equal(m.state.therapists.find(t => t.id === 't1').storeId, 'a');
   const row = submit(m, input({ storeId: 'b', principalId: undefined }));
   assert.equal(row.principalId, 't1'); assert.equal(row.storeId, 'b'); assert.equal(row.status, 'pending');

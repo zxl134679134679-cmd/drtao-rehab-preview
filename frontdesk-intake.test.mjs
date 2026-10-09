@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DemoModel } from './core.js';
+import { confirmedTestSchedules } from './scheduling-test-fixture.mjs';
 
 const boss = { type: 'boss', id: 'boss' };
 const frontdesk = { type: 'frontdesk', id: 'f1' };
-const newModel = () => new DemoModel({ today: '2026-10-09', now: () => '2026-10-09T04:00:00.000Z' });
+const newModel = () => confirmedTestSchedules(new DemoModel({ today: '2026-10-09', now: () => '2026-10-09T04:00:00.000Z' }));
 const input = (changes = {}) => ({ name: '新客户', phone: '13912345678', age: '32', problem: '跑步后膝部不适，希望先做评估', storeId: 'a', ownerId: 't1', requestId: 'intake-request-1', ...changes });
 const snapshot = model => JSON.stringify({ state: model.state, sequence: model.sequence });
 function rejectsUnchanged(model, run, pattern) {

@@ -1,10 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as core from './core.js';
+import { confirmedTestSchedules, confirmTestShift } from './scheduling-test-fixture.mjs';
 
 const { DemoModel } = core;
 const boss = { type: 'boss', id: 'boss' };
-const model = () => new DemoModel({ today: '2026-10-09', now: () => '2026-10-09T04:00:00.000Z' });
+const model = () => confirmedTestSchedules(new DemoModel({ today: '2026-10-09', now: () => '2026-10-09T04:00:00.000Z' }));
 const snapshot = m => JSON.stringify({ state: m.state, sequence: m.sequence });
 const photos = () => [{ id: 'photo-store-card', name: '服务留底.png', width: 1, height: 1, dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII=' }];
 const service = (extra = {}) => ({ clientId: 'c1', storeId: 'a', date: '2026-10-09', time: '09:00', project: '康复训练', principalId: 't1', participantIds: [], notes: '按计划完成本次服务', evidencePhotos: photos(), requestId: 'store-card-service', ...extra });
@@ -201,6 +202,7 @@ test('a bound local card grants basic reception access and booking to that store
   assert.equal(m.canSeeClient(frontB, 'c3'), true);
   assert.equal(m.canSeeClient({ type: 'therapist', id: 't2' }, 'c3'), false, '前台本店接待关系不授予无关康复师客户权限');
   assert.equal(m.canSeeClient(frontB, 'c5'), false);
+  confirmTestShift(m, { therapistId: 't1', storeId: 'b', date: '2026-10-12' });
   const appointment = m.saveAppointment({ clientId: 'c3', storeId: 'b', date: '2026-10-12', time: '09:00', project: '康复训练', principalId: 't1' }, frontB);
   assert.equal(appointment.storeId, 'b'); assert.equal(appointment.clientId, 'c3');
   m.cancelAppointment(appointment.id, '客户改约', frontB);

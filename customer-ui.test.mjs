@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { DemoModel, TODAY } from './core.js';
+import { confirmedTestSchedules, confirmTestShift } from './scheduling-test-fixture.mjs';
+import { scheduleDialog } from './schedules-ui.js';
 import { hourTimeField } from './hour-picker.js';
 import { ensureCustomerBooking, requestCustomerBooking, confirmCustomerBooking, customerBookingRows } from './customer-booking.js';
 import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory } from './customer-ui.js';
@@ -14,7 +16,7 @@ const frontA = { type: 'frontdesk', id: 'f1' };
 const frontB = { type: 'frontdesk', id: 'f2' };
 const managerA = { type: 'manager', id: 'm1' };
 const managerB = { type: 'manager', id: 'm2' };
-const fixture = () => { const m = new DemoModel({ today: '2026-10-09', now: () => '2026-10-09T04:00:00.000Z' }); ensureCustomerBooking(m); return m; };
+const fixture = () => { const m = confirmedTestSchedules(new DemoModel({ today: '2026-10-09', now: () => '2026-10-09T04:00:00.000Z' })); ensureCustomerBooking(m); return m; };
 function request(m, clientId = 'c1', fields = {}) {
   const row = m.state.clients.find(c => c.id === clientId);
   return requestCustomerBooking(m, { storeId: row.storeId, date: '2026-10-12', time: '14:30', principalId: row.ownerId,
@@ -30,7 +32,7 @@ function originalFunction(name, next) {
 // is replaced. DOM and download transport are outside this finite test scope.
 function appReader(m, role, view = 'home') {
   const scope = { model: m, role, view, filters: {}, TODAY, hourTimeField,
-    customerBookingTypes, customerRequestDialog, renderCustomerHome, renderBookingInbox, renderRequestHistory,
+    customerBookingTypes, customerRequestDialog, renderCustomerHome, renderBookingInbox, renderRequestHistory, scheduleDialog,
     serviceEvidence: () => '', preferences: new Map(), Intl, Date };
   const helperNames = ['esc','find','name','icon','money','date','weekday','button','link','hidden','field','textarea','form','pair','ctx','customerCtx','clientServices','appointments','reviewFor','currentClient','canEditPlan'];
   const helpers = helperNames.map(name => {
@@ -150,6 +152,7 @@ test('a manager sees only its store request details and the real dispatch never 
 
 test('a foreign-store front desk may read a basic request but cannot reach the private client or confirmation form', () => {
   const m = fixture();
+  confirmTestShift(m, { therapistId: 't1', storeId: 'b', date: '2026-10-12' });
   const client = m.state.clients.find(row=>row.id==='c3');
   client.goal='不应泄露的康复目标';client.openingNotes='不应泄露的纸质病史';
   assert.equal(m.canSeeClient(frontB,'c3'),false);
@@ -190,6 +193,7 @@ test('confirmed application details remain submission history after the real app
   const m=fixture();
   m.cancelAppointment('a1','此场景只保留新预约作为下一次服务',boss);
   const row=request(m,'c1'),confirmed=confirmCustomerBooking(m,row.id,boss);
+  confirmTestShift(m, { therapistId: 't1', storeId: 'b', date: '2026-10-13' });
   m.saveAppointment({id:confirmed.appointmentId,clientId:'c1',storeId:'b',date:'2026-10-13',time:'16:30',principalId:'t1',project:'阶段训练'},boss);
   const app=appReader(m,customer('c1')),html=app.open('customer-booking-detail',row.id).html;
   assert.match(html,/提交时|历史申请|申请已处理/);

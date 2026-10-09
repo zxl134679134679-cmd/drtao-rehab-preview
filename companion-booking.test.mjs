@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DemoModel } from './core.js';
+import { confirmedTestSchedules, confirmTestShift } from './scheduling-test-fixture.mjs';
 
 const boss = { type: 'boss', id: 'boss' };
 const frontA = { type: 'frontdesk', id: 'f1' };
 const now = () => '2026-10-09T04:00:00.000Z';
 const clone = value => structuredClone(value);
-const model = () => new DemoModel({ now });
+const model = () => confirmedTestSchedules(new DemoModel({ now }));
 const input = (extra = {}) => ({
   storeId: 'a', date: '2026-10-12', time: '14:00', project: '基础训练',
   items: [{ clientId: 'c1', principalId: 't1' }, { clientId: 'c5', principalId: 't5' }],
@@ -33,6 +34,7 @@ function rejectsWithoutMutation(m, save, data, role = boss) {
 
 test('three companions receive independent appointments sharing one arrival group without consuming packages or money', () => {
   const m = model(), save = api(m), before = finances(m);
+  confirmTestShift(m, { therapistId: 't4', storeId: 'a', date: '2026-10-12' });
   const rows = save(input({ items: [
     { clientId: 'c1', principalId: 't1' },
     { clientId: 'c5', principalId: 't5' },
@@ -65,6 +67,7 @@ test('front desk and therapist retain their existing client scope when creating 
   const desk = model();
   assert.equal(api(desk)(input(), frontA).length, 2);
   const therapist = model();
+  confirmTestShift(therapist, { therapistId: 't2', storeId: 'a', date: '2026-10-12' });
   const rows = api(therapist)(input({ items: [
     { clientId: 'c1', principalId: 't2' },
     { clientId: 'c3', principalId: 't1' },
@@ -98,6 +101,7 @@ test('retrying a previous group cannot bypass newly removed client or store perm
   desk.state.frontDesks.find(f => f.id === 'f1').storeIds = ['b'];
   rejectsWithoutMutation(desk, deskSave, clone(data), frontA);
   const therapist = model(), therapistSave = api(therapist);
+  confirmTestShift(therapist, { therapistId: 't2', storeId: 'a', date: '2026-10-12' });
   const therapistData = input({ items: [
     { clientId: 'c1', principalId: 't2' },
     { clientId: 'c3', principalId: 't1' },
@@ -110,6 +114,7 @@ test('retrying a previous group cannot bypass newly removed client or store perm
 test('a front desk retry cannot expose a member individually moved to another unauthorized store', () => {
   const m = model(), save = api(m), data = input();
   const rows = save(data, frontA);
+  confirmTestShift(m, { therapistId: 't5', storeId: 'b', date: '2026-10-13' });
   m.saveAppointment({ ...rows[1], storeId: 'b', date: '2026-10-13', time: '16:00' }, boss);
   assert.deepEqual(m.frontDeskStoreIds(frontA), ['a']);
   assert.equal(m.canSeeClient(frontA, 'c5'), true, '客户归属仍在 A 店，门店操作权限须另行检查');
@@ -169,12 +174,17 @@ test('customers, forged staff, inactive staff and front desks outside their stor
 
 test('group booking keeps the existing sixty-minute conflict across different stores and allows the exact boundary', () => {
   const m = model(), save = api(m);
+  confirmTestShift(m, { therapistId: 't5', storeId: 'b', date: '2026-10-12' });
   m.saveAppointment({ clientId: 'c5', principalId: 't5', storeId: 'b', date: '2026-10-12', time: '14:30', project: '跨店训练' }, boss);
+  // Imported legacy appointments still block overlap after a confirmed target-store shift is prepared.
+  confirmTestShift(m, { therapistId: 't5', storeId: 'a', date: '2026-10-12' });
   rejectsWithoutMutation(m, save, input());
+  confirmTestShift(m, { therapistId: 't1', storeId: 'b', date: '2026-10-13' });
   m.saveAppointment({ clientId: 'c3', principalId: 't1', storeId: 'b', date: '2026-10-13', time: '14:30', project: '跨店训练' }, boss);
+  confirmTestShift(m, { therapistId: 't1', storeId: 'a', date: '2026-10-13' });
   rejectsWithoutMutation(m, save, input({ date: '2026-10-13' }));
   const boundary = model(), boundarySave = api(boundary);
-  boundary.saveAppointment({ clientId: 'c5', principalId: 't5', storeId: 'b', date: '2026-10-12', time: '13:00', project: '跨店训练' }, boss);
+  boundary.saveAppointment({ clientId: 'c5', principalId: 't5', storeId: 'a', date: '2026-10-12', time: '13:00', project: '同店连续训练' }, boss);
   assert.equal(boundarySave(input(), boss).length, 2);
 });
 
@@ -196,9 +206,12 @@ test('group bookings require valid whole or half hours, a real date, a project, 
     { storeId: 'missing' }, { items: [] }, { items: [input().items[0]] }, { items: null },
     { items: [input().items[0], null] },
   ]) rejectsWithoutMutation(m, save, input(change));
-  // Existing single-appointment historical minute precision is preserved.
-  const single = m.saveAppointment({ clientId: 'c1', principalId: 't1', storeId: 'a', date: '2026-10-14', time: '14:04', project: '单人历史分钟安排' }, boss);
-  assert.equal(single.time, '14:04');
+  // Imported historical minute precision is retained; new bookings use whole or half hours.
+  m.state.appointments.push({ id: 'legacy-minute', clientId: 'c1', principalId: 't1', storeId: 'a', date: '2026-10-07', time: '14:04', project: '单人历史分钟安排', status: 'completed' });
+  const restored = new DemoModel({ state: m.state, today: m.today, now });
+  assert.equal(restored.state.appointments.find(row => row.id === 'legacy-minute').time, '14:04');
+  const single = m.saveAppointment({ clientId: 'c1', principalId: 't1', storeId: 'a', date: '2026-10-14', time: '14:00', project: '单人整点安排' }, boss);
+  assert.equal(single.time, '14:00');
 });
 
 test('twenty separately assigned clients can book together but a twenty-first client cannot leave a partial group', () => {
@@ -206,6 +219,7 @@ test('twenty separately assigned clients can book together but a twenty-first cl
   for (let n = 1; n <= 21; n++) {
     const clientId = `group-client-${n}`, principalId = `group-therapist-${n}`;
     m.state.therapists.push({ id: principalId, name: `示例康复师 ${n}`, storeId: 'a', active: true });
+    confirmTestShift(m, { therapistId: principalId, storeId: 'a', date: '2026-10-12' });
     m.state.clients.push({ ...clone(m.state.clients[0]), id: clientId, name: `示例同行客户 ${n}`, ownerId: principalId, storeId: 'a' });
     items.push({ clientId, principalId });
   }
@@ -219,6 +233,7 @@ test('twenty separately assigned clients can book together but a twenty-first cl
 
 test('cancel, reschedule, arrival and service completion affect only the selected member and their own package', () => {
   const m = model(), save = api(m);
+  confirmTestShift(m, { therapistId: 't4', storeId: 'a', date: m.today });
   const [cancelled, rescheduled, served] = save(input({ date: m.today, time: '16:00', items: [
     { clientId: 'c1', principalId: 't1' },
     { clientId: 'c5', principalId: 't5' },
@@ -258,10 +273,11 @@ test('cancel, reschedule, arrival and service completion affect only the selecte
 
 test('a clock failure during staged saving cannot commit an earlier member or consume ids', () => {
   let calls = 0, fail = false;
-  const m = new DemoModel({ now: () => {
+  const m = confirmedTestSchedules(new DemoModel({ now: () => {
     if (fail && ++calls === 3) throw new Error('测试时钟暂时不可用');
     return '2026-10-09T04:00:00.000Z';
-  } });
+  } }));
+  confirmTestShift(m, { therapistId: 't4', storeId: 'a', date: '2026-10-12' });
   const save = api(m);
   fail = true;
   rejectsWithoutMutation(m, save, input({ items: [

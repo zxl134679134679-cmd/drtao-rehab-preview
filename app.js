@@ -1,22 +1,27 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-intake-assessment-v2';
-import { renderStaff, staffDialog, updateServicePackageChoices } from './staff.js?v=20261009-intake-assessment-v2';
-import { renderManager, managerDialog } from './manager.js?v=20261009-intake-assessment-v2';
-import { hourTimeField } from './hour-picker.js?v=20261009-intake-assessment-v2';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-intake-assessment-v2';
-import { cashDialog, updateCashFields } from './cash.js?v=20261009-legacy-import';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-intake-assessment-v2';
-import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-evaluations';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-scheduling';
+import { renderStaff, staffDialog, updateServicePackageChoices } from './staff.js?v=20261009-scheduling';
+import { renderManager, managerDialog } from './manager.js?v=20261009-scheduling';
+import { hourTimeField } from './hour-picker.js?v=20261009-scheduling';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-scheduling';
+import { cashDialog, updateCashFields } from './cash.js?v=20261009-scheduling';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-scheduling';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-scheduling';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows } from './customer-booking.js?v=20261009-intake-assessment-v2';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-intake-assessment-v2';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows } from './customer-booking.js?v=20261009-scheduling';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-scheduling';
 
-import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-intake-assessment-v2';
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-scheduling';
+
+import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-scheduling';
+import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-scheduling';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261009-scheduling';
 
 let model = new DemoModel();
 ensureStorePackageExamples(model);
 ensureEvaluations(model);
 ensureCustomerBooking(model);
 ensurePaperIntakes(model);
+ensureSchedules(model);
 let role = {type: 'customer', id: 'c1'};
 let view = 'home';
 const previewEntry = new URLSearchParams(location.search).get('preview');
@@ -103,6 +108,7 @@ function switchRole(value, targetView) {
 }
 function navigation() {
   const items = role.type === 'customer' ? [['home','预约','calendar'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','工作台','home'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['reception-assessments','评估','chart-bar'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:role.type==='manager'?[['manager-overview','本店概览','home'],['manager-clients','客户','users'],['manager-records','工作记录','clipboard-text'],['manager-team','人员','user']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','门店与人员','building-store']];
+  if(role.type!=='customer')items.push(['schedules',role.type==='therapist'?'我的排班':'排班','calendar']);
   return items.map(([key,label,ico]) => `<button class="nav-item ${view === key ? 'active' : ''}" data-action="nav" data-id="${key}" ${view === key ? 'aria-current="page"' : ''}>${icon(ico === 'home' && view === key ? 'home-filled' : ico,25)}<span class="nav-label">${label}</span></button>`).join('');
 }
 function render(resetScroll = false) {
@@ -111,7 +117,8 @@ function render(resetScroll = false) {
   $('#app-window').className = `app-window ${customer ? 'customer-mode' : 'staff-mode'}`;
   const label = customer ? name('clients', role.id) : role.type === 'boss' ? '老板管理' : role.type==='frontdesk'?`${name('frontDesks',role.id)} · 前台`:role.type==='manager'?`${name('storeManagers',role.id)} · 店长`:`${name('therapists', role.id)} · 康复师`;
   $('#app-header').innerHTML = `<div class="app-brand"><img class="brand-logo" src="assets/brand-logo.png" alt="涛博士 Dr.Tao 运动康复" width="146" height="56"></div><div class="customer-head"><span class="header-name">${esc(label)}</span>${customer ? `<button class="capsule" data-action="mini-info" aria-label="小程序预览说明">${icon('dots',20)}<span></span>${icon('circle-dot',20)}</button>` : '<span class="tag tag-green">工作端</span>'}</div>`;
-  main.innerHTML = customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : role.type==='manager'?`${renderManager(ctx())}${renderBookingInbox(customerCtx())}`:`${view === 'work' ? assessmentInbox() : ''}${renderStaff(ctx())}${renderBookingInbox(customerCtx())}`;
+  const staffHome=['work','overview','reception','manager-overview'].includes(view);
+  main.innerHTML = customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : view==='schedules'?renderSchedulePage(ctx()):`${role.type==='manager'?renderManager(ctx()):`${view==='work'?assessmentInbox():''}${renderStaff(ctx())}`}${staffHome?renderScheduleInbox(ctx())+renderScheduleSummary(ctx()):''}${renderBookingInbox(customerCtx())}`;
   $('#bottom-nav').innerHTML = navigation();
   if (resetScroll) main.scrollTop = 0;
 }
@@ -328,6 +335,7 @@ function tourDialog() {
 const evaluationTypes = new Set(['assessment-create','assessment-history','assessment-detail','assessment-confirm','assessment-void','frontdesk-work','frontdesk-evaluate','frontdesk-evaluation-detail','frontdesk-evaluation-void']);
 const staffTypes = new Set(['register','edit-plan','appointment-create','appointment-edit','followup','add-store','add-therapist','add-frontdesk','transfer-client','import-opening','revoke-service','register-appointment','renew-package']);
 function buildDialog(type, id) {
+  if(['schedule-edit','schedule-request','schedule-decision','schedule-notification'].includes(type))return scheduleDialog(type,id,ctx());
   if (customerBookingTypes.has(type)) return customerRequestDialog(type,id,customerCtx());
   if(role.type==='manager') {
     model.managerStoreId(role);
@@ -471,6 +479,8 @@ function openDialog(type,id = '') {
   updateServicePackageChoices($('#sheet-body form'),ctx());
   updateReceptionIntakeChoices($('#sheet-body form'),ctx());
   updatePaperIntakeForm($('#sheet-body form'),ctx());
+  updateScheduleForm($('#sheet-body form'),ctx());
+  updateAppointmentAvailability($('#sheet-body form'),ctx());
   if(type==='reception-create-client'&&$('#sheet-body form')?.elements.phone?.value)checkReceptionIntakePhone($('#sheet-body form'));
   if (['register','register-appointment'].includes(type)) {
     updateParticipants();
@@ -488,7 +498,7 @@ function openDialog(type,id = '') {
 async function loadLegacyDialog(context) {
   const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
   try {
-    const legacy=await import('./legacy.js?v=20261009-legacy-import');
+    const legacy=await import('./legacy.js?v=20261009-scheduling');
     if(!active())return;
     $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
     context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,
@@ -533,11 +543,13 @@ document.addEventListener('click', event => {
   const action = target.dataset.action;
   const id = target.dataset.id || '';
   try {
+    if(action==='schedule-notification-read'){markScheduleNotificationRead(model,id,role);render();openDialog('schedule-notification',id);toast('已标为已读，变更记录保留');return;}
     if (['booking-add','booking-remove'].includes(action)) {
       const f = $('#sheet-body form');
       if(dialogContext?.type!=='appointment-batch'||f?.dataset.busy==='true')return;
       if(action==='booking-add')addBookingMember(f,ctx());
       else removeBookingMember(target.closest('[data-booking-member]'),f,ctx());
+      updateAppointmentAvailability(f,ctx());
       saveDraft(); return;
     }
     if (action === 'close-photo') return closePhoto();
@@ -575,7 +587,7 @@ document.addEventListener('click', event => {
     if(action==='reception-check-phone')return checkReceptionIntakePhone($('#sheet-body form'),true);
     if (action === 'close-dialog') return closeDialog();
     if (action === 'nav') {
-      const allowed = role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team'] : role.type==='frontdesk'?['reception','reception-assessments','cash','reception-clients']:role.type==='manager'?['manager-overview','manager-clients','manager-records','manager-team']:['work','clients','performance'];
+      const allowed = role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team','schedules'] : role.type==='frontdesk'?['reception','reception-assessments','cash','reception-clients','schedules']:role.type==='manager'?['manager-overview','manager-clients','manager-records','manager-team','schedules']:['work','clients','performance','schedules'];
       if (!allowed.includes(id)) throw new Error('该页面不可访问');
       closeDialog(); view = id; render(true); return;
     }
@@ -632,6 +644,7 @@ function checkReceptionIntakePhone(f,reportInvalid=false) {
 document.addEventListener('input', event => {
   const f=event.target.closest('form');
   updatePaperIntakeForm(f,ctx());
+  updateScheduleForm(f,ctx());
   if(f?.dataset.form==='reception-create-client'&&event.target.name==='phone') {
     f.dataset.duplicate='false';f.querySelector('[data-intake-duplicates]').innerHTML='';
     updateReceptionIntakeChoices(f,ctx());
@@ -640,6 +653,7 @@ document.addEventListener('input', event => {
 document.addEventListener('change', event => {
   const intakeForm=event.target.closest('form');
   updatePaperIntakeForm(intakeForm,ctx());
+  updateScheduleForm(intakeForm,ctx());
   if(intakeForm?.dataset.form==='reception-create-client'){
     if(event.target.name==='phone')checkReceptionIntakePhone(intakeForm);
     else if(['storeId','ownerId'].includes(event.target.name))updateReceptionIntakeChoices(intakeForm,ctx());
@@ -662,6 +676,8 @@ document.addEventListener('change', event => {
   if (event.target.name === 'clientId' && ['appointment-create','appointment-edit'].includes($('#sheet-body form')?.dataset.form)) constrainStaffChoices($('#sheet-body form').dataset.form,event.target.value);
   if (['clientId','frontDeskId'].includes(event.target.name)) constrainEvaluationChoices();
   if (event.target.name === 'principalId' && $('#sheet-body form')?.dataset.form === 'register') updateParticipants();
+  updateAppointmentAvailability(intakeForm,ctx());
+  updateCustomerBookingForm(intakeForm,customerCtx());
 });
 function updateParticipants() {
   const principal = $('#sheet-body [name="principalId"]')?.value;
@@ -742,8 +758,12 @@ document.addEventListener('submit', async event => {
     } catch(error) {formError(f,error.message);}
     return;
   }
+  if(type==='schedule-filters'){
+    try{scheduleRows(model,role,{date:data.date,storeId:data.storeId});filters={...filters,scheduleDate:data.date,storeId:data.storeId||''};render();}catch(error){formError(f,error.message);}
+    return;
+  }
   if(type==='paper-intake-select'){openDialog('paper-intake-create',data.clientId);return;}
-  if(role.type==='manager'&&!['reset','reception-create-client','paper-intake-create'].includes(type)) {formError(f,'店长仅查看和核对本店工作，业务操作由对应工作人员或老板处理');return;}
+  if(role.type==='manager'&&!['reset','reception-create-client','paper-intake-create','schedule-save','schedule-decision'].includes(type)) {formError(f,'店长仅查看和核对本店工作，业务操作由对应工作人员或老板处理');return;}
   if (type === 'filters') {
     if (data.from && data.to && data.from > data.to) { toast('开始日期不能晚于结束日期'); return; }
     filters = {...filters,...data}; render(); return;
@@ -763,10 +783,18 @@ document.addEventListener('submit', async event => {
     if (role.type !== submittingRole.type || role.id !== submittingRole.id || context !== dialogContext) throw new Error('操作已取消，请重新打开页面后提交');
     if ($('#network-toggle').checked && type !== 'reset') {
       $('#network-toggle').checked = false;
+      if(['schedule-save','schedule-request','schedule-decision'].includes(type))throw new Error('模拟提交失败：填写内容已保留，排班和通知未改变，请重试。');
       if (['reception-create-client','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','assessment-void','frontdesk-evaluate','frontdesk-evaluation-void'].includes(type)) throw new Error('模拟提交失败：记录未保存，填写内容已保留，请重试。');
       throw new Error(['record-receipt','settle-receipt','refund-receipt','void-receipt','void-refund'].includes(type)?'模拟提交失败：内容已保留，收支未改变，请重试。':type==='record-arrival'?'模拟提交失败：到店状态未改变，请重试。':'模拟提交失败：内容已保留，未扣次数，请重试。');
     }
     let result;
+    if(['schedule-save','schedule-request','schedule-decision'].includes(type)){
+      const input={...data,requestId:context.requestId};
+      result=type==='schedule-save'?saveSchedule(model,input,role):type==='schedule-request'?requestScheduleChange(model,input,role):decideScheduleChange(model,data.id,input,role);
+      drafts.delete(context.key);f.dataset.succeeded='true';render();
+      const effective=type==='schedule-save'||result.status==='approved';
+      showSuccess(type==='schedule-request'?'申请已提交，等待老板／店长确认':effective?'排班已更新，老板通知已记录':'申请已拒绝，原排班保留',`<p>${esc(name('therapists',result.therapistId))} · ${esc(result.date)} · ${esc(name('stores',result.storeId))}</p><p class="notice">${effective?'老板端已生成系统内通知，保留改前改后和原因。微信消息待正式接入，当前未发送。':type==='schedule-request'?'申请期间原排班不变；老板或本店店长任一人批准后即可生效。':'审批记录已保留，排班未改变。'}</p>${button('返回排班','nav','schedules','btn-primary')}`);return;
+    }
     if(type==='reception-create-client') {
       result=model.createReceptionClient({...data,requestId:context.requestId},role);
       drafts.delete(context.key);f.dataset.succeeded='true';render();
@@ -851,7 +879,7 @@ document.addEventListener('submit', async event => {
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
       showSuccess('次数已恢复，业绩已冲回',`<div class="detail-grid">${pair('客户',name('clients',result.clientId))}${pair('恢复至原套餐',name('packages',result.packageId))}${pair('原套餐剩余',`${model.packageRemaining(result.packageId)} 次`)}${pair('当前套餐剩余',`${model.remaining(result.clientId)} 次`)}${pair('冲回消费业绩',money(result.amount))}${pair('主康复师',name('therapists',result.principalId))}</div><p class="muted">原服务记录与撤销原因已保留。</p>${button('查看原记录','service-detail',result.id,'btn-outline')}`); return;
     } else if (type === 'reset') {
-      model = new DemoModel(); ensureStorePackageExamples(model); ensureEvaluations(model); ensurePaperIntakes(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
+      model = new DemoModel(); ensureStorePackageExamples(model); ensureEvaluations(model); ensurePaperIntakes(model); ensureCustomerBooking(model); ensureSchedules(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
       closeDialog(false); role = {type:'customer',id:'c1'}; view='home'; filters={storeId:'',therapistId:'',from:'',to:'',query:''}; render(true); toast('示例已重置'); return;
     } else throw new Error('此表单暂不可提交');
     drafts.delete(context.key); f.dataset.succeeded = 'true'; closeDialog(false); render();
@@ -860,7 +888,7 @@ document.addEventListener('submit', async event => {
   finally {
     f.dataset.busy = 'false';
     submits.forEach(el => { el.disabled = false; el.textContent = el.dataset.original; });
-    if(f.isConnected){updateReceptionIntakeChoices(f,ctx());updatePaperIntakeForm(f,ctx());}
+    if(f.isConnected){updateReceptionIntakeChoices(f,ctx());updatePaperIntakeForm(f,ctx());updateScheduleForm(f,ctx());updateAppointmentAvailability(f,ctx());}
     updateEvidencePicker();
   }
 });
@@ -892,7 +920,8 @@ function exportPreview() {
     assessments:assessmentRows(model,role)
   };
   data.bookingRequests = customerBookingRows(model,role);
-  if(role.type!=='customer')data.paperIntakes=paperIntakeRows(model,role);
+  if(role.type!=='customer'){data.paperIntakes=paperIntakeRows(model,role);data.staffSchedules=scheduleRows(model,role);data.scheduleChangeRequests=scheduleRequestRows(model,role);}
+  if(role.type==='boss')data.scheduleNotifications=bossScheduleNotifications(model,role);
   const blob = new Blob([JSON.stringify({说明:'虚构示例，非真实业务档案',身份:role,数据:data},null,2)],{type:'application/json'});
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='涛博士-演示记录.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000); toast('已导出当前身份可见的演示记录');
 }

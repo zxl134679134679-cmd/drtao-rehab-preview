@@ -6,6 +6,7 @@ import { DemoModel, ensureStorePackageExamples } from './core.js';
 import { renderStaff } from './staff.js';
 import { renderManager, managerDialog } from './manager.js';
 import * as reception from './reception.js';
+import { scheduleDialog } from './schedules-ui.js';
 
 const roles={boss:{type:'boss',id:'boss'},manager:{type:'manager',id:'m1'},frontdesk:{type:'frontdesk',id:'f1'},therapist:{type:'therapist',id:'t1'}};
 const fixture=()=>{const m=new DemoModel();ensureStorePackageExamples(m);return m;};
@@ -47,7 +48,7 @@ test('actual app dispatch allows manager basic intake and keeps appointment, ass
   const m=fixture(),role=roles.manager,source=await readFile(new URL('./app.js',import.meta.url),'utf8');
   const start=source.indexOf('function buildDialog('),end=source.indexOf('\nfunction draftKey(',start);
   assert.ok(start>=0&&end>start);
-  const scope={role,model:m,customerBookingTypes:new Set(),receptionIntakeDialog:reception.receptionIntakeDialog,managerDialog,ctx:()=>ctx(m,role)};
+  const scope={role,model:m,customerBookingTypes:new Set(),receptionIntakeDialog:reception.receptionIntakeDialog,managerDialog,scheduleDialog,ctx:()=>ctx(m,role)};
   vm.runInNewContext(source.slice(start,end)+'\nglobalThis.open=buildDialog;',scope);
   assert.match(scope.open('reception-create-client','a').html,/客户姓名/);
   for(const type of ['appointment-create','assessment-create','record-receipt'])assert.throws(()=>scope.open(type,'c1'));

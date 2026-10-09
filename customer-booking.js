@@ -1,5 +1,6 @@
 // Desired times are requests, not live availability or confirmed appointments.
 // The preview's existing appointment model remains the confirmation authority.
+import { assertScheduleAvailability } from './schedules.js?v=20261009-scheduling';
 const clone = value => JSON.parse(JSON.stringify(value));
 const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt'];
 const publicRow = row => clone(Object.fromEntries(fields.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
@@ -43,6 +44,7 @@ function assignment(model, row) {
   if (store.active === false) throw new Error('该门店已停用，请选择其他门店');
   const person = model._therapist(row.principalId);
   if (!model.canSeeClient({ type: 'therapist', id: person.id }, row.clientId)) throw new Error('请先联系负责康复师安排所选门店的服务人员');
+  assertScheduleAvailability(model, row);
 }
 function request(model, id) {
   ensureCustomerBooking(model);

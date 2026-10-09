@@ -927,3 +927,5 @@ fieldset.field.evidence-field legend { padding: 0 6px; font-size: 14px; font-wei
   .reception-phone-check { align-items:stretch; flex-direction:column; gap:8px; }
   .intake-check-found .row { align-items:flex-start; flex-direction:column; gap:10px; }
 }
+
+.booking-availability{padding:14px 16px;border:1px solid #d5e3cf;border-radius:14px;background:#f4f8f0;margin:16px 0;line-height:1.7;font-size:14px;overflow-wrap:anywhere}.booking-availability p{margin:3px 0}.schedule-slot-warning{color:#785125;font-weight:600}.staff-mode .nav-item{min-width:0}.staff-mode .nav-label{font-size:12px}@media(max-width:360px){.staff-mode .nav-label{font-size:11px}}

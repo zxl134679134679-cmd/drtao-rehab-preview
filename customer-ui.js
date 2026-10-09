@@ -1,4 +1,5 @@
-import { customerBookingRows, customerBookingConfirmation } from './customer-booking.js?v=20261009-intake-assessment-v2';
+import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261009-scheduling';
+import { customerBookingRows, customerBookingConfirmation } from './customer-booking.js?v=20261009-scheduling';
 
 export const customerBookingTypes = new Set(['customer-booking', 'customer-booking-detail', 'customer-booking-cancel', 'customer-booking-confirm']);
 
@@ -39,7 +40,7 @@ export function customerRequestDialog(type, id, ctx) {
   if (type === 'customer-booking') {
     if (role.type !== 'customer' || id && id !== role.id) throw new Error('只有客户本人可以申请预约');
     const client = model._client(role.id);
-    return { title:'预约康复', html:`<form data-form="customer-booking" data-step="1" novalidate>${hidden('principalId',client.ownerId)}${hidden('project','康复服务')}<ol class="booking-steps" aria-label="预约流程"><li data-booking-progress="1" aria-current="step"><b>1</b>选门店</li><li data-booking-progress="2"><b>2</b>选时间</li><li data-booking-progress="3"><b>3</b>确认申请</li></ol><p class="booking-client-summary">${esc(client.name)} · 负责康复师 ${esc(name('therapists',client.ownerId))}</p><section data-booking-step="1"><h3>您想去哪个店？</h3><fieldset class="booking-store-picker"><legend class="sr-only">服务门店</legend>${model.state.stores.filter(store=>store.active !== false).map(store=>`<label><input type="radio" name="storeId" value="${esc(store.id)}" required${store.id === (selectedStoreId || client.storeId) ? ' checked' : ''}><span>${esc(store.name)}<small>本店套餐剩余 ${model.remainingInStore(client.id,store.id)} 次 · 仅限本店</small></span></label>`).join('')}</fieldset></section><section data-booking-step="2" hidden><h3>哪天、几点方便到店？</h3><div class="form-grid">${field('期望到店日期','date','','date',`required min="${model.today}"`)}${hourTimeField('',esc,'期望开始时间')}</div><p class="booking-request-explainer">整点和半点均可申请。门店会核对康复师排班，再确认您的到店时间。</p><p class="meta">预览使用示例业务日期；这些时间选项不表示实时空位。</p></section><section data-booking-step="3" hidden><h3>核对您的预约申请</h3><div data-booking-summary></div><div class="note"><strong>提交后，待门店确认</strong><p>申请不扣套餐次数、不收款。确认安排后再到店，完成服务后登记消课。</p></div></section><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="customer-booking-back">暂不预约</button><button type="submit" class="btn btn-primary">下一步：选时间</button></div></form>` };
+    return { title:'预约康复', html:`<form data-form="customer-booking" data-step="1" novalidate>${hidden('project','康复服务')}<ol class="booking-steps" aria-label="预约流程"><li data-booking-progress="1" aria-current="step"><b>1</b>选门店</li><li data-booking-progress="2"><b>2</b>选时间</li><li data-booking-progress="3"><b>3</b>确认申请</li></ol><p class="booking-client-summary">${esc(client.name)} · 负责康复师 ${esc(name('therapists',client.ownerId))}</p><section data-booking-step="1"><h3>您想去哪个店？</h3><fieldset class="booking-store-picker"><legend class="sr-only">服务门店</legend>${model.state.stores.filter(store=>store.active !== false).map(store=>`<label><input type="radio" name="storeId" value="${esc(store.id)}" required${store.id === (selectedStoreId || client.storeId) ? ' checked' : ''}><span>${esc(store.name)}<small>本店套餐剩余 ${model.remainingInStore(client.id,store.id)} 次 · 仅限本店</small></span></label>`).join('')}</fieldset></section><section data-booking-step="2" hidden><h3>哪天、几点方便到店？</h3><div class="form-grid">${field('期望到店日期','date','','date',`required min="${model.today}"`)}<label class="field"><span>服务康复师</span><select name="principalId" required><option value="${esc(client.ownerId)}">${esc(name('therapists',client.ownerId))}</option></select></label>${hourTimeField('',esc,'期望开始时间')}</div><p class="booking-request-explainer">可选整点或半点开始，按已确认排班与当前预约筛选。提交后仍需门店确认。</p><p class="meta">预览使用示例业务日期；这些时间选项不表示实时空位。</p></section><section data-booking-step="3" hidden><h3>核对您的预约申请</h3><div data-booking-summary></div><div class="note"><strong>提交后，待门店确认</strong><p>申请不扣套餐次数、不收款。确认安排后再到店，完成服务后登记消课。</p></div></section><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="customer-booking-back">暂不预约</button><button type="submit" class="btn btn-primary">下一步：选时间</button></div></form>` };
   }
   const row = customerBookingRows(model, role).find(row => row.id === id);
   if (!row) throw new Error('您没有查看此预约申请的权限');
@@ -50,7 +51,7 @@ export function customerRequestDialog(type, id, ctx) {
   if (type === 'customer-booking-confirm') {
     const permission = customerBookingConfirmation(model,id,role);
     if (row.status !== 'pending' || !permission.canConfirm) throw new Error(permission.reason || '此申请已经处理');
-    return {title:'核对并确认预约',html:form(type,`${hidden('id',id)}${requestSummary(row,ctx)}<div class="note"><strong>请先核对当天排班与客户安排</strong><p>确认会建立正式的演示预约，并再次检查已有预约是否冲突；不扣次数、不记收款。</p></div><p class="meta">预览尚未接入实时休息、上下班及服务时长排班。已有预约按当前示例的60分钟窗口核对冲突。</p>`,'确认预约安排')};
+    return {title:'核对并确认预约',html:form(type,`${hidden('id',id)}${requestSummary(row,ctx)}<div class="note"><strong>请先核对当天排班与客户安排</strong><p>确认会建立正式的演示预约，并再次检查已有预约是否冲突；不扣次数、不记收款。</p></div><p class="meta">系统已核对已确认排班和已有预约；本预览每次服务预留60分钟，请核对当天排班和到店安排。</p>`,'确认预约安排')};
   }
   const status = {pending:'待门店确认',confirmed:'申请已处理',cancelled:'申请已取消'}[row.status];
   const permission = customerBookingConfirmation(model,id,role);
@@ -83,6 +84,7 @@ export function updateCustomerBookingForm(form, ctx) {
   const submit=form.querySelector('[type="submit"]');
   submit.textContent=['','下一步：选时间','下一步：核对申请','提交预约申请'][step];
   form.querySelector('[data-action="customer-booking-back"]').textContent=step===1?'暂不预约':'上一步';
+  updateAppointmentAvailability(form,ctx);
   const data=Object.fromEntries(new FormData(form));
   form.querySelector('[data-booking-summary]').innerHTML=requestSummary({...data,clientId:ctx.role.id},ctx);
 }
@@ -96,6 +98,7 @@ export function advanceCustomerBookingForm(form, ctx) {
   if (step===2 && form.elements.date.value<ctx.model.today) {
     const error=form.querySelector('.form-error');error.hidden=false;error.textContent='请选择示例业务日期之后的到店日期。';form.elements.date.focus();return false;
   }
+  if(step>=2){const data=Object.fromEntries(new FormData(form)),availability=bookingAvailability(ctx.model,{...data,clientId:ctx.role.id});if(!availability.available){const error=form.querySelector('.form-error');error.hidden=false;error.textContent=availability.message;return false;}}
   if (step>=3) return true;
   form.dataset.step=String(step+1);
   form.querySelector('.form-error').hidden=true;

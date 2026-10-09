@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { confirmedTestSchedules } from './scheduling-test-fixture.mjs';
 import * as reception from './reception.js';
 import { workSummary, renderStaff, staffDialog } from './staff.js';
 
 const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const front = {type:'frontdesk',id:'f1'};
-const fixture = () => {const m=new DemoModel();ensureStorePackageExamples(m);return m;};
+const fixture = () => {const m=confirmedTestSchedules(new DemoModel());ensureStorePackageExamples(m);return m;};
 const context = (model,role=front,view='reception',filters={storeId:'a'})=>({model,role,view,filters,esc,icon:()=>'',fmt:{money:n=>`¥${n}`}});
 const dialog = (m,type,id,role=front)=>{
   assert.equal(typeof reception.receptionIntakeDialog,'function','前台需要真正可打开的接待建档窗口');

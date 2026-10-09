@@ -1,4 +1,5 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-intake-assessment-v2';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-scheduling';
+import { assertScheduleAvailability } from './schedules.js?v=20261009-scheduling';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -1078,6 +1079,7 @@ export class DemoModel {
     if (existing && existing.clientId !== client.id) throw new Error('不能将预约转给其他客户');
     if (existing && !pendingAppointment(existing.status)) throw new Error('该预约已结束或已取消，不能编辑，请重新安排服务');
     if (existing?.arrivalAt && ['date', 'time', 'storeId'].some(key => existing[key] !== input[key])) throw new Error('此预约已到店，不能搬移到其他时间或门店，请先核对原预约后重新安排新预约');
+    assertScheduleAvailability(this, input);
     const conflict = this.state.appointments.find(item => item.id !== data.id && pendingAppointment(item.status) && item.date === input.date && Math.abs(minutes(item.time) - minutes(input.time)) < 60 && (item.principalId === input.principalId || item.clientId === input.clientId));
     if (conflict) throw new Error('此时间与已有预约冲突，请检查康复师跨店安排及客户时间');
     const before = existing ? copy(existing) : null;
@@ -1153,6 +1155,10 @@ export class DemoModel {
       appointment.status = 'pending_reassignment';
       appointment.reassignmentReason = reason;
     }
+    if (pendingAppointment(appointment.status)) {
+      try { assertScheduleAvailability(this, appointment); }
+      catch (error) { appointment.status = 'pending_reassignment'; appointment.reassignmentReason = `${reason}；当前排班需重新安排：${error.message}`; }
+    }
     return appointment;
   }
 
@@ -1214,6 +1220,7 @@ export class DemoModel {
     if (row.arrivalAt) throw new Error('此预约已经到店，请联系门店核对安排，需要改期时重新安排新预约');
     const request = { date: validDate(data.date), time: validTime(data.time), reason: required(data.reason || data.requestNote, '改约说明') };
     if (request.date < this.today) throw new Error('不能改约到过去的日期');
+    assertScheduleAvailability(this, {...row,...request});
     if (row.status !== 'pending_reassignment') row.status = 'reschedule_requested';
     row.request = request;
     row.requestNote = request.reason;

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { scheduleRows, scheduleRequestRows, bossScheduleNotifications } from './schedules.js';
 import { workSummary, renderStaff, staffDialog } from './staff.js';
 import { receptionStores } from './reception.js';
 import { assessmentRows, frontDeskEvaluationRows, ensureEvaluations } from './evaluations.js';
@@ -37,6 +38,7 @@ function appReaders(model, role) {
     date: v => v, money: v => `¥${v}`, pair: (k, v) => `<p>${esc(k)} ${esc(v)}</p>`,
     button: label => `<button>${esc(label)}</button>`, serviceEvidence: () => '',
     ctx: () => ctx(model, role), receptionStores, assessmentRows, frontDeskEvaluationRows, customerBookingRows, paperIntakeRows,
+    scheduleRows, scheduleRequestRows, bossScheduleNotifications,
     Blob, URL: { createObjectURL: blob => { download = blob; return 'blob:test'; }, revokeObjectURL: () => {} },
     document: { createElement: () => ({ click() {} }) }, setTimeout: () => {}, toast: () => {},
   };

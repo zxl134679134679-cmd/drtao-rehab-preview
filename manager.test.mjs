@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
 import { DemoModel } from './core.js';
+import { confirmedTestSchedules, confirmTestShift } from './scheduling-test-fixture.mjs';
+import { scheduleRows, scheduleRequestRows, bossScheduleNotifications } from './schedules.js';
+import { scheduleDialog } from './schedules-ui.js';
 import { ensureEvaluations, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, voidFrontDeskEvaluation } from './evaluations.js';
 import { renderManager, managerDialog } from './manager.js';
 import { receptionStores, receptionDialog, assertReceptionAppointment } from './reception.js';
@@ -19,7 +22,7 @@ const managerA = { type: 'manager', id: 'm1' };
 const managerB = { type: 'manager', id: 'm2' };
 const frontA = { type: 'frontdesk', id: 'f1' };
 const now = () => '2026-10-09T04:00:00.000Z';
-const model = () => { const m = new DemoModel({ now }); ensureEvaluations(m); return m; };
+const model = () => { const m = confirmedTestSchedules(new DemoModel({ now })); ensureEvaluations(m); return m; };
 const ids = rows => rows.map(row => row.id).sort();
 const serialize = m => JSON.stringify({ state: m.state, sequence: m.sequence });
 const photo = () => ({ id: 'photo-a', name: '服务留底.png', width: 1, height: 1,
@@ -218,6 +221,7 @@ test('linked task and explicit task store take priority over customer visibility
 
 test('cancelled and revoked local work keeps its customer readable without exposing that customer other-store records', () => {
   const m = model(), read = api(m);
+  confirmTestShift(m, { therapistId: 't2', storeId: 'a', date: '2026-10-11' });
   const appointment = m.saveAppointment({ clientId: 'c2', storeId: 'a', date: '2026-10-11', time: '13:00', principalId: 't2', project: '基础训练' }, boss);
   m.cancelAppointment(appointment.id, '客户有事，保留原预约', boss);
   const snap = read(managerA);
@@ -337,6 +341,7 @@ function appReaders(m, role) {
     model: m, role, filters: {}, find, esc, ctx: () => ctx(m, role),
     managerDialog, receptionStores, receptionDialog, assertReceptionAppointment, appointmentBatchDialog, staffDialog, cashDialog,
     assessmentRows, frontDeskEvaluationRows, evaluationDialog, customerBookingRows, paperIntakeRows, customerBookingTypes, customerRequestDialog,
+    scheduleRows, scheduleRequestRows, bossScheduleNotifications, scheduleDialog,
     customerCtx: () => ({...ctx(m,role),ui:{}}),
     canEditPlan: () => false, Blob,
     URL: { createObjectURL: blob => { download = blob; return 'blob:test'; }, revokeObjectURL() {} },
