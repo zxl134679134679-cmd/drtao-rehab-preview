@@ -118,7 +118,7 @@ export function updateCashFields(form,changed='') {
 }
 
 export const financeTypes = new Set(['link-receipt-package','cash-closing','cash-closing-confirm']);
-const CLOSING_STATUS = {missing:'尚未对账',submitted:'待店长确认',confirmed:'已核对确认',stale:'账目已变化，需重新核对'};
+const CLOSING_STATUS = {missing:'尚未对账',submitted:'待老板确认',confirmed:'已核对确认',stale:'账目已变化，需重新核对'};
 function matchingPackages(ctx,clientId,storeId) {
   if(!clientId||!storeId)return [];
   const stores=cashStores(ctx);
@@ -198,12 +198,12 @@ export function renderCashClosingSummary(ctx) {
   if(!['boss','frontdesk','manager'].includes(ctx.role.type))return '';
   const x=helpers(ctx),rows=ctx.model.cashClosingRows(ctx.role,{date:ctx.model.today});
   if(!rows.length)return '';
-  return `<section class="finance-closing-overview" aria-label="今日对账"><div class="finance-panel-heading"><h2>今日对账</h2><span class="meta">手动核对实际到账</span></div><div class="finance-closing-cards">${rows.map(s=>`<button type="button" class="finance-closing-card" data-action="cash-closing" data-id="${x.esc(JSON.stringify({storeId:s.storeId,date:s.date}))}"><span><strong>${x.esc(x.name('stores',s.storeId))}</strong><small class="${s.status==='stale'?'finance-warn':''}">${CLOSING_STATUS[s.status]}</small></span><span><strong>${x.money(s.expectedTotal)}</strong><small>${s.record?`核对差额 ${x.money(currentClosingDifference(s).total)}`:'登记净收'}</small></span>${x.icon('chevron-right',18)}</button>`).join('')}</div><p class="meta">核对微信、支付宝、现金与银行到账，差额需逐项处理后由老板或店长确认。</p></section>`;
+  return `<section class="finance-closing-overview" aria-label="今日对账"><div class="finance-panel-heading"><h2>今日对账</h2><span class="meta">手动核对实际到账</span></div><div class="finance-closing-cards">${rows.map(s=>`<button type="button" class="finance-closing-card" data-action="cash-closing" data-id="${x.esc(JSON.stringify({storeId:s.storeId,date:s.date}))}"><span><strong>${x.esc(x.name('stores',s.storeId))}</strong><small class="${s.status==='stale'?'finance-warn':''}">${CLOSING_STATUS[s.status]}</small></span><span><strong>${x.money(s.expectedTotal)}</strong><small>${s.record?`核对差额 ${x.money(currentClosingDifference(s).total)}`:'登记净收'}</small></span>${x.icon('chevron-right',18)}</button>`).join('')}</div><p class="meta">核对微信、支付宝、现金与银行到账，差额需逐项处理后由老板确认。</p></section>`;
 }
 function cashClosingDialog(type,id,ctx) {
   const stores=closingStores(ctx),x=helpers(ctx);
   if(type==='cash-closing-confirm') {
-    if(!['boss','manager'].includes(ctx.role.type))throw new Error('对账确认由老板或店长处理');
+    if(ctx.role.type!=='boss')throw new Error('对账确认仅由老板处理，店长只查看');
     const record=ctx.model.state.cashClosings?.find(r=>r.id===id);
     if(!record)throw new Error('对账记录不存在');
     const s=ctx.model.cashClosingSummary(ctx.role,{storeId:record.storeId,date:record.date});
@@ -212,11 +212,11 @@ function cashClosingDialog(type,id,ctx) {
   }
   const selection=cashClosingSelection(id,ctx,stores),s=ctx.model.cashClosingSummary(ctx.role,selection),record=s.record,difference=currentClosingDifference(s);
   const canWrite=['boss','frontdesk'].includes(ctx.role.type),balanced=record&&Object.values(difference.methods).every(n=>n===0);
-  const canConfirm=['boss','manager'].includes(ctx.role.type)&&record?.status==='submitted'&&balanced;
+  const canConfirm=ctx.role.type==='boss'&&record?.status==='submitted'&&balanced;
   const filter=`<form data-form="cash-closing-select" class="finance-closing-filter">${x.select('对账门店','storeId',stores.map(t=>[t.id,t.name]),'required',s.storeId)}${x.field('营业日期','date',s.date,'date',`required max="${x.esc(ctx.model.today)}"`)}<button type="submit" class="btn btn-outline">查看这天</button></form>`;
   const columns=Object.keys(METHODS).map(method=>`<div class="finance-closing-method"><strong>${METHODS[method]}</strong>${x.pair('登记净收',x.money(s.expected[method]))}${record?`${x.pair('实际核对',x.money(record.actual[method]))}${x.pair('差额',x.money(difference.methods[method]))}`:''}</div>`).join('');
-  const notice=s.status==='stale'?'<div class="note finance-warn">账目已变化，请前台或老板重新核对并提交；之前的确认保留留底，此次需要重新确认。</div>':record&&!balanced?'<div class="note finance-warn">存在差额，请核对漏记、重复记录或退款。每项差额归零后，老板或店长才可确认。</div>':`<div class="note"><strong>${CLOSING_STATUS[s.status]}</strong><p>${record?'登记金额与实际核对金额按付款方式分别比对。':'先核对实际到账，再填下面四项金额；没有到账的项目填 0。'}</p></div>`;
+  const notice=s.status==='stale'?'<div class="note finance-warn">账目已变化，请前台或老板重新核对并提交；之前的确认保留留底，此次需要重新确认。</div>':record&&!balanced?'<div class="note finance-warn">存在差额，请核对漏记、重复记录或退款。每项差额归零后，老板才可确认。</div>':`<div class="note"><strong>${CLOSING_STATUS[s.status]}</strong><p>${record?'登记金额与实际核对金额按付款方式分别比对。':'先核对实际到账，再填下面四项金额；没有到账的项目填 0。'}</p></div>`;
   const attribution=record?`<p class="meta">提交：${x.esc(actorName(ctx,record.submittedBy))} · ${x.esc(stampLabel(record.submittedAt))}${record.confirmedAt?`<br>上次确认：${x.esc(actorName(ctx,record.confirmedBy))} · ${x.esc(stampLabel(record.confirmedAt))}`:''}</p>${record.notes?`<div class="finance-package-note">备注：${x.esc(record.notes)}</div>`:''}`:'';
-  const edit=canWrite?x.form('cash-closing',`${x.hidden('storeId',s.storeId)}${x.hidden('date',s.date)}${x.hidden('version',record?.version||0)}<h3>填写实际核对金额</h3><p class="meta">按所选营业日各渠道实际收款减去实际退款填写，可为负数。请核对流水，不要填个人账户的总余额。</p><div class="form-grid">${Object.keys(METHODS).map(method=>x.field(`${METHODS[method]}实际净到账（元）`,`actual${method[0].toUpperCase()+method.slice(1)}`,record?.actual[method]??'','number','required step="0.01" placeholder="没有收款填 0"')).join('')}${x.notes('差额说明或核对备注（选填）','notes',false,record?.notes||'')}</div><p class="meta">提交后由老板或店长确认；新增、退款或更正当天账目后需重新核对。</p>`,record?'重新提交对账':'提交对账'):'';
-  return {title:'每日营业对账',html:`${filter}<div class="finance-closing-total"><span>这天登记净收</span><strong>${x.money(s.expectedTotal)}</strong>${record?`<small>实际核对 ${x.money(record.actualTotal)} · 差额 ${x.money(difference.total)}</small>`:''}</div>${notice}<div class="finance-closing-methods">${columns}</div>${attribution}${canConfirm?`<div class="action-row">${x.action('确认账目已核对','cash-closing-confirm',record.id,'btn-primary')}</div>`:''}${edit}${ctx.role.type==='manager'&&!record?'<div class="empty">请前台先填写并提交实际核对金额，您再确认。</div>':''}<p class="meta">平台待结算不计入当天实收；已到账平台款归实际收款方式核对，原待结算单不会重复统计。</p>`};
+  const edit=canWrite?x.form('cash-closing',`${x.hidden('storeId',s.storeId)}${x.hidden('date',s.date)}${x.hidden('version',record?.version||0)}<h3>填写实际核对金额</h3><p class="meta">按所选营业日各渠道实际收款减去实际退款填写，可为负数。请核对流水，不要填个人账户的总余额。</p><div class="form-grid">${Object.keys(METHODS).map(method=>x.field(`${METHODS[method]}实际净到账（元）`,`actual${method[0].toUpperCase()+method.slice(1)}`,record?.actual[method]??'','number','required step="0.01" placeholder="没有收款填 0"')).join('')}${x.notes('差额说明或核对备注（选填）','notes',false,record?.notes||'')}</div><p class="meta">提交后由老板确认；新增、退款或更正当天账目后需重新核对。</p>`,record?'重新提交对账':'提交对账'):'';
+  return {title:'每日营业对账',html:`${filter}<div class="finance-closing-total"><span>这天登记净收</span><strong>${x.money(s.expectedTotal)}</strong>${record?`<small>实际核对 ${x.money(record.actualTotal)} · 差额 ${x.money(difference.total)}</small>`:''}</div>${notice}<div class="finance-closing-methods">${columns}</div>${attribution}${canConfirm?`<div class="action-row">${x.action('确认账目已核对','cash-closing-confirm',record.id,'btn-primary')}</div>`:''}${edit}${ctx.role.type==='manager'?'<p class="notice">店长仅查看本店对账；录入由前台或老板处理，确认由老板处理。</p>':''}${ctx.role.type==='manager'&&!record?'<div class="empty">请前台先填写并提交实际核对金额，再由老板确认。</div>':''}<p class="meta">平台待结算不计入当天实收；已到账平台款归实际收款方式核对，原待结算单不会重复统计。</p>`};
 }

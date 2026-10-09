@@ -45,15 +45,16 @@ test('daily closing is local, clearly separates actual totals from registered am
  assert.ok(!frontHtml.includes('data-form="cash-closing-confirm"'));assert.throws(()=>cash.cashDialog('cash-closing',JSON.stringify({storeId:'b',date:m.today}),ctx(m,front)),/门店|权限/);
  const record=m.saveCashClosing({storeId:'a',date:m.today,actualWechat:'3000',actualAlipay:'0',actualCash:'0',actualBank:'0',notes:'已核对',version:0,requestId:'closing-ui'},front);
  const managerHtml=cash.cashDialog('cash-closing',JSON.stringify({storeId:'a',date:m.today}),ctx(m,manager)).html;
- assert.match(managerHtml,/data-action="cash-closing-confirm"/);assert.ok(!managerHtml.includes('name="actualWechat"'));assert.match(managerHtml,/已核对/);
- assert.match(cash.cashDialog('cash-closing-confirm',record.id,ctx(m,manager)).html,/data-form="cash-closing-confirm"/);
+ assert.ok(!managerHtml.includes('data-action="cash-closing-confirm"'));assert.ok(!managerHtml.includes('name="actualWechat"'));assert.match(managerHtml,/已核对/);
+ assert.throws(()=>cash.cashDialog('cash-closing-confirm',record.id,ctx(m,manager)),/老板|查看/);
+ assert.match(cash.cashDialog('cash-closing-confirm',record.id,ctx(m,boss)).html,/data-form="cash-closing-confirm"/);
  assert.throws(()=>cash.cashDialog('cash-closing-confirm',record.id,ctx(m,front)),/店长|老板/);
 });
 test('closing summary stays management-only, marks stale records and escapes notes',()=>{
  const m=fixture();assert.equal(typeof cash.renderCashClosingSummary,'function');
  assert.equal(cash.renderCashClosingSummary(ctx(m,{type:'customer',id:'c1'})),'');assert.equal(cash.renderCashClosingSummary(ctx(m,{type:'therapist',id:'t1'})),'');
  let html=cash.renderCashClosingSummary(ctx(m,front));assert.match(html,/今日对账/);assert.match(html,/麦岛店/);assert.ok(!html.includes('崂山店'));assert.match(html,/尚未对账/);
- receipt(m);const r=m.saveCashClosing({storeId:'a',date:m.today,actualWechat:'3000',actualAlipay:'0',actualCash:'0',actualBank:'0',notes:'<img src=x onerror=alert(1)>',version:0,requestId:'closing-escape'},front);m.confirmCashClosing(r.id,{version:r.version,requestId:'confirm-ui'},manager);
+ receipt(m);const r=m.saveCashClosing({storeId:'a',date:m.today,actualWechat:'3000',actualAlipay:'0',actualCash:'0',actualBank:'0',notes:'<img src=x onerror=alert(1)>',version:0,requestId:'closing-escape'},front);m.confirmCashClosing(r.id,{version:r.version,requestId:'confirm-ui'},boss);
  m.recordReceipt({clientId:'c1',storeId:'a',purpose:'single',method:'cash',channel:'direct',amount:'300',date:m.today,time:'10:00',requestId:'later'},front);
  html=cash.cashDialog('cash-closing',JSON.stringify({storeId:'a',date:m.today}),ctx(m,manager)).html;assert.match(html,/账目.*变化|重新核对/);assert.ok(!html.includes('data-action="cash-closing-confirm"'));assert.ok(!html.includes('<img src=x'));assert.match(html,/&lt;img/);
  assert.throws(()=>cash.cashDialog('cash-closing','',ctx(m,{type:'boss',id:'forged'})),/权限|老板/);
@@ -71,7 +72,7 @@ test('unlinked receipt with no matching open package clearly stops an unusable l
 test('a full refund after confirmation displays the current ledger difference while preserving the old closing snapshot',()=>{
  const m=fixture(),r=m.recordReceipt({clientId:'c1',storeId:'a',purpose:'package',method:'wechat',channel:'direct',amount:'25200',date:m.today,time:'09:00',requestId:'refund-stale-receipt'},front);
  const closing=m.saveCashClosing({storeId:'a',date:m.today,actualWechat:'25200',actualAlipay:'0',actualCash:'0',actualBank:'0',notes:'原账已核平',version:0,requestId:'refund-stale-closing'},front);
- m.confirmCashClosing(closing.id,{version:closing.version,requestId:'refund-stale-confirm'},manager);
+ m.confirmCashClosing(closing.id,{version:closing.version,requestId:'refund-stale-confirm'},boss);
  m.refundReceipt({receiptId:r.id,amount:'25200',date:m.today,time:'10:00',reason:'客户全额退款',requestId:'refund-stale-refund'},boss);
  const s=m.cashClosingSummary(boss,{storeId:'a',date:m.today});assert.equal(s.status,'stale');assert.equal(s.expectedTotal,0);assert.equal(s.record.differenceTotal,0);
  const before=structuredClone(m.state),html=cash.cashDialog('cash-closing',JSON.stringify({storeId:'a',date:m.today}),ctx(m)).html;

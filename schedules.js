@@ -52,10 +52,10 @@ function initialized(model) {
 function writable(model, role, row, before, mode) {
   if (mode === 'request') {
     if (role?.type !== 'frontdesk') throw new Error('仅授权前台可提交排班调整申请');
-  } else if (!['boss', 'manager'].includes(role?.type)) throw new Error('仅老板或本店店长可确认修改排班');
+  } else if (role?.type !== 'boss') throw new Error('仅老板可确认修改排班');
   const stores = actorStores(model, role), therapist = model._therapist(row.therapistId);
   activeStore(model, therapist.storeId); activeStore(model, row.storeId);
-  if (!stores.includes(row.storeId) || (before.storeId && !stores.includes(before.storeId))) throw new Error('没有原排班或目标门店权限，店长只能修改本店排班');
+  if (!stores.includes(row.storeId) || (before.storeId && !stores.includes(before.storeId))) throw new Error('没有原排班或目标门店权限');
   if (role.type !== 'boss' && (!stores.includes(therapist.storeId) || row.storeId !== therapist.storeId)) throw new Error('只能操作本店所属康复师的本店排班');
 }
 function inputSchedule(model, data) {
@@ -137,7 +137,7 @@ export function scheduleRows(model, role, filters = {}) {
   return (model.state.staffSchedules || []).filter(row => stores.includes(row.storeId) && model.state.therapists.some(t => t.id === row.therapistId && t.active === true) && (role.type !== 'therapist' || row.therapistId === role.id) && (!filters.storeId || row.storeId === filters.storeId) && (!filters.date || row.date === filters.date) && (!filters.therapistId || row.therapistId === filters.therapistId)).map(scheduleProjection);
 }
 export function saveSchedule(model, data, role) {
-  if (!['boss', 'manager'].includes(role?.type)) throw new Error('仅老板或本店店长可确认修改排班');
+  if (role?.type !== 'boss') throw new Error('仅老板可确认修改排班');
   initialized(model); const input = inputSchedule(model, data), before = currentSchedule(model, input.therapistId, input.date);
   writable(model, role, input, before, 'save');
   const inputKey = JSON.stringify(input), previous = replay(priorOperation(model, role, input.requestId), 'save', inputKey);
@@ -158,7 +158,7 @@ export function requestScheduleChange(model, data, role) {
   commit(model, staged); return requestProjection(row);
 }
 export function decideScheduleChange(model, changeId, data, role) {
-  if (!['boss', 'manager'].includes(role?.type)) throw new Error('仅老板或本店店长可审批排班申请');
+  if (role?.type !== 'boss') throw new Error('仅老板可审批排班申请');
   initialized(model); const row = model.state.scheduleChangeRequests.find(r => r.id === changeId); if (!row) throw new Error('排班调整申请不存在');
   const before = currentSchedule(model, row.therapistId, row.date); writable(model, role, row.after, row.before, 'approve');
   if (row.date < model.today) throw new Error('不能审批过去日期的排班调整');
@@ -188,19 +188,19 @@ export function markScheduleNotificationRead(model, noticeId, role) {
   return noticeProjection(notice);
 }
 export function assertScheduleAvailability(model, input) {
-  if (model.state.staffSchedules === undefined) throw new Error('这一天尚未排班，请先联系店长确认上班时间');
+  if (model.state.staffSchedules === undefined) throw new Error('这一天尚未排班，请先联系老板确认上班时间');
   if (!Array.isArray(model.state.staffSchedules)) throw new Error('排班数据无效，请联系老板核对');
   const therapist = model._therapist(input.principalId); activeStore(model, therapist.storeId); activeStore(model, input.storeId);
   const date = validDate(input.date), time = halfHour(input.time, '预约开始时间'), duration = input.duration ?? 60;
   if (typeof duration !== 'number' || !Number.isInteger(duration) || duration <= 0 || duration > 1440) throw new Error('预约时长须为有效分钟数');
   const matches = model.state.staffSchedules.filter(row => row.therapistId === therapist.id && row.date === date);
-  if (matches.length > 1) throw new Error('这一天有重复排班，请联系老板或店长核对后再预约');
+  if (matches.length > 1) throw new Error('这一天有重复排班，请联系老板核对后再预约');
   const schedule = matches[0] || currentSchedule(model, therapist.id, date);
-  if (schedule.status === 'unassigned') throw new Error('这一天尚未排班，请先联系店长确认上班时间');
+  if (schedule.status === 'unassigned') throw new Error('这一天尚未排班，请先联系老板确认上班时间');
   if (schedule.status !== 'work') throw new Error('康复师这一天休息，请选择其他日期或康复师');
   if (schedule.storeId !== input.storeId) throw new Error('康复师这一天在其他门店上班，请核对排班门店');
   const startTime = halfHour(schedule.startTime, '已确认排班的上班时间'), endTime = halfHour(schedule.endTime, '已确认排班的下班时间');
-  if (minutes(endTime) <= minutes(startTime)) throw new Error('已确认排班时间无效，请联系老板或店长核对');
+  if (minutes(endTime) <= minutes(startTime)) throw new Error('已确认排班时间无效，请联系老板核对');
   if (minutes(time) < minutes(startTime) || minutes(time) + duration > minutes(endTime)) throw new Error(`预约完整时长须在上班时间 ${startTime}–${endTime} 内`);
   return true;
 }

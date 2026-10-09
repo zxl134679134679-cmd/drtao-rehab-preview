@@ -1,5 +1,5 @@
-import { hourTimeField } from './hour-picker.js?v=20261009-flow-ease';
-import { receptionStores } from './reception.js?v=20261009-flow-ease';
+import { hourTimeField } from './hour-picker.js?v=20261009-daily-permissions';
+import { receptionStores } from './reception.js?v=20261009-daily-permissions';
 
 const limit = 20;
 function clients(ctx) { return ctx.model.visibleClients(ctx.role); }

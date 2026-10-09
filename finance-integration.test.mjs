@@ -33,18 +33,22 @@ test('offsetting method differences still ask the operator to investigate before
  r.scope.model.saveCashClosing=()=>({id:'closing-test',storeId:'a',date:'2026-10-08',status:'submitted',differenceTotal:0,difference:{wechat:-1,alipay:0,cash:1,bank:0}});
  await r.run();assert.match(r.scope.successHtml,/差额.*核对|逐项.*核对/);
 });
-test('actual manager submit can confirm daily reconciliation without gaining receipt entry or refund actions',async()=>{
- const r=runtime(manager,'cash-closing-confirm',{id:'closing-test',version:'1'});await r.run();
- assert.equal(r.calls.length,1);assert.equal(r.calls[0].method,'confirmCashClosing');assert.equal(r.calls[0].args[0],'closing-test');assert.equal(r.calls[0].args[1].requestId,'finance-integration-key');assert.deepEqual(r.calls[0].args[2],manager);
- const denied=runtime(manager,'cash-closing',{storeId:'a',date:'2026-10-08'});await denied.run();assert.equal(denied.calls.length,0);assert.match(denied.scope.error,/店长|权限/);
+test('manager submit refuses every business write while boss confirms daily reconciliation',async()=>{
+ for(const type of ['cash-closing-confirm','cash-closing','reception-create-client','paper-intake-create','schedule-save','schedule-decision','reset']){
+  const denied=runtime(manager,type,{id:'closing-test',version:'1',storeId:'a',date:'2026-10-08'});await denied.run();
+  assert.equal(denied.calls.length,0);assert.match(denied.scope.error,/店长.*不可录入和修改/);assert.notEqual(denied.form.dataset.succeeded,'true');
+ }
+ const boss={type:'boss',id:'boss'},r=runtime(boss,'cash-closing-confirm',{id:'closing-test',version:'1'});await r.run();
+ assert.equal(r.calls.length,1);assert.equal(r.calls[0].method,'confirmCashClosing');assert.equal(r.calls[0].args[0],'closing-test');assert.equal(r.calls[0].args[1].requestId,'finance-integration-key');assert.deepEqual(r.calls[0].args[2],boss);
 });
+
 test('manual linking is dispatched only after the real boss check and keeps original request identity',async()=>{
  const r=runtime({type:'boss',id:'boss'},'link-receipt-package',{receiptId:'r1',packageId:'p1',reason:'核对对应套餐'});await r.run();
  assert.equal(r.calls.length,1);assert.equal(r.calls[0].method,'linkReceiptPackage');assert.equal(r.calls[0].args[0].requestId,'finance-integration-key');
  for(const role of [front,{type:'boss',id:'wrong'}]){const denied=runtime(role,'link-receipt-package',{receiptId:'r1',packageId:'p1',reason:'核对对应套餐'});await denied.run();assert.equal(denied.calls.length,0);assert.match(denied.scope.error,/老板|权限/);}
 });
 test('simulated financial save failures keep fields and never invoke daily or linking mutations',async()=>{
- for(const [role,type,data]of [[front,'cash-closing',{storeId:'a',date:'2026-10-08',actualWechat:'300'}],[manager,'cash-closing-confirm',{id:'closing-test',version:'1'}],[{type:'boss',id:'boss'},'link-receipt-package',{receiptId:'r1',packageId:'p1',reason:'核对对应套餐'}]]){
+ for(const [role,type,data]of [[front,'cash-closing',{storeId:'a',date:'2026-10-08',actualWechat:'300'}],[{type:'boss',id:'boss'},'cash-closing-confirm',{id:'closing-test',version:'1'}],[{type:'boss',id:'boss'},'link-receipt-package',{receiptId:'r1',packageId:'p1',reason:'核对对应套餐'}]]){
   const r=runtime(role,type,data,true);await r.run();assert.equal(r.calls.length,0);assert.match(r.scope.error,/提交失败/);assert.deepEqual(r.form.data,data);assert.notEqual(r.form.dataset.succeeded,'true');
  }
 });

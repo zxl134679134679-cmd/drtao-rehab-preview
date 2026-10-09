@@ -168,7 +168,7 @@ test('manual closing permits signed decimal net amounts on refund-only days and 
   assert.equal(s.record.actual.wechat, -100.2);
   assert.equal(s.record.differenceTotal, 0);
   assert.deepEqual(m.cashSummary({}, boss), cashBefore);
-  m.confirmCashClosing(saved.id, { version: 1, requestId: 'confirm-signed' }, managerA);
+  m.confirmCashClosing(saved.id, { version: 1, requestId: 'confirm-signed' }, boss);
   assert.equal(m.cashClosingSummary(frontA, { storeId: 'a', date: m.today }).status, 'confirmed');
 });
 
@@ -183,19 +183,19 @@ test('same closing submit is idempotent, edits preserve older records, stale ver
   assert.equal(second.version, 2);
   assert.equal(m.state.cashClosings.length, 2);
   assert.equal(m.cashClosingSummary(frontA, { storeId: 'a', date: m.today }).record.id, second.id);
-  unchanged(m, () => m.confirmCashClosing(first.id, { version: 1, requestId: 'confirm-old' }, managerA));
+  unchanged(m, () => m.confirmCashClosing(first.id, { version: 1, requestId: 'confirm-old' }, boss));
 });
 
-test('confirmation requires local active manager or actual boss, exact zero differences and fresh ledger snapshot', () => {
+test('confirmation requires the actual boss, exact zero differences and fresh ledger snapshot', () => {
   const m = model(); receipt(m);
   const first = close(m, { actualWechat: '2999', actualCash: '1' });
   assert.equal(m.cashClosingSummary(boss, { storeId: 'a', date: m.today }).record.differenceTotal, 0);
-  unchanged(m, () => m.confirmCashClosing(first.id, { version: 1, requestId: 'confirm-offset' }, managerA));
+  unchanged(m, () => m.confirmCashClosing(first.id, { version: 1, requestId: 'confirm-offset' }, boss));
   const current = close(m, { version: 1, requestId: 'closing-correct' });
-  for (const role of [frontA, managerB, { type: 'therapist', id: 't1' }, { type: 'boss', id: 'fake' }]) unchanged(m, () => m.confirmCashClosing(current.id, { version: 2, requestId: 'confirm-denied' }, role));
-  const confirmed = m.confirmCashClosing(current.id, { version: 2, requestId: 'confirm-1' }, managerA);
+  for (const role of [frontA, managerA, managerB, { type: 'therapist', id: 't1' }, { type: 'boss', id: 'fake' }]) unchanged(m, () => m.confirmCashClosing(current.id, { version: 2, requestId: 'confirm-denied' }, role));
+  const confirmed = m.confirmCashClosing(current.id, { version: 2, requestId: 'confirm-1' }, boss);
   assert.equal(confirmed.status, 'confirmed');
-  assert.equal(m.confirmCashClosing(current.id, { version: 2, requestId: 'confirm-1' }, managerA).id, confirmed.id);
+  assert.equal(m.confirmCashClosing(current.id, { version: 2, requestId: 'confirm-1' }, boss).id, confirmed.id);
   receipt(m, { requestId: 'after-confirm', amount: '1', purpose: 'single' });
   assert.equal(m.cashClosingSummary(frontA, { storeId: 'a', date: m.today }).status, 'stale');
   unchanged(m, () => m.confirmCashClosing(current.id, { version: 2, requestId: 'confirm-again' }, boss));

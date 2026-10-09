@@ -1,23 +1,28 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-flow-ease';
-import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261009-flow-ease';
-import { renderManager, managerDialog } from './manager.js?v=20261009-flow-ease';
-import { hourTimeField } from './hour-picker.js?v=20261009-flow-ease';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-flow-ease';
-import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261009-flow-ease';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-flow-ease';
-import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-flow-ease';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-daily-permissions';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261009-daily-permissions';
+import { renderManager, managerDialog } from './manager.js?v=20261009-daily-permissions';
+import { hourTimeField } from './hour-picker.js?v=20261009-daily-permissions';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-daily-permissions';
+import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261009-daily-permissions';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-daily-permissions';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-daily-permissions';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261009-flow-ease';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-flow-ease';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261009-daily-permissions';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-daily-permissions';
 
-import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-flow-ease';
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-daily-permissions';
 
-import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-flow-ease';
-import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-flow-ease';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261009-flow-ease';
-import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261009-flow-ease';
+import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-daily-permissions';
+import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-daily-permissions';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261009-daily-permissions';
+import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261009-daily-permissions';
 
-let model = new DemoModel();
+// Keep operations on the displayed example day. Real systems use server time.
+function previewTimestamp() {
+  const time = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date());
+  return new Date(`${TODAY}T${time}+08:00`).toISOString();
+}
+let model = new DemoModel({now:previewTimestamp});
 ensureStorePackageExamples(model);
 ensureEvaluations(model);
 ensureCustomerBooking(model);
@@ -116,6 +121,8 @@ function render(resetScroll = false) {
   roleOptions();
   const customer = role.type === 'customer';
   $('#app-window').className = `app-window ${customer ? 'customer-mode' : 'staff-mode'}`;
+  const resetControl=$('[data-action="reset"]');
+  if(resetControl)resetControl.hidden=role.type==='manager';
   const label = customer ? name('clients', role.id) : role.type === 'boss' ? '老板管理' : role.type==='frontdesk'?`${name('frontDesks',role.id)} · 前台`:role.type==='manager'?`${name('storeManagers',role.id)} · 店长`:`${name('therapists', role.id)} · 康复师`;
   $('#app-header').innerHTML = `<div class="app-brand"><img class="brand-logo" src="assets/brand-logo.png" alt="涛博士 Dr.Tao 运动康复" width="146" height="56"></div><div class="customer-head"><span class="header-name">${esc(label)}</span>${customer ? `<button class="capsule" data-action="mini-info" aria-label="小程序预览说明">${icon('dots',20)}<span></span>${icon('circle-dot',20)}</button>` : '<span class="tag tag-green">工作端</span>'}</div>`;
   const staffHome=['work','overview','reception','manager-overview'].includes(view);
@@ -354,7 +361,7 @@ function buildDialog(type, id) {
   if(role.type==='manager') {
     model.managerStoreId(role);
     if(type.startsWith('manager-'))return managerDialog(type,id,ctx());
-    if(!['reset','tour','mini-info','reception-create-client','reception-client','paper-intake-create','paper-intake-detail','paper-intake-list'].includes(type))throw new Error('店长仅查看和核对本店工作，请由对应工作人员或老板处理操作');
+    if(!['tour','mini-info','reception-client','paper-intake-detail','paper-intake-list'].includes(type))throw new Error('店长仅监管查看本店工作，不可录入和修改，请由前台或老板处理');
   } else if(type.startsWith('manager-'))throw new Error('此页面仅店长可查看');
   if(['paper-intake-create','paper-intake-detail','paper-intake-review','paper-intake-list'].includes(type))return paperIntakeDialog(type,id,ctx());
   if(['reception-create-client','reception-client'].includes(type))return receptionIntakeDialog(type,id,ctx());
@@ -516,7 +523,7 @@ function openDialog(type,id = '') {
 async function loadLegacyDialog(context) {
   const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
   try {
-    const legacy=await import('./legacy.js?v=20261009-flow-ease');
+    const legacy=await import('./legacy.js?v=20261009-daily-permissions');
     if(!active())return;
     $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
     context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,
@@ -785,7 +792,7 @@ document.addEventListener('submit', async event => {
   }
   if(type==='paper-intake-select'){openDialog('paper-intake-create',data.clientId);return;}
   if(type==='cash-closing-select'){try{model.cashClosingSummary(role,{storeId:data.storeId,date:data.date});openDialog('cash-closing',JSON.stringify({storeId:data.storeId,date:data.date}));}catch(error){formError(f,error.message);}return;}
-  if(role.type==='manager'&&!['reset','reception-create-client','paper-intake-create','schedule-save','schedule-decision','cash-closing-confirm'].includes(type)) {formError(f,'店长仅查看和核对本店工作，业务操作由对应工作人员或老板处理');return;}
+  if(role.type==='manager') {formError(f,'店长仅监管查看本店工作，不可录入和修改，请由前台或老板处理');return;}
   if (type === 'filters') {
     if (data.from && data.to && data.from > data.to) { toast('开始日期不能晚于结束日期'); return; }
     filters = {...filters,...data}; render(); return;
@@ -832,7 +839,7 @@ document.addEventListener('submit', async event => {
       result=type==='link-receipt-package'?model.linkReceiptPackage({...data,requestId:context.requestId},role):type==='cash-closing'?model.saveCashClosing({...data,requestId:context.requestId},role):model.confirmCashClosing(data.id,{version:data.version,requestId:context.requestId},role);
       drafts.delete(context.key);f.dataset.succeeded='true';render();
       const closing=type!=='link-receipt-package',difference=Number(result.differenceTotal || 0),hasDifference=Object.values(result.difference||{}).some(value=>value!==0)||difference!==0;
-      showSuccess(closing?type==='cash-closing-confirm'?'营业日结已确认':hasDifference?'日结已保存，差额待核对':'日结已保存，待老板或店长确认':'收款已关联套餐',`<p class="notice">${closing?'本次保存核对记录，没有新增收入或转账。':'原收款与本店套餐已对应，没有重复计入实收或改变次数。'}</p>${closing&&hasDifference?`<p>合计差额 ${money(difference)}；请逐项核对各收款方式的差额，再重新填写。</p>`:''}<p class="meta">公开预览使用页面内示例，刷新恢复初始资料。</p>${button(closing?'查看营业日结':'查看原收款',closing?'cash-closing':'receipt-detail',closing?JSON.stringify({storeId:result.storeId,date:result.date}):result.id,'btn-primary')}`);return;
+      showSuccess(closing?type==='cash-closing-confirm'?'营业日结已确认':hasDifference?'日结已保存，差额待核对':'日结已保存，待老板确认':'收款已关联套餐',`<p class="notice">${closing?'本次保存核对记录，没有新增收入或转账。':'原收款与本店套餐已对应，没有重复计入实收或改变次数。'}</p>${closing&&hasDifference?`<p>合计差额 ${money(difference)}；请逐项核对各收款方式的差额，再重新填写。</p>`:''}<p class="meta">公开预览使用页面内示例，刷新恢复初始资料。</p>${button(closing?'查看营业日结':'查看原收款',closing?'cash-closing':'receipt-detail',closing?JSON.stringify({storeId:result.storeId,date:result.date}):result.id,'btn-primary')}`);return;
     }
     if(['add-therapist','add-frontdesk','add-manager','edit-therapist','edit-frontdesk','edit-manager'].includes(type)) {
       model._boss(role);
@@ -851,7 +858,7 @@ document.addEventListener('submit', async event => {
       result=type==='schedule-save'?saveSchedule(model,input,role):type==='schedule-request'?requestScheduleChange(model,input,role):decideScheduleChange(model,data.id,input,role);
       drafts.delete(context.key);f.dataset.succeeded='true';render();
       const effective=type==='schedule-save'||result.status==='approved';
-      showSuccess(type==='schedule-request'?'申请已提交，等待老板／店长确认':effective?'排班已更新，老板通知已记录':'申请已拒绝，原排班保留',`<p>${esc(name('therapists',result.therapistId))} · ${esc(result.date)} · ${esc(name('stores',result.storeId))}</p><p class="notice">${effective?'老板端已生成系统内通知，保留改前改后和原因。微信消息待正式接入，当前未发送。':type==='schedule-request'?'申请期间原排班不变；老板或本店店长任一人批准后即可生效。':'审批记录已保留，排班未改变。'}</p>${button('返回排班','nav','schedules','btn-primary')}`);return;
+      showSuccess(type==='schedule-request'?'申请已提交，等待老板确认':effective?'排班已更新，老板通知已记录':'申请已拒绝，原排班保留',`<p>${esc(name('therapists',result.therapistId))} · ${esc(result.date)} · ${esc(name('stores',result.storeId))}</p><p class="notice">${effective?'老板端已生成系统内通知，保留改前改后和原因。微信消息待正式接入，当前未发送。':type==='schedule-request'?'申请期间原排班不变；老板批准后生效，店长可以查看处理进度。':'审批记录已保留，排班未改变。'}</p>${button('返回排班','nav','schedules','btn-primary')}`);return;
     }
     if(type==='reception-create-client') {
       result=model.createReceptionClient({...data,requestId:context.requestId},role);
@@ -937,7 +944,7 @@ document.addEventListener('submit', async event => {
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
       showSuccess(result.billingMode==='single'?'服务已更正，业绩已冲回':find('packages',result.packageId)?.closed?'消课已更正，业绩已冲回':'次数已恢复，业绩已冲回',`${serviceResultSummary(result,ctx(),'revoked')}${button('查看原记录','service-detail',result.id,'btn-outline')}`); return;
     } else if (type === 'reset') {
-      model = new DemoModel(); ensureStorePackageExamples(model); ensureEvaluations(model); ensurePaperIntakes(model); ensureCustomerBooking(model); ensureSchedules(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
+      model = new DemoModel({now:previewTimestamp}); ensureStorePackageExamples(model); ensureEvaluations(model); ensurePaperIntakes(model); ensureCustomerBooking(model); ensureSchedules(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
       closeDialog(false); role = {type:'customer',id:'c1'}; view='home'; filters={storeId:'',therapistId:'',from:'',to:'',query:''}; render(true); toast('示例已重置'); return;
     } else throw new Error('此表单暂不可提交');
     drafts.delete(context.key); f.dataset.succeeded = 'true'; closeDialog(false); render();

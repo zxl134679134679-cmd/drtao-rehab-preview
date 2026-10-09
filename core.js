@@ -1,5 +1,5 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-flow-ease';
-import { assertScheduleAvailability } from './schedules.js?v=20261009-flow-ease';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-daily-permissions';
+import { assertScheduleAvailability } from './schedules.js?v=20261009-daily-permissions';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -559,6 +559,7 @@ export class DemoModel {
   }
 
   createReceptionClient(data, role) {
+    if (role?.type === 'manager') throw new Error('店长仅有本店监管查看权限，新客户建档请由前台或老板录入');
     this._receptionActor(role);
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('请填写新客户基本资料');
     const storeId = required(data.storeId, '接待门店', 80);
@@ -984,9 +985,7 @@ export class DemoModel {
   }
 
   confirmCashClosing(id, data, role) {
-    if (role?.type === 'boss') this._boss(role);
-    else if (role?.type === 'manager') this.managerStoreId(role);
-    else throw new Error('仅老板或本店在职店长有权限确认营业对账');
+    this._boss(role);
     const row = this.state.cashClosings.find(item => item.id === required(id, '对账记录标识', 80));
     if (!row) throw new Error('对账记录不存在');
     this._financeActor(role, row.storeId);

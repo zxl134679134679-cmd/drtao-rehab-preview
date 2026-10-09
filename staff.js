@@ -1,8 +1,9 @@
 /* Employee and owner views for the in-memory review prototype. */
-import { renderPaperIntakeInbox } from './paper-intake.js?v=20261009-flow-ease';
-import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261009-flow-ease';
-import { hourTimeField } from './hour-picker.js?v=20261009-flow-ease';
-import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261009-flow-ease';
+import { renderPaperIntakeInbox } from './paper-intake.js?v=20261009-daily-permissions';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261009-daily-permissions';
+import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261009-daily-permissions';
+import { hourTimeField } from './hour-picker.js?v=20261009-daily-permissions';
+import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261009-daily-permissions';
 const TODAY = '2026-10-08';
 
 function h(ctx) {
@@ -290,6 +291,7 @@ function overview(ctx) {
     <p class="boss-scope">${x.esc(scopeLabel)} · ${period}${period === '所选日期' ? ` ${f.from ? x.date(f.from) : '不限开始'}—${f.to ? x.date(f.to) : '不限结束'}` : ''}</p>
     ${cashOverview(ctx,period)}
     <div class="boss-stats"><div class="boss-stat"><span>服务消费业绩</span><strong>${x.money(b.amount)}</strong><small>完成服务产生 · 收款另计</small></div><div class="boss-stat"><span>完成服务</span><strong>${b.valid.length}<small> 次</small></strong><small>${period}已登记</small></div><div class="boss-stat"><span>待处理工作</span><strong>${b.tasks.length+b.appointments.length+b.reviews.length+b.unrecordedArrivals.length}<small> 项</small></strong><small>预约、登记、反馈与待办</small></div></div>
+    ${renderDailyOperations(ctx,{compact:true})}
     <div class="boss-columns"><section class="boss-panel"><div class="section-head"><h2>需要处理</h2><span class="muted">点开即可处理</span></div>${renderPaperIntakeInbox(ctx)}<p class="boss-panel-note">${b.followupCount ? '查看当前提醒，不受业绩日期影响。' : '当前没有待跟进客户。'}</p>
       ${notice('需要确认的服务安排',b.appointments.length,'条',appointmentRows || '<p class="empty">当前没有待处理预约。</p>')}
       ${notice('已到店待登记',b.unrecordedArrivals.length,'位',b.unrecordedArrivals.map(a=>`<div class="boss-detail-row"><strong>${x.esc(x.client(a.clientId)?.name)}</strong><p class="meta">${x.date(a.date)} ${x.esc(a.time)} · ${x.esc(x.name('stores',a.storeId))} · ${x.esc(x.name('therapists',a.principalId))}</p><p class="meta">客户已到店，请核实服务完成情况，再由康复师登记。</p>${x.link('查看预约','appointment-history',a.clientId)}</div>`).join('')||'<p class="empty">当前没有已到店待登记的客户。</p>')}
@@ -313,7 +315,7 @@ function team(ctx) {
   return `<div class="personnel-page"><div class="page-head"><div><span class="eyebrow">老板工作台</span><h1>人员管理</h1><p class="muted">资料和权限由老板维护。新增时选好岗位和门店；已有人员点击“编辑资料”。</p></div><div class="action-row">${x.action('新增康复师', 'add-therapist', '', 'btn-primary', 'plus')}${x.action('新增前台', 'add-frontdesk', '', 'btn-outline', 'plus')}${x.action('新增店长', 'add-manager', '', 'btn-outline', 'plus')}</div></div>
     <section class="section card"><div class="section-head"><div><h2>康复师</h2><p class="muted">负责客户、评估、服务与消课。停用后保留历史服务。</p></div><span class="muted">${x.state.therapists.filter(t => t.active !== false).length} 位在职</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>姓名 / 手机号</th><th>所属门店</th><th>负责客户</th><th>状态</th><th>操作</th></tr></thead><tbody>${x.state.therapists.map(t => `<tr><td data-label="康复师"><strong>${x.esc(t.name)}</strong>${contact(t)}</td><td data-label="所属门店">${x.esc(x.name('stores', t.storeId))}</td><td data-label="负责客户">${x.state.clients.filter(c => c.ownerId === t.id).length} 位</td><td data-label="状态">${status(t)}</td><td data-label="操作"><div class="action-row">${x.action('编辑资料', 'edit-therapist', t.id, 'btn-small btn-outline')}${x.link('业绩明细', 'therapist-performance', t.id)}${t.active !== false ? x.action('停用', 'deactivate-therapist', t.id, 'btn-small btn-quiet') : ''}</div></td></tr>`).join('')}</tbody></table>${!x.state.therapists.length ? '<p class="empty">还没有康复师，请点击“新增康复师”。</p>' : ''}</div></section>
     <section class="section card"><div class="section-head"><div><h2>前台</h2><p class="muted">在授权门店建档、接待、预约和录入收款；排班只能申请调整。</p></div>${x.action('新增前台', 'add-frontdesk', '', 'btn-outline', 'plus')}</div><div class="line-list">${(x.state.frontDesks || []).map(person => staffRow(person, 'frontdesk')).join('') || '<p class="empty">还没有前台，请点击“新增前台”。</p>'}</div></section>
-    <section class="section card"><div class="section-head"><div><h2>店长</h2><p class="muted">查看本店工作、建档和管理本店排班。人员管理、退款更正及私人评价由老板处理。</p></div>${x.action('新增店长', 'add-manager', '', 'btn-outline', 'plus')}</div><div class="line-list">${(x.state.storeManagers || []).map(person => staffRow(person, 'manager')).join('') || '<p class="empty">还没有店长，请点击“新增店长”。</p>'}</div></section>
+    <section class="section card"><div class="section-head"><div><h2>店长</h2><p class="muted">监管查看本店客户、收入、排班与员工工作，不可录入和修改。业务录入由前台办理，调整由老板处理。</p></div>${x.action('新增店长', 'add-manager', '', 'btn-outline', 'plus')}</div><div class="line-list">${(x.state.storeManagers || []).map(person => staffRow(person, 'manager')).join('') || '<p class="empty">还没有店长，请点击“新增店长”。</p>'}</div></section>
     <section class="section"><div class="section-head"><div><h2>门店</h2><p class="muted">${x.state.stores.length} 家门店 · 新店也在这里统一管理</p></div>${x.action('新增门店', 'add-store', '', 'btn-outline', 'plus')}</div><div class="client-grid">${x.state.stores.map(s => `<article class="card person-card"><span class="eyebrow">${x.ico('map-pin', 18)} 服务门店</span><h2>${x.esc(s.name)}</h2><p class="muted">${x.esc(s.address || '地址待完善')}</p><div class="meta">${x.state.therapists.filter(t => t.storeId === s.id && t.active !== false).length} 位康复师 · ${s.active === false ? '已停用' : '营业中'}</div></article>`).join('')}</div></section>
     <section class="section card"><div class="section-head"><div><h2>旧档案迁入</h2><p class="muted">录入客户、负责人和期初剩余次数。历史已使用次数不自动计入新系统消费业绩。</p></div>${x.action('录入一位客户', 'import-opening', '', 'btn-outline', 'plus')}</div></section></div>`;
 }
@@ -346,7 +348,7 @@ export function personnelDialog(type, id, ctx) {
   const permissions = {
     therapist: '查看本人负责或参与的客户，填写评估、登记实际服务和查看本人业绩。',
     frontdesk: '在授权门店建档、接待、安排预约及录入收款；可以查看排班、申请调整。退款和更正由老板处理。',
-    manager: '负责一家门店，查看本店工作、建档、修改和审批本店排班。人员管理、退款更正和客户私人评价由老板处理。',
+    manager: '负责一家门店的监管查看，不能建档、录入、修改、审批或确认日结。调整由老板处理；客户私人评价仅老板可查看。',
   }[kind];
   const statusField = editing
     ? `<label class="field"><span>人员状态</span><select name="active" required><option value="true"${person.active !== false ? ' selected' : ''}>使用中</option><option value="false"${person.active === false ? ' selected' : ''}>已停用</option></select><span class="meta">停用后不能再使用该身份；重新选择“使用中”可恢复。</span></label>`

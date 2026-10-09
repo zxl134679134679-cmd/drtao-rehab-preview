@@ -37,20 +37,20 @@ test('schedule visibility resolves actual active accounts and ignores claimed st
   model.state.storeManagers[0].active = false; assert.throws(() => call('scheduleRows', model, manager), /在职|停用|权限/);
 });
 
-test('boss and local manager apply changes directly, making one audit and one boss notification without touching business balances', () => {
-  const model = init(), before = business(model), row = call('saveSchedule', model, input(), manager);
-  assert.equal(row.endTime, '18:30'); assert.equal(row.version, 2); assert.equal(row.changedBy, 'm1'); assert.equal(row.changedRole, 'manager');
+test('boss applies changes directly, making one audit and one boss notification without touching business balances', () => {
+  const model = init(), before = business(model), row = call('saveSchedule', model, input(), boss);
+  assert.equal(row.endTime, '18:30'); assert.equal(row.version, 2); assert.equal(row.changedBy, 'boss'); assert.equal(row.changedRole, 'boss');
   assert.equal(business(model), before); assert.equal(model.state.scheduleNotifications.length, 1);
-  const notice = call('bossScheduleNotifications', model, boss)[0]; assert.equal(notice.before.endTime, '19:00'); assert.equal(notice.after.endTime, '18:30'); assert.equal(notice.approvedBy, 'm1'); assert.equal(notice.reason, '晚间培训调整下班时间'); assert.equal(notice.wechatStatus, 'pending_integration'); assert.equal(notice.createdAt, '2026-10-09T03:00:00.000Z');
-  assert.equal(model.state.audit.at(-1).type, 'schedule_changed'); assert.equal(model.state.audit.at(-1).actorType, 'manager');
+  const notice = call('bossScheduleNotifications', model, boss)[0]; assert.equal(notice.before.endTime, '19:00'); assert.equal(notice.after.endTime, '18:30'); assert.equal(notice.approvedBy, 'boss'); assert.equal(notice.reason, '晚间培训调整下班时间'); assert.equal(notice.wechatStatus, 'pending_integration'); assert.equal(notice.createdAt, '2026-10-09T03:00:00.000Z');
+  assert.equal(model.state.audit.at(-1).type, 'schedule_changed'); assert.equal(model.state.audit.at(-1).actorType, 'boss');
   const rest = call('saveSchedule', model, input({ therapistId: 't3', status: 'rest', startTime: '09:00', endTime: '18:30', requestId: 'rest' }), boss); assert.equal(rest.status, 'rest'); assert.equal(rest.startTime, ''); assert.equal(rest.endTime, '');
 });
 
-test('front desk and therapists cannot directly change schedules and managers cannot change another store', () => {
+test('front desk, therapists and managers cannot directly change any schedules', () => {
   const model = init();
-  for (const role of [front, { type: 'therapist', id: 't1' }, { type: 'customer', id: 'c1' }, { type: 'boss', id: 'fake' }]) unchanged(model, () => call('saveSchedule', model, input(), role), /老板|店长|权限/);
-  unchanged(model, () => call('saveSchedule', model, input({ therapistId: 't2', storeId: 'b' }), manager), /本店|门店|权限/);
-  unchanged(model, () => call('saveSchedule', model, input({ storeId: 'b' }), manager), /本店|门店|权限/);
+  for (const role of [front, manager, { type: 'therapist', id: 't1' }, { type: 'customer', id: 'c1' }, { type: 'boss', id: 'fake' }]) unchanged(model, () => call('saveSchedule', model, input(), role), /老板|店长|权限/);
+  unchanged(model, () => call('saveSchedule', model, input({ therapistId: 't2', storeId: 'b' }), manager), /老板|本店|门店|权限/);
+  unchanged(model, () => call('saveSchedule', model, input({ storeId: 'b' }), manager), /老板|本店|门店|权限/);
   model.state.therapists[0].active = false; unchanged(model, () => call('saveSchedule', model, input(), boss), /在职|停用/);
   model.state.therapists[0].active = true; model.state.stores[0].active = false; unchanged(model, () => call('saveSchedule', model, input(), boss), /停用|门店/);
 });
@@ -66,19 +66,19 @@ test('initial schedule on an unassigned day uses version zero and advances to on
 });
 
 test('replay of an applied save is idempotent but reusing its token with changed content is rejected', () => {
-  const model = init(), row = call('saveSchedule', model, input(), manager), before = JSON.stringify([model.state, model.sequence]);
-  assert.equal(call('saveSchedule', model, input(), manager).id, row.id); assert.equal(JSON.stringify([model.state, model.sequence]), before);
-  unchanged(model, () => call('saveSchedule', model, input({ endTime: '18:00' }), manager), /提交|变化/);
-  unchanged(model, () => call('saveSchedule', model, input({ requestId: 'new', expectedVersion: 1 }), manager), /更新|变化|版本/);
+  const model = init(), row = call('saveSchedule', model, input(), boss), before = JSON.stringify([model.state, model.sequence]);
+  assert.equal(call('saveSchedule', model, input(), boss).id, row.id); assert.equal(JSON.stringify([model.state, model.sequence]), before);
+  unchanged(model, () => call('saveSchedule', model, input({ endTime: '18:00' }), boss), /提交|变化/);
+  unchanged(model, () => call('saveSchedule', model, input({ requestId: 'new', expectedVersion: 1 }), boss), /更新|变化|版本/);
 });
 
 test('unchanged shifts do not fabricate a change, and a submit token cannot be reused across actions or requests', () => {
-  const model = init(); unchanged(model, () => call('saveSchedule', model, input({ endTime: '19:00' }), manager), /没有变化|未变化/);
-  call('saveSchedule', model, input(), manager);
-  unchanged(model, () => call('saveSchedule', model, input({ therapistId: 't3' }), manager), /提交|变化/);
+  const model = init(); unchanged(model, () => call('saveSchedule', model, input({ endTime: '19:00' }), boss), /没有变化|未变化/);
+  call('saveSchedule', model, input(), boss);
+  unchanged(model, () => call('saveSchedule', model, input({ therapistId: 't3' }), boss), /提交|变化/);
   const a = call('requestScheduleChange', model, input({ therapistId: 't3', requestId: 'request-one' }), front), b = call('requestScheduleChange', model, input({ therapistId: 't5', status: 'work', requestId: 'request-two' }), front);
-  call('decideScheduleChange', model, a.id, { decision: 'approved', reason: '同意', requestId: 'decision' }, manager);
-  unchanged(model, () => call('decideScheduleChange', model, b.id, { decision: 'approved', reason: '同意', requestId: 'decision' }, manager), /提交|用于|变化/);
+  call('decideScheduleChange', model, a.id, { decision: 'approved', reason: '同意', requestId: 'decision' }, boss);
+  unchanged(model, () => call('decideScheduleChange', model, b.id, { decision: 'approved', reason: '同意', requestId: 'decision' }, boss), /提交|用于|变化/);
 });
 
 test('front desk submits a scoped pending proposal without applying it or making a change notification', () => {
@@ -97,18 +97,18 @@ test('only authorized front desk may request changes for its own-store therapist
   unchanged(model, () => call('requestScheduleChange', model, input({ therapistId: 't2' }), front), /所属|门店|权限/);
 });
 
-test('one local manager approval takes effect immediately and boss cannot create a second approval or notification', () => {
+test('one boss approval takes effect immediately and cannot create a second approval or notification', () => {
   const model = init(), request = call('requestScheduleChange', model, input(), front), data = { decision: 'approved', reason: '已与康复师确认', requestId: 'approval-1' };
-  const row = call('decideScheduleChange', model, request.id, data, manager); assert.equal(row.status, 'approved'); assert.equal(row.decidedBy, 'm1'); assert.equal(row.decisionReason, '已与康复师确认'); assert.equal(call('scheduleStatus', model, 't1', model.today).endTime, '18:30');
-  assert.equal(model.state.scheduleNotifications.length, 1); const notice = call('bossScheduleNotifications', model, boss)[0]; assert.equal(notice.changedBy, 'f1'); assert.equal(notice.approvedBy, 'm1');
-  const before = JSON.stringify([model.state, model.sequence]); assert.equal(call('decideScheduleChange', model, request.id, data, manager).status, 'approved'); assert.equal(JSON.stringify([model.state, model.sequence]), before);
+  const row = call('decideScheduleChange', model, request.id, data, boss); assert.equal(row.status, 'approved'); assert.equal(row.decidedBy, 'boss'); assert.equal(row.decisionReason, '已与康复师确认'); assert.equal(call('scheduleStatus', model, 't1', model.today).endTime, '18:30');
+  assert.equal(model.state.scheduleNotifications.length, 1); const notice = call('bossScheduleNotifications', model, boss)[0]; assert.equal(notice.changedBy, 'f1'); assert.equal(notice.approvedBy, 'boss');
+  const before = JSON.stringify([model.state, model.sequence]); assert.equal(call('decideScheduleChange', model, request.id, data, boss).status, 'approved'); assert.equal(JSON.stringify([model.state, model.sequence]), before);
   unchanged(model, () => call('decideScheduleChange', model, request.id, { ...data, requestId: 'boss-approval' }, boss), /已经|已处理/);
-  unchanged(model, () => call('decideScheduleChange', model, request.id, { ...data, reason: '变化' }, manager), /提交|变化/);
+  unchanged(model, () => call('decideScheduleChange', model, request.id, { ...data, reason: '变化' }, boss), /提交|变化/);
 });
 
 test('boss may approve another store alone and rejecting a request preserves the old shift', () => {
   const model = init(), req = call('requestScheduleChange', model, input({ therapistId: 't2', storeId: 'b', date: '2026-10-11' }), { type: 'frontdesk', id: 'f2' });
-  unchanged(model, () => call('decideScheduleChange', model, req.id, { decision: 'approved', reason: '核对', requestId: 'x' }, manager), /本店|权限/);
+  unchanged(model, () => call('decideScheduleChange', model, req.id, { decision: 'approved', reason: '核对', requestId: 'x' }, manager), /老板|本店|权限/);
   const rejected = call('decideScheduleChange', model, req.id, { decision: 'rejected', reason: '需要保持当天正常营业时间', requestId: 'reject' }, boss); assert.equal(rejected.status, 'rejected'); assert.equal(model.state.scheduleNotifications.length, 0); assert.equal(call('scheduleStatus', model, 't2', '2026-10-11').endTime, '19:00');
   const next = call('requestScheduleChange', model, input({ therapistId: 't2', storeId: 'b', date: '2026-10-11', requestId: 'b-next' }), { type: 'frontdesk', id: 'f2' });
   assert.equal(call('decideScheduleChange', model, next.id, { decision: 'approved', reason: '老板核对完毕', requestId: 'boss-ok' }, boss).status, 'approved');
@@ -117,7 +117,7 @@ test('boss may approve another store alone and rejecting a request preserves the
 test('approval rejects a stale proposal without overwriting a newer directly confirmed schedule', () => {
   const model = init(), req = call('requestScheduleChange', model, input(), front);
   call('saveSchedule', model, input({ endTime: '18:00', requestId: 'direct-new' }), boss);
-  unchanged(model, () => call('decideScheduleChange', model, req.id, { decision: 'approved', reason: '同意', requestId: 'stale-ok' }, manager), /更新|变化|版本/);
+  unchanged(model, () => call('decideScheduleChange', model, req.id, { decision: 'approved', reason: '同意', requestId: 'stale-ok' }, boss), /更新|变化|版本/);
   assert.equal(call('scheduleStatus', model, 't1', model.today).endTime, '18:00'); assert.equal(model.state.scheduleChangeRequests[0].status, 'pending');
 });
 
@@ -131,7 +131,7 @@ test('rest, shortened shift and moving stores cannot invalidate existing pending
 test('conflict appearing after request must be handled before approval, with no silent booking cancellation', () => {
   const model = init(), req = call('requestScheduleChange', model, input({ therapistId: 't3', status: 'rest' }), front);
   model.state.appointments.push({ id: 'late-appointment', clientId: 'c5', storeId: 'a', principalId: 't3', date: model.today, time: '10:00', status: 'confirmed' });
-  unchanged(model, () => call('decideScheduleChange', model, req.id, { decision: 'approved', reason: '同意', requestId: 'late-conflict' }, manager), /预约|先处理/);
+  unchanged(model, () => call('decideScheduleChange', model, req.id, { decision: 'approved', reason: '同意', requestId: 'late-conflict' }, boss), /预约|先处理/);
   assert.equal(model.state.appointments.at(-1).status, 'confirmed'); assert.equal(model.state.scheduleChangeRequests[0].status, 'pending');
 });
 
@@ -152,20 +152,20 @@ test('loaded invalid or duplicate working shifts cannot accidentally provide ava
 });
 
 test('a failing server clock leaves the shift, proposal decision, notices and audit entirely unchanged', () => {
-  const direct = init(); direct.now = () => 'invalid'; unchanged(direct, () => call('saveSchedule', direct, input(), manager), /时钟|时间/);
+  const direct = init(); direct.now = () => 'invalid'; unchanged(direct, () => call('saveSchedule', direct, input(), boss), /时钟|时间/);
   const model = init(), req = call('requestScheduleChange', model, input(), front); model.now = () => 'invalid';
-  unchanged(model, () => call('decideScheduleChange', model, req.id, { decision: 'approved', reason: '同意', requestId: 'clock-failure' }, manager), /时钟|时间/);
+  unchanged(model, () => call('decideScheduleChange', model, req.id, { decision: 'approved', reason: '同意', requestId: 'clock-failure' }, boss), /时钟|时间/);
 });
 
 test('past decisions, stopped actors and stopped stores fail atomically', () => {
   const model = init(), req = call('requestScheduleChange', model, input(), front), data = { decision: 'approved', reason: '同意', requestId: 'approve' };
-  model.today = '2026-10-10'; unchanged(model, () => call('decideScheduleChange', model, req.id, data, manager), /过去/); model.today = '2026-10-09';
-  model.state.storeManagers[0].active = false; unchanged(model, () => call('decideScheduleChange', model, req.id, data, manager), /在职|权限/); model.state.storeManagers[0].active = true;
+  model.today = '2026-10-10'; unchanged(model, () => call('decideScheduleChange', model, req.id, data, boss), /过去/); model.today = '2026-10-09';
+  model.state.storeManagers[0].active = false; unchanged(model, () => call('decideScheduleChange', model, req.id, data, manager), /老板|在职|权限/); model.state.storeManagers[0].active = true;
   model.state.stores[0].active = false; unchanged(model, () => call('decideScheduleChange', model, req.id, data, boss), /停用|门店/);
 });
 
 test('boss-only notifications can be read idempotently and cannot expose request tokens or mutable nested schedule references', () => {
-  const model = init(); call('saveSchedule', model, input(), manager); const notice = call('bossScheduleNotifications', model, boss)[0];
+  const model = init(); call('saveSchedule', model, input(), boss); const notice = call('bossScheduleNotifications', model, boss)[0];
   for (const role of [manager, front, { type: 'therapist', id: 't1' }, { type: 'customer', id: 'c1' }, { type: 'boss', id: 'fake' }]) { assert.deepEqual(call('bossScheduleNotifications', model, role), []); unchanged(model, () => call('markScheduleNotificationRead', model, notice.id, role), /老板|权限/); }
   assert.equal('requestId' in notice, false); assert.equal('inputKey' in notice, false); assert.equal('requestId' in notice.after, false); notice.after.endTime = '01:00'; assert.equal(call('bossScheduleNotifications', model, boss)[0].after.endTime, '18:30');
   const read = call('markScheduleNotificationRead', model, notice.id, boss); assert.equal(read.readBy, 'boss'); assert.equal(read.readAt, '2026-10-09T03:00:00.000Z');

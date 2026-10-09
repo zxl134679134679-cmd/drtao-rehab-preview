@@ -14,20 +14,25 @@ const fixture=()=>{const m=new DemoModel();ensureStorePackageExamples(m);return 
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ctx=(model,role,view='',filters={})=>({model,role,view,filters,esc,icon:()=>'',fmt:{money:n=>`¥${n}`,date:n=>n}});
 
-test('boss, manager and therapist can find new customer intake on both home and customer list',()=>{
+test('boss and therapist retain intake entries while manager home and customer list are read-only',()=>{
   for(const [kind,views] of [['boss',['overview','clients']],['manager',['manager-overview','manager-clients']],['therapist',['work','clients']]]){
     for(const view of views){
       const context=ctx(fixture(),roles[kind],view);
       const html=kind==='manager'?renderManager(context):renderStaff(context);
-      assert.match(html,/data-action="reception-create-client"/,`${kind}/${view} needs a visible intake entry`);
-      assert.match(html,/新客户建档/);
+      if(kind==='manager'){
+        assert.doesNotMatch(html,/data-action="(?:reception-create-client|paper-intake-create)"/);
+        assert.match(html,/监管查看/);
+      } else {
+        assert.match(html,/data-action="reception-create-client"/,`${kind}/${view} needs a visible intake entry`);
+        assert.match(html,/新客户建档/);
+      }
     }
   }
 });
 
 test('shared intake respects role stores and makes therapist themselves the explicit default owner',()=>{
   const m=fixture();
-  for(const kind of ['boss','manager','frontdesk','therapist']){
+  for(const kind of ['boss','frontdesk','therapist']){
     const html=reception.receptionIntakeDialog('reception-create-client','',ctx(m,roles[kind])).html;
     for(const key of ['name','age','phone','problem'])assert.match(html,new RegExp(`name="${key}"`));
     if(kind==='boss')assert.match(html,/value="b"/);
@@ -37,30 +42,24 @@ test('shared intake respects role stores and makes therapist themselves the expl
       assert.ok(!html.includes('value="t3"'));
       assert.match(html,/由您负责/);
     }
-    if(kind==='manager'){
-      assert.match(html,/前台或负责康复师/);
-      assert.match(html,/保存客户档案/);
-      assert.ok(!html.includes('保存档案，下一步预约'));
-    }
   }
 });
 
-test('actual app dispatch allows manager basic intake and keeps appointment, assessment and cash operations closed',async()=>{
+test('actual app dispatch refuses manager intake and all appointment, assessment and cash writes',async()=>{
   const m=fixture(),role=roles.manager,source=await readFile(new URL('./app.js',import.meta.url),'utf8');
   const start=source.indexOf('function buildDialog('),end=source.indexOf('\nfunction draftKey(',start);
   assert.ok(start>=0&&end>start);
   const scope={workflowTypes,workflowDialog,role,model:m,customerBookingTypes:new Set(),receptionIntakeDialog:reception.receptionIntakeDialog,managerDialog,scheduleDialog, personnelDialog,ctx:()=>ctx(m,role)};
   vm.runInNewContext(source.slice(start,end)+'\nglobalThis.open=buildDialog;',scope);
-  assert.match(scope.open('reception-create-client','a').html,/客户姓名/);
-  for(const type of ['appointment-create','assessment-create','record-receipt'])assert.throws(()=>scope.open(type,'c1'));
+  for(const type of ['reception-create-client','paper-intake-create','appointment-create','assessment-create','record-receipt','reset'])assert.throws(()=>scope.open(type,'c1'));
 });
 
-test('manager intake result hands off booking and can reopen age and original problem in the local customer file',()=>{
-  const m=fixture(),role=roles.manager,c=m.createReceptionClient({name:'店长接待示例',phone:'13899092211',age:34,problem:'客户自述跑步后不适',storeId:'a',ownerId:'t1',requestId:'manager-ui'},role);
+test('manager can inspect frontdesk-created local clients without receiving intake or booking actions',()=>{
+  const m=fixture(),role=roles.manager,c=m.createReceptionClient({name:'前台接待示例',phone:'13899092211',age:34,problem:'客户自述跑步后不适',storeId:'a',ownerId:'t1',requestId:'manager-ui'},roles.frontdesk);
   assert.equal(typeof reception.receptionIntakeSuccess,'function');
   const result=reception.receptionIntakeSuccess(c,ctx(m,role));
   assert.match(result,/前台或负责康复师/);assert.match(result,/data-action="manager-client"/);
-  assert.ok(!/data-action="(?:appointment-create|assessment-create)"/.test(result));
+  assert.ok(!/data-action="(?:appointment-create|assessment-create|reception-create-client|paper-intake-create)"/.test(result));
   const basic=reception.receptionIntakeDialog('reception-client',c.id,ctx(m,role)).html;
   assert.ok(!/data-action="(?:appointment-create|assessment-create|assessment-history)"/.test(basic));
   const file=managerDialog('manager-client',c.id,ctx(m,role)).html;

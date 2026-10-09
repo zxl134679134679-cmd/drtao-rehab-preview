@@ -956,3 +956,11 @@ button.ease-work-stat:hover { border-color: #a9c699; background: #f4f8ee; }
   .cash-hero-compact .cash-total { font-size: 38px; }
   .reception-closing > summary { padding: 14px; }
 }
+[data-action="reset"][hidden] { display: none !important; }
+.daily-operations-panel { margin: 18px 0; }
+.daily-operations-panel .meta { margin: 5px 0 0; }
+.daily-operations-row { gap: 10px; flex-wrap: wrap; }
+.daily-operations-row > strong { flex: 1; min-width: 90px; }
+.daily-operations-frontdesk { margin-top: 18px; }
+.daily-operations-note { margin-bottom: 0; }
+.daily-operations-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }

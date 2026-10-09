@@ -38,13 +38,15 @@ test('successful basic intake offers the next paper form with the actual new cli
   assert.match(html,new RegExp(`data-action="paper-intake-create" data-id="${client.id}"`));
 });
 
-test('actual application dispatch opens paper forms for authorized staff and never lets manager review or see another store',async()=>{
+test('actual application dispatch lets manager read local paper records but refuses creation, review and other-store reading',async()=>{
   const m=fixture(),source=await readFile(new URL('./app.js',import.meta.url),'utf8');
   const start=source.indexOf('function buildDialog('),end=source.indexOf('\nfunction draftKey(',start);
   const role={type:'manager',id:'m1'};
   const scope={workflowTypes,workflowDialog,model:m,role,customerBookingTypes:new Set(),paperIntakeDialog,managerDialog,scheduleDialog, personnelDialog,ctx:()=>ctx(m,role,'manager-overview')};
   vm.runInNewContext(source.slice(start,end)+'\nglobalThis.open=buildDialog;',scope);
-  assert.match(scope.open('paper-intake-create','c1').html,/客户希望达到的目标/);
+  assert.match(scope.open('paper-intake-detail','paper-demo-a').html,/跑步后膝部/);
+  assert.throws(()=>scope.open('paper-intake-detail','paper-demo-b'));
+  assert.throws(()=>scope.open('paper-intake-create','c1'));
   assert.throws(()=>scope.open('paper-intake-create','c2'));
   assert.throws(()=>scope.open('paper-intake-review','missing'));
 });

@@ -68,10 +68,10 @@ test('idempotent submissions return cloned records and changed request payload i
   unchanged(model, () => call('savePaperIntake', model, input({ goal: '变更目标' }), front), /提交|变化/);
 });
 
-test('professional review is only available to current active customer owner and preserves initial answers', () => {
+test('professional review by current active owner preserves initial answers and rejects other staff', () => {
   const model = fresh(), row = call('savePaperIntake', model, input({ answers: { ...answers, lumbar: 'unknown' } }), front);
   const review = { decision: 'assessment', nextStep: '先由康复师核对客户描述，再安排初次评估', notes: '已阅读客户自述', requestId: 'paper-review-1' };
-  for (const role of [front, boss, { type: 'manager', id: 'm1' }, { type: 'therapist', id: 't3' }]) unchanged(model, () => call('reviewPaperIntake', model, row.id, review, role), /负责人|复核|权限/);
+  for (const role of [front, { type: 'manager', id: 'm1' }, { type: 'therapist', id: 't3' }]) unchanged(model, () => call('reviewPaperIntake', model, row.id, review, role), /负责人|复核|权限/);
   const reviewed = call('reviewPaperIntake', model, row.id, review, owner);
   assert.equal(reviewed.status, 'reviewed'); assert.equal(reviewed.reviewedBy, 't1'); assert.equal(reviewed.review.decision, 'assessment'); assert.equal(reviewed.answers.lumbar, 'unknown');
   const before = JSON.stringify([model.state, model.sequence]); assert.equal(call('reviewPaperIntake', model, row.id, review, owner).id, row.id); assert.equal(JSON.stringify([model.state, model.sequence]), before);
@@ -163,7 +163,8 @@ test('all authorized operating roles can open a complete list directly from thei
     const context = ctx(model, role), inbox = call('renderPaperIntakeInbox', context);
     assert.match(inbox, /data-action="paper-intake-list"/);
     const list = call('paperIntakeDialog', 'paper-intake-list', '', context);
-    assert.match(list.html, /data-form="paper-intake-select"/);
+    if(role.type==='manager')assert.doesNotMatch(list.html, /data-form="paper-intake-select"/);
+    else assert.match(list.html, /data-form="paper-intake-select"/);
     assert.match(list.html, /周沐/);
   }
   unchanged(model, () => call('paperIntakeDialog', 'paper-intake-list', '', ctx(model, { type: 'customer', id: 'c3' })), /权限/);

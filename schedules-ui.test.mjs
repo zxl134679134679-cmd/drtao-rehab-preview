@@ -20,13 +20,13 @@ test('front desk can immediately read today\'s hours and rest status for authori
   assert.match(html, /申请调整/); assert.doesNotMatch(html, /data-action="schedule-edit"/);
 });
 
-test('boss and local manager see direct edit while therapist only sees their own read-only schedule', () => {
+test('only boss sees direct edit while manager and therapist schedules remain read-only', () => {
   assert.equal(typeof ui.renderSchedulePage, 'function');
   const model = fresh();
   const boss = call('renderSchedulePage', context(model, roles.boss));
   assert.match(boss, /data-action="schedule-edit"/); assert.match(boss, /周亦宁/);
   const manager = call('renderSchedulePage', context(model, roles.manager));
-  assert.match(manager, /data-action="schedule-edit"/); assert.doesNotMatch(manager, /周亦宁|何知行/);
+  assert.doesNotMatch(manager, /data-action="schedule-(edit|request|decision)"/); assert.doesNotMatch(manager, /周亦宁|何知行/);
   const therapist = call('renderSchedulePage', context(model, roles.therapist));
   assert.match(therapist, /林予安/); assert.doesNotMatch(therapist, /苏晴|周亦宁|data-action="schedule-edit"|data-action="schedule-request"/);
   assert.throws(() => call('renderSchedulePage', context(model, roles.customer)), /权限|排班/);
@@ -35,20 +35,20 @@ test('boss and local manager see direct edit while therapist only sees their own
 test('tomorrow without a saved shift is visibly unassigned rather than assumed to be working', () => {
   assert.equal(typeof ui.renderSchedulePage, 'function');
   const html = call('renderSchedulePage', context(fresh(), roles.frontdesk, { scheduleDate: '2026-11-01' }));
-  assert.match(html, /未排班/); assert.match(html, /2026-11-01/); assert.match(html, /先联系店长安排/);
+  assert.match(html, /未排班/); assert.match(html, /2026-11-01/); assert.match(html, /先联系老板安排/);
 });
 
 test('shift and request dialogs retain version and half-hour choices, require reason and explain single approval', () => {
   assert.equal(typeof ui.scheduleDialog, 'function');
   const model = fresh();
-  for (const [type, role, name] of [['schedule-edit', roles.manager, 'schedule-save'], ['schedule-request', roles.frontdesk, 'schedule-request']]) {
+  for (const [type, role, name] of [['schedule-edit', roles.boss, 'schedule-save'], ['schedule-request', roles.frontdesk, 'schedule-request']]) {
     const html = call('scheduleDialog', type, 't1|2026-10-09', context(model, role)).html;
     assert.match(html, new RegExp(`data-form="${name}"`));
     assert.match(html, /name="expectedVersion"/); assert.match(html, /name="therapistId" value="t1"/);
     assert.match(html, /value="09:30"/); assert.match(html, /value="19:30"/);
     assert.doesNotMatch(html, /type="time"|value="09:15"/);
     assert.match(html, /name="reason"[^>]*required[^>]*maxlength="500"/);
-    assert.match(html, /老板或(?:本店)?店长/); assert.match(html, /系统内通知/); assert.match(html, /微信.*待正式接入/);
+    assert.match(html, /老板/); assert.doesNotMatch(html, /老板或(?:本店)?店长/); assert.match(html, /系统内通知/); assert.match(html, /微信.*待正式接入/);
   }
   assert.throws(() => call('scheduleDialog', 'schedule-edit', 't1|2026-10-09', context(model)), /权限|老板|店长/);
   assert.throws(() => call('scheduleDialog', 'schedule-request', 't2|2026-10-09', context(model)), /权限|门店/);
@@ -85,18 +85,18 @@ test('past dates remain visible but do not invite staff to modify historical shi
   for (const role of [roles.boss, roles.manager, roles.frontdesk]) {
     const html = call('renderSchedulePage', context(model, role, { scheduleDate: past }));
     assert.match(html, /历史排班.*只读/); assert.doesNotMatch(html, /data-action="schedule-(edit|request)"/);
-    assert.throws(() => call('scheduleDialog', role.type === 'frontdesk' ? 'schedule-request' : 'schedule-edit', `t1|${past}`, context(model, role)), /历史|过去/);
+    assert.throws(() => call('scheduleDialog', role.type === 'frontdesk' ? 'schedule-request' : 'schedule-edit', `t1|${past}`, context(model, role)), /历史|过去|老板|权限/);
   }
 });
 
 test('boss notifications and pending decisions stay in browsable lists with honest delivery status', () => {
   assert.equal(typeof ui.renderScheduleInbox, 'function');
   const model = fresh(), row = domain.requestScheduleChange(model, { storeId: 'a', therapistId: 't1', date: model.today, status: 'work', startTime: '09:30', endTime: '19:00', reason: '虚构示例：调整上班时间', expectedVersion: domain.scheduleStatus(model, 't1', model.today).version, requestId: 'ui-request' }, roles.frontdesk);
-  assert.match(call('renderScheduleInbox', context(model, roles.manager)), /待审批.*1|1.*待审批/);
-  const decision = call('scheduleDialog', 'schedule-decision', row.id, context(model, roles.manager)).html;
+  assert.match(call('renderScheduleInbox', context(model, roles.manager)), /待老板审批.*1|1.*待老板审批/);
+  const decision = call('scheduleDialog', 'schedule-decision', row.id, context(model, roles.boss)).html;
   assert.match(decision, /data-form="schedule-decision"/); assert.match(decision, /value="approved"/); assert.match(decision, /value="rejected"/);
   assert.match(decision, /09:30/); assert.match(decision, /虚构示例：调整上班时间/);
-  domain.decideScheduleChange(model, row.id, { decision: 'approved', reason: '确认安排', requestId: 'ui-decision' }, roles.manager);
+  domain.decideScheduleChange(model, row.id, { decision: 'approved', reason: '确认安排', requestId: 'ui-decision' }, roles.boss);
   const notifications = domain.bossScheduleNotifications(model, roles.boss);
   const inbox = call('renderScheduleInbox', context(model, roles.boss));
   assert.match(inbox, /排班变更通知/); assert.match(inbox, /未读.*1|1.*未读/); assert.match(inbox, /09:30/);

@@ -1,6 +1,6 @@
-import { renderPaperIntakeList } from './paper-intake.js?v=20261009-flow-ease';
-import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261009-flow-ease';
-import { renderReceptionAssessments } from './evaluations.js?v=20261009-flow-ease';
+import { renderPaperIntakeList } from './paper-intake.js?v=20261009-daily-permissions';
+import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261009-daily-permissions';
+import { renderReceptionAssessments } from './evaluations.js?v=20261009-daily-permissions';
 
 export function receptionStores(ctx) {
   const account=ctx.model.state.frontDesks.find(r=>r.id===ctx.role.id&&r.active!==false);
@@ -73,6 +73,7 @@ function intakeOwners(ctx,storeId) {
 }
 export function clientIntakeButton(ctx) {
   const stores=intakeStores(ctx);
+  if(ctx.role.type==='manager')return '';
   if(!stores.length)return '<p class="meta">暂无可建档门店，请联系老板安排。</p>';
   const selected=stores.some(s=>s.id===ctx.filters?.storeId)?ctx.filters.storeId:stores[0].id;
   return `<button type="button" class="btn btn-primary" data-action="reception-create-client" data-id="${ctx.esc(selected)}">新客户建档</button>`;
@@ -86,6 +87,7 @@ function intakeNextActions(client,ctx) {
 export function receptionIntakeSuccess(client,ctx) {
   const {model,esc}=ctx;
   const name=(kind,id)=>model.state[kind].find(row=>row.id===id)?.name||'待安排';
+  if(ctx.role.type==='manager'){model.managerStoreId(ctx.role);return `<p class="notice">店长仅监管查看，不可录入和修改，请前台或负责康复师按流程办理。</p>${intakeNextActions(client,ctx)}`;}
   return `<h3>${esc(client.name)} · ${esc(client.age)} 岁</h3><p>${esc(name('stores',client.storeId))} · 负责康复师 ${esc(name('therapists',client.ownerId))}</p><p class="reception-problem">客户自述：${esc(client.problem)}</p><p class="notice">尚未办理套餐。建档未收款、未扣次数，康复师会在后续评估时制定计划。</p><div class="action-row"><button type="button" class="btn btn-primary" data-action="paper-intake-create" data-id="${esc(client.id)}">填写初访接待表</button>${intakeNextActions(client,ctx)}<button type="button" class="btn btn-quiet" data-action="reception-create-client" data-id="${esc(client.storeId)}">继续接待新客户</button></div>`;
 }
 export function receptionIntakeDialog(type,id,ctx) {
@@ -97,9 +99,10 @@ export function receptionIntakeDialog(type,id,ctx) {
     if(!model.canSeeClient(role,id))throw new Error('您没有该客户的接待档案权限');
     const client=model._client(id),storeId=stores.some(s=>s.id===ctx.filters.storeId)?ctx.filters.storeId:stores.find(s=>s.id===client.storeId)?.id||stores[0]?.id;
     const packages=model.availablePackages(id,storeId),remaining=model.remainingInStore(id,storeId);
-    return {title:`${client.name}的接待档案`,html:`<div class="detail-grid"><div class="detail-pair"><span class="muted">客户姓名</span><strong>${esc(client.name)}</strong></div><div class="detail-pair"><span class="muted">年龄</span><strong>${client.age!=null?esc(client.age)+' 岁':'未填写'}</strong></div><div class="detail-pair"><span class="muted">联系电话</span><strong>${esc(client.phone||'待补充')}</strong></div><div class="detail-pair"><span class="muted">负责康复师</span><strong>${esc(name('therapists',client.ownerId))}</strong></div></div><h3>主要问题（客户自述）</h3><p class="reception-problem">${esc(client.problem||'尚未填写接待问题')}</p><p class="notice">${esc(name('stores',storeId))} · ${packages.length?'套餐剩余 '+remaining+' 次':'尚未办理本店套餐'}。预约不扣次、不收款。</p><div class="action-row">${action('填写初访接待表','paper-intake-create',id,'btn-primary')}${intakeNextActions(client,ctx)}${role.type==='manager'?'':action('登记评估','assessment-create',id)+action('评估记录','assessment-history',id)}</div>`};
+    return {title:`${client.name}的接待档案`,html:`<div class="detail-grid"><div class="detail-pair"><span class="muted">客户姓名</span><strong>${esc(client.name)}</strong></div><div class="detail-pair"><span class="muted">年龄</span><strong>${client.age!=null?esc(client.age)+' 岁':'未填写'}</strong></div><div class="detail-pair"><span class="muted">联系电话</span><strong>${esc(client.phone||'待补充')}</strong></div><div class="detail-pair"><span class="muted">负责康复师</span><strong>${esc(name('therapists',client.ownerId))}</strong></div></div><h3>主要问题（客户自述）</h3><p class="reception-problem">${esc(client.problem||'尚未填写接待问题')}</p><p class="notice">${esc(name('stores',storeId))} · ${packages.length?'套餐剩余 '+remaining+' 次':'尚未办理本店套餐'}。预约不扣次、不收款。</p><div class="action-row">${role.type==='manager'?'':action('填写初访接待表','paper-intake-create',id,'btn-primary')}${intakeNextActions(client,ctx)}${role.type==='manager'?'':action('登记评估','assessment-create',id)+action('评估记录','assessment-history',id)}</div>`};
   }
   if(type!=='reception-create-client')return null;
+  if(role.type==='manager')throw new Error('店长仅监管查看，不能新客户建档，请由前台或老板录入');
   const selected=id||(stores.some(s=>s.id===ctx.filters.storeId)?ctx.filters.storeId:stores[0]?.id);
   if(!stores.some(s=>s.id===selected))throw new Error('请选择在职且授权的接待门店');
   const owners=intakeOwners(ctx,selected);
