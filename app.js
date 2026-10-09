@@ -1,20 +1,20 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-personnel';
-import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261009-personnel';
-import { renderManager, managerDialog } from './manager.js?v=20261009-personnel';
-import { hourTimeField } from './hour-picker.js?v=20261009-personnel';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-personnel';
-import { cashDialog, updateCashFields } from './cash.js?v=20261009-personnel';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-personnel';
-import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-personnel';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-therapist-bookings';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261009-therapist-bookings';
+import { renderManager, managerDialog } from './manager.js?v=20261009-therapist-bookings';
+import { hourTimeField } from './hour-picker.js?v=20261009-therapist-bookings';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-therapist-bookings';
+import { cashDialog, updateCashFields } from './cash.js?v=20261009-therapist-bookings';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-therapist-bookings';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-therapist-bookings';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows } from './customer-booking.js?v=20261009-personnel';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-personnel';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows } from './customer-booking.js?v=20261009-therapist-bookings';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-therapist-bookings';
 
-import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-personnel';
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-therapist-bookings';
 
-import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-personnel';
-import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-personnel';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261009-personnel';
+import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-therapist-bookings';
+import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-therapist-bookings';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261009-therapist-bookings';
 
 let model = new DemoModel();
 ensureStorePackageExamples(model);
@@ -174,15 +174,15 @@ function packageHistoryDialog(id) {
   return {title:p.storeId ? '门店套餐明细' : historical ? '历史套餐明细' : '套餐记录',html:`<span class="tag ${historical ? '' : 'tag-green'}">${p.storeId ? esc(name('stores',p.storeId))+' · 仅限本店' : historical ? '历史套餐' : '当前套餐'}</span>${packageRecord(p)}${historical && balance > 0 && !p.storeId ? `<div class="notice"><strong>本套餐仍有 ${balance} 次</strong><p>恢复的次数保留在本套餐，由老板核对后选择继续使用。</p>${role.type === 'boss' ? button('切换使用本套餐','activate-package',p.id,'btn-primary') : ''}</div>` : ''}${button('查看客户当前套餐','package',c.id,'btn-outline')}`};
 }
 function appointmentHistoryDialog(id) {
-  assertClient(id);
+  const client = assertClient(id);
   const rows = model.state.appointments.filter(a => a.clientId === id).sort((a,b)=>`${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
   const labels = {confirmed:'已确认',reschedule_requested:'改约待确认',pending_reassignment:'服务人员待确认',completed:'已服务',cancelled:'已取消',no_show:'未到店'};
-  return {title:'预约记录',html:`${renderRequestHistory(customerCtx(),id)}<p class="muted">预约与实际服务分别记录；完成服务并登记后，才更新套餐次数和消费业绩。</p>${rows.map(a=>{
+  return {title:role.type==='therapist'?`${client.name}的预约记录`:'预约记录',html:`${renderRequestHistory(customerCtx(),id)}<p class="muted">预约与实际服务分别记录；完成服务并登记后，才更新套餐次数和消费业绩。</p>${rows.map(a=>{
     const pending = ['confirmed','reschedule_requested','pending_reassignment'].includes(a.status);
     const needsAssignment = a.status === 'pending_reassignment';
     const status = !needsAssignment && pending && a.date < TODAY ? '到店情况待确认' : labels[a.status] || '待确认';
     const staff = role.type !== 'customer';
-    return `<article class="record-item"><div class="section-head"><h3>${date(a.date)} · ${esc(a.time)}</h3><span class="tag ${a.status === 'completed' ? 'tag-green' : a.status === 'no_show' || (pending && a.date < TODAY) ? 'tag-warn' : ''}">${status}</span></div><p>${esc(a.project)}</p><p class="meta">${esc(name('therapists',a.principalId))} · ${esc(name('stores',a.storeId))}</p>${needsAssignment ? '<p class="notice">此安排需要工作人员重新确认服务人员，请等待新安排后到店。</p>' : ''}${a.status === 'reschedule_requested' ? `<div class="note"><strong>客户申请改至 ${date(a.request?.date)} ${esc(a.request?.time || '')}</strong><p>改约说明：${esc(a.requestNote || '未填写说明')}</p></div>` : ''}${a.status === 'no_show' ? `<p>未到店说明：${esc(a.noShowReason)}</p><p class="meta">本次未扣次数，未产生消费业绩。</p>` : a.status === 'cancelled' ? `<p>取消说明：${esc(a.cancelReason)}</p><p class="meta">本次未扣次数。</p>` : ''}<div class="action-row">${a.status === 'completed' && a.serviceId ? link('查看对应服务','service-detail',a.serviceId) : ''}${pending && !needsAssignment && staff && a.date <= TODAY ? button('按预约登记服务','register-appointment',a.id,'btn-primary') : ''}${pending && !needsAssignment && staff && a.date <= TODAY && (role.type === 'boss' || role.id === a.principalId) ? button('记录未到店','appointment-no-show',a.id,'btn-outline') : ''}${pending && staff ? `${link('调整安排','appointment-edit',a.id)}${link('取消预约','appointment-cancel',a.id)}` : pending && !needsAssignment && role.type === 'customer' && a.date >= TODAY ? button(a.status === 'reschedule_requested' ? '修改改约申请' : '申请改约','reschedule',a.id,'btn-outline') : ''}</div></article>`;
+    return `<article class="record-item"><div class="section-head"><h3>${date(a.date)} · ${esc(a.time)}</h3><span class="tag ${a.status === 'completed' ? 'tag-green' : a.status === 'no_show' || (pending && a.date < TODAY) ? 'tag-warn' : ''}">${status}</span></div><p>${esc(a.project)}</p><p class="meta">${esc(name('therapists',a.principalId))} · ${esc(name('stores',a.storeId))}</p>${needsAssignment ? '<p class="notice">此安排需要工作人员重新确认服务人员，请等待新安排后到店。</p>' : ''}${(a.participantIds || []).length ? `<p class="meta">协作康复师：${esc(a.participantIds.map(t=>name('therapists',t)).join('、'))}</p>` : ''}${a.status === 'reschedule_requested' ? `<div class="note"><strong>客户申请改至 ${date(a.request?.date)} ${esc(a.request?.time || '')}</strong><p>改约说明：${esc(a.requestNote || a.request?.reason || '未填写说明')}</p></div>` : ''}${a.status === 'no_show' ? `<p>未到店说明：${esc(a.noShowReason)}</p><p class="meta">本次未扣次数，未产生消费业绩。</p>` : a.status === 'cancelled' ? `<p>取消说明：${esc(a.cancelReason)}</p><p class="meta">本次未扣次数。</p>` : ''}<div class="action-row">${role.type==='therapist' ? link('预约详情','appointment',a.id) : ''}${a.status === 'completed' && a.serviceId ? link('查看对应服务','service-detail',a.serviceId) : ''}${pending && !needsAssignment && staff && a.date <= TODAY ? button('按预约登记服务','register-appointment',a.id,'btn-primary') : ''}${pending && !needsAssignment && staff && a.date <= TODAY && (role.type === 'boss' || role.id === a.principalId) ? button('记录未到店','appointment-no-show',a.id,'btn-outline') : ''}${pending && staff ? `${link('调整安排','appointment-edit',a.id)}${link('取消预约','appointment-cancel',a.id)}` : pending && !needsAssignment && role.type === 'customer' && a.date >= TODAY ? button(a.status === 'reschedule_requested' ? '修改改约申请' : '申请改约','reschedule',a.id,'btn-outline') : ''}</div></article>`;
   }).join('') || '<div class="empty">还没有预约记录。</div>'}`};
 }
 
@@ -293,10 +293,18 @@ function clientDialog(id) {
 }
 function appointmentDialog(id) {
   const c = currentClient();
+  if (role.type === 'therapist' && !id) throw new Error('请选择需要查看的客户预约');
   const a = id ? find('appointments',id) : appointments(c.id)[0];
+  if (role.type === 'therapist' && !a) throw new Error('客户预约不存在');
   if (!a) return {title: '下一次服务', html: `<p>暂无预约安排。</p><p class="muted">下次服务的时间、康复师与门店确认后会显示在首页。</p>${button('查看门店信息','stores',c.id)}`};
   assertClient(a.clientId);
   const store = find('stores',a.storeId);
+  if (role.type === 'therapist') {
+    const labels = {confirmed:'已确认',reschedule_requested:'改约待确认',pending_reassignment:'服务人员待确认',completed:'已服务',cancelled:'已取消',no_show:'未到店'};
+    const status = labels[a.status] || '预约状态待核对';
+    const notes = a.status === 'reschedule_requested' ? `<div class="note"><strong>客户申请改约，原时间仍保留</strong><p>希望调整到 ${date(a.request?.date)} ${esc(a.request?.time || '')}</p><p>改约说明：${esc(a.requestNote || a.request?.reason || '未填写说明')}</p></div>` : a.status === 'cancelled' ? `<p class="notice">取消说明：${esc(a.cancelReason || '未填写说明')}。本次未扣次数。</p>` : a.status === 'no_show' ? `<p class="notice">未到店说明：${esc(a.noShowReason || '未填写说明')}。本次未扣次数。</p>` : a.status === 'pending_reassignment' ? '<p class="notice">原服务人员需要重新安排，请由有权限的工作人员确认。</p>' : '';
+    return {title:'客户预约详情',html:`<span class="tag ${a.status==='completed'?'tag-green':['reschedule_requested','pending_reassignment','no_show'].includes(a.status)?'tag-warn':''}">${esc(status)}</span><h3>${esc(name('clients',a.clientId))} · ${date(a.date)} ${esc(a.time)}</h3><div class="detail-grid">${pair('服务项目',a.project)}${pair('服务门店',store.name)}${pair('主康复师',name('therapists',a.principalId))}${pair('协作康复师',(a.participantIds || []).map(t=>name('therapists',t)).join('、') || '无')}</div>${a.groupId?'<p class="meta">同行预约 · 本页显示这位客户的独立服务安排。</p>':''}${notes}<p class="meta">查看预约不扣次数、不记收款；完成服务并登记后才产生消费业绩。</p><div class="action-row">${button('查看客户档案','client-detail',a.clientId,'btn-outline')}${button('查看全部预约','appointment-history',a.clientId,'btn-primary')}</div>`};
+  }
   if (!['confirmed','reschedule_requested'].includes(a.status)) {
     const label={cancelled:'预约已取消',completed:'本次服务已完成',no_show:'本次未到店',pending_reassignment:'服务人员待确认'}[a.status] || '预约状态待核对';
     const explanation=a.status==='pending_reassignment'?'门店需要重新确认服务人员，请收到新安排后再到店。':a.status==='completed'?'本次服务已完成，请查看服务记录。':'此安排无需按原时间到店，可重新提交预约申请。';
@@ -501,7 +509,7 @@ function openDialog(type,id = '') {
 async function loadLegacyDialog(context) {
   const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
   try {
-    const legacy=await import('./legacy.js?v=20261009-personnel');
+    const legacy=await import('./legacy.js?v=20261009-therapist-bookings');
     if(!active())return;
     $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
     context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,

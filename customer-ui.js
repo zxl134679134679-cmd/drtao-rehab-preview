@@ -1,5 +1,5 @@
-import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261009-personnel';
-import { customerBookingRows, customerBookingConfirmation } from './customer-booking.js?v=20261009-personnel';
+import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261009-therapist-bookings';
+import { customerBookingRows, customerBookingConfirmation } from './customer-booking.js?v=20261009-therapist-bookings';
 
 export const customerBookingTypes = new Set(['customer-booking', 'customer-booking-detail', 'customer-booking-cancel', 'customer-booking-confirm']);
 
@@ -55,7 +55,7 @@ export function customerRequestDialog(type, id, ctx) {
   }
   const status = {pending:'待门店确认',confirmed:'申请已处理',cancelled:'申请已取消'}[row.status];
   const permission = customerBookingConfirmation(model,id,role);
-  return { title:'预约申请详情',html:`<span class="tag ${row.status==='confirmed'?'tag-green':row.status==='pending'?'tag-warn':''}">${status}</span>${row.status==='confirmed'?'<p class="meta">以下是提交时的申请内容，请以最新预约记录为准。</p>':''}${requestSummary(row,ctx)}<p class="notice">${row.status==='pending'?'收到门店确认后再到店，本次申请未扣次数、未收款。':row.status==='cancelled'?'此申请已取消，套餐次数未改变。':'申请已处理。改约、取消或完成情况请查看最新预约记录。'}</p><div class="action-row">${row.status==='pending' && role.type==='customer' ? button('取消申请','customer-booking-cancel',id,'btn-outline') : row.status==='pending' && permission.canConfirm ? button('核对并确认','customer-booking-confirm',id,'btn-primary') : ''}${row.status==='confirmed' && role.type==='customer' ? button('查看最新预约记录','appointment-history',row.clientId,'btn-outline') : ''}</div>${row.status==='pending' && !['customer','manager'].includes(role.type) && !permission.canConfirm ? `<p class="meta">${esc(permission.reason)}</p>`:''}<p class="meta">提交日期 ${esc(new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'long',day:'numeric'}).format(new Date(row.requestedAt)))}</p>` };
+  return { title:'预约申请详情',html:`<span class="tag ${row.status==='confirmed'?'tag-green':row.status==='pending'?'tag-warn':''}">${status}</span>${row.status==='confirmed'?'<p class="meta">以下是提交时的申请内容，请以最新预约记录为准。</p>':''}${requestSummary(row,ctx)}<p class="notice">${row.status==='pending'?'收到门店确认后再到店，本次申请未扣次数、未收款。':row.status==='cancelled'?'此申请已取消，套餐次数未改变。':'申请已处理。改约、取消或完成情况请查看最新预约记录。'}</p><div class="action-row">${row.status==='pending' && role.type==='customer' ? button('取消申请','customer-booking-cancel',id,'btn-outline') : row.status==='pending' && permission.canConfirm ? button('核对并确认','customer-booking-confirm',id,'btn-primary') : ''}${row.status==='confirmed' && ['customer','therapist'].includes(role.type) ? button('查看最新预约记录','appointment-history',row.clientId,'btn-outline') : ''}</div>${row.status==='pending' && !['customer','manager'].includes(role.type) && !permission.canConfirm ? `<p class="meta">${esc(permission.reason)}</p>`:''}<p class="meta">提交日期 ${esc(new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'long',day:'numeric'}).format(new Date(row.requestedAt)))}</p>` };
 }
 
 export function renderBookingInbox(ctx) {
@@ -70,10 +70,16 @@ export function renderBookingInbox(ctx) {
 
 export function renderRequestHistory(ctx, clientId) {
   const { model, role, esc, fmt:{date}, ui:{link,name} } = ctx;
-  if (role.type !== 'customer' || role.id !== clientId) return '';
+  const customerOwn = role.type === 'customer' && role.id === clientId;
+  const therapistRead = role.type === 'therapist' && model.canSeeClient(role, clientId);
+  if (!customerOwn && !therapistRead) return '';
   const rows=customerBookingRows(model,role).filter(row=>row.clientId===clientId).reverse();
-  if (!rows.length) return '';
-  return `<h3>我的预约申请</h3>${rows.map(row=>`<div class="booking-history-row"><div><strong>${date(row.date)} · ${esc(row.time)}</strong><p class="meta">${esc(name('stores',row.storeId))} · ${{pending:'待门店确认',confirmed:'申请已处理',cancelled:'申请已取消'}[row.status]}</p></div>${link('查看','customer-booking-detail',row.id)}</div>`).join('')}<h3>已安排的预约</h3>`;
+  if (customerOwn) {
+    if (!rows.length) return '';
+    return `<h3>我的预约申请</h3>${rows.map(row=>`<div class="booking-history-row"><div><strong>${date(row.date)} · ${esc(row.time)}</strong><p class="meta">${esc(name('stores',row.storeId))} · ${{pending:'待门店确认',confirmed:'申请已处理',cancelled:'申请已取消'}[row.status]}</p></div>${link('查看','customer-booking-detail',row.id)}</div>`).join('')}<h3>已安排的预约</h3>`;
+  }
+  const statusLabel={pending:'待门店确认',confirmed:'申请已处理',cancelled:'申请已取消'};
+  return `<h3>客户预约申请</h3><p class="meta">先查看客户的申请；已安排的预约以最新记录为准。</p>${rows.length ? rows.map(row=>`<div class="booking-history-row"><div><strong>${esc(name('clients',row.clientId))} · ${date(row.date)} ${esc(row.time)}</strong><p class="meta">${esc(name('stores',row.storeId))} · ${esc(statusLabel[row.status])}</p><p class="meta">项目：${esc(row.project)} · 期望康复师 ${esc(name('therapists',row.principalId))}</p></div>${link('查看申请','customer-booking-detail',row.id)}</div>`).join('') : '<p class="muted">暂无客户预约申请。</p>'}<h3>已安排的预约</h3>`;
 }
 
 export function updateCustomerBookingForm(form, ctx) {

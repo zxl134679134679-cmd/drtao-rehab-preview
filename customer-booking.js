@@ -1,6 +1,6 @@
 // Desired times are requests, not live availability or confirmed appointments.
 // The preview's existing appointment model remains the confirmation authority.
-import { assertScheduleAvailability } from './schedules.js?v=20261009-personnel';
+import { assertScheduleAvailability } from './schedules.js?v=20261009-therapist-bookings';
 const clone = value => JSON.parse(JSON.stringify(value));
 const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt'];
 const publicRow = row => clone(Object.fromEntries(fields.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
@@ -141,7 +141,9 @@ export function customerBookingRows(model, role) {
     if (isBoss(role)) return true;
     if (role.type === 'customer') return row.clientId === role.id;
     if (storeIds) return storeIds.includes(row.storeId);
-    return model._client(row.clientId).ownerId === role.id && model.canSeeClient(role, row.clientId);
+    // Reading follows the existing customer archive scope. Confirmation below
+    // stays with the responsible therapist; prior participation grants read only.
+    return model.canSeeClient(role, row.clientId);
   }).map(publicRow);
 }
 

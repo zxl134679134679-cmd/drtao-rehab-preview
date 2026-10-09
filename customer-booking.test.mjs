@@ -129,7 +129,7 @@ test('a confirmed request cannot be cancelled as a pending request or re-created
   const final = snapshot(m); assert.deepEqual(submit(m), confirmed); assert.equal(snapshot(m), final);
 });
 
-test('customer and staff request readers return only owned or actually assigned-store requests without internal payload keys', () => {
+test('customer and staff request readers preserve client or assigned-store visibility without internal payload keys', () => {
   const m = ready(), a = submit(m), b = submit(m, input({ storeId: 'b', principalId: 't2', requestId: 'second-request' }));
   submit(m, input({ principalId: 't5', requestId: 'other-customer-request' }), { type: 'customer', id: 'c5' });
   const rows = role => api('customerBookingRows')(m, role);
@@ -139,7 +139,7 @@ test('customer and staff request readers return only owned or actually assigned-
   assert.deepEqual(rows(managerB).map(r => r.id), [b.id]);
   assert.equal(rows(frontA).length, 2); assert.equal(rows(managerA).length, 2);
   assert.deepEqual(rows(owner).map(r => r.id), [a.id, b.id]);
-  assert.equal(rows({ type: 'therapist', id: 't2' }).length, 0, '曾参与服务不能自动获得负责康复师的申请处理权限');
+  assert.deepEqual(rows({ type: 'therapist', id: 't2' }).map(r => r.id), [a.id, b.id], '有效服务参与人员可读取申请，但确认权限仍仅属于负责康复师');
   assert.equal(rows(boss).length, 3);
   for (const row of rows(customer)) { assert.ok(!Object.hasOwn(row, 'inputKey')); assert.ok(!Object.hasOwn(row, 'requestId')); }
   rows(customer)[0].status = 'cancelled'; assert.equal(m.state.bookingRequests[0].status, 'pending', '读结果不能修改内部状态');
