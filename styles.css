@@ -907,3 +907,23 @@ fieldset.field.evidence-field legend { padding: 0 6px; font-size: 14px; font-wei
 .booking-member .form-grid { margin: 0; }
 .booking-add { width: 100%; margin-bottom: 10px; }
 @media (max-width: 760px) { .booking-member { padding: 12px; } }
+.reception-intake-entry { display:flex; align-items:center; justify-content:space-between; gap:20px; padding:22px; margin:0 0 22px; border:1px solid #b8d4b7; background:#f1f7eb; border-radius:18px; }
+.reception-intake-entry h2 { margin:0 0 6px; color:#175432; font-size:22px; }
+.reception-intake-entry p { margin:0; color:#536657; font-size:14px; }
+.reception-intake-entry-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.reception-intake-entry-actions .btn { min-height:48px; }
+.reception-intake-list-head { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:18px; }
+.reception-phone-check { display:flex; align-items:flex-end; gap:12px; margin:20px 0 12px; }
+.reception-phone-check .field { flex:1; margin:0; }
+.reception-phone-check .btn { min-height:48px; flex:none; }
+.intake-check-clear { color:#236741; margin:8px 0 18px; }
+.intake-check-found { padding:16px; border:1px solid #c3d6b6; background:#f5f9ee; border-radius:14px; margin:12px 0 18px; }
+.intake-check-found > strong { color:#195733; }
+.reception-problem { overflow-wrap:anywhere; white-space:pre-wrap; }
+@media (max-width:600px) {
+  .reception-intake-entry { align-items:stretch; flex-direction:column; padding:18px; gap:16px; }
+  .reception-intake-entry-actions { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .reception-intake-entry-actions .btn { padding-left:10px; padding-right:10px; }
+  .reception-phone-check { align-items:stretch; flex-direction:column; gap:8px; }
+  .intake-check-found .row { align-items:flex-start; flex-direction:column; gap:10px; }
+}

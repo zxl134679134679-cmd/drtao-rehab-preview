@@ -1,4 +1,4 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-client-booking';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-frontdesk-intake';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -50,6 +50,13 @@ const validTime = value => {
 };
 const minutes = time => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
 const pendingProgress = () => ({ status: 'pending', summary: '待康复师完成评估后更新', metrics: [] });
+const receptionPhone = value => {
+  const phone = required(value, '手机号', 20).replace(/\s/g, '');
+  if (!/^1\d{10}$/.test(phone)) throw new Error('请输入 11 位手机号');
+  return phone;
+};
+const receptionBasicClient = client => Object.fromEntries(['id', 'name', 'phone', 'age', 'problem', 'storeId', 'ownerId']
+  .filter(key => client[key] !== undefined).map(key => [key, client[key]]));
 
 // Read raster headers as well as the declared MIME type. SVG and remote URLs
 // are never evidence attachments; photo dimensions must match the actual file.
@@ -396,6 +403,53 @@ export class DemoModel {
     if (role?.type !== 'frontdesk') throw new Error('仅前台可读取本人门店权限');
     return [...this._frontDesk(role.id).storeIds];
   }
+  _receptionActor(role, storeId) {
+    if (role?.type === 'boss') return this._boss(role);
+    if (role?.type !== 'frontdesk') throw new Error('仅老板和授权门店前台有权限接待建档');
+    const frontDesk = this._frontDesk(role.id);
+    if (storeId && !frontDesk.storeIds.includes(storeId)) throw new Error('您没有该门店的新客户建档权限');
+    return frontDesk;
+  }
+
+  findReceptionDuplicates(value, role) {
+    this._receptionActor(role);
+    const phone = receptionPhone(value);
+    const matches = this.state.clients.filter(client => typeof client.phone === 'string' && client.phone.replace(/\s/g, '') === phone);
+    // A cross-store match blocks a duplicate file, but it does not grant access
+    // to that other store's customer identity, condition or clinical records.
+    return { duplicate: matches.length > 0, clients: matches.filter(client => this.canSeeClient(role, client.id)).map(receptionBasicClient) };
+  }
+
+  createReceptionClient(data, role) {
+    this._receptionActor(role);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('请填写新客户基本资料');
+    const storeId = required(data.storeId, '接待门店', 80);
+    this._receptionActor(role, storeId);
+    const store = this._store(storeId);
+    if (store.active === false) throw new Error('接待门店已停用，请核对门店');
+    const ownerId = required(data.ownerId, '负责康复师', 80), owner = this._therapist(ownerId);
+    if (owner.storeId !== storeId) throw new Error('请选择本店在职康复师作为负责人');
+    const requestId = required(data.requestId, '建档提交标识', 80);
+    const input = { name: required(data.name, '客户姓名', 80), phone: receptionPhone(data.phone), age: count(data.age, '客户年龄', 0, 120),
+      problem: required(data.problem, '主要问题', 1000), storeId, ownerId };
+    const inputKey = JSON.stringify(input);
+    const existing = this.state.clients.find(client => client.receptionRequestId === requestId && client.createdBy === role.id && client.createdRole === role.type);
+    if (existing) {
+      if (existing.receptionInputKey !== inputKey) throw new Error('同一建档提交请求的内容发生变化，请重新打开接待表');
+      return existing;
+    }
+    if (this.findReceptionDuplicates(input.phone, role).duplicate) throw new Error('该手机号已存在客户档案，请核对原档案，避免重复建档；其他门店档案请联系老板处理');
+    const stamp = this._timestamp(), staged = this._stagePackageWrite(stamp);
+    const client = seedClient(staged._id('c'), input.name, ownerId, storeId, null, input.phone);
+    Object.assign(client, { age: input.age, problem: input.problem, goal: '待制定康复计划', phase: '待初次评估',
+      nextStep: '预约首次评估，完成后由负责康复师制定计划', planNotes: '客户基本资料已登记，康复计划待负责康复师完成评估后制定。',
+      homeAdvice: '待负责康复师完成评估后补充', createdAt: stamp, createdBy: role.id, createdRole: role.type,
+      receptionRequestId: requestId, receptionInputKey: inputKey });
+    staged.state.clients.push(client);
+    staged._log('reception_client_created', { clientId: client.id, storeId, after: receptionBasicClient(client), note: '仅建立客户基本档案，不办理套餐、不登记收款、不计消费业绩' }, role);
+    this.state = staged.state; this.sequence = staged.sequence;
+    return client;
+  }
   _cashActor(role, storeId, clientId) {
     if (role?.type === 'boss') return this._boss(role);
     if (role?.type !== 'frontdesk') throw new Error('仅老板和授权门店前台有权限登记收款或确认到账');
@@ -597,6 +651,7 @@ export class DemoModel {
 
   remaining(clientId) {
     const client = this._client(clientId);
+    if (client.packageId === null || client.packageId === undefined || client.packageId === '') return 0;
     return this.packageRemaining(client.packageId);
   }
 
@@ -656,8 +711,10 @@ export class DemoModel {
     }
     if (store.active === false) throw new Error('办卡门店已停用，请核对门店');
     const stamp = this._timestamp(), staged = this._stagePackageWrite(stamp);
-    const row = { id: staged._id('p'), clientId: client.id, storeId: store.id, name: input.name, amount: minor / 100, amountMinor: minor, total, openingUsed: 0, status: 'historical', createdBy: role.id, createdRole: role.type, createdAt: stamp, requestId, inputKey };
+    const firstPackage = !client.packageId;
+    const row = { id: staged._id('p'), clientId: client.id, storeId: store.id, name: input.name, amount: minor / 100, amountMinor: minor, total, openingUsed: 0, status: firstPackage ? 'current' : 'historical', createdBy: role.id, createdRole: role.type, createdAt: stamp, requestId, inputKey };
     staged.state.packages.push(row);
+    if (firstPackage) staged._client(client.id).packageId = row.id;
     staged._log('store_package_created', { clientId: client.id, storeId: store.id, packageId: row.id, after: copy(row), note: '登记本店套餐次数，实际收款须单独登记' }, role);
     this.state = staged.state; this.sequence = staged.sequence;
     return row;
@@ -784,7 +841,7 @@ export class DemoModel {
   visibleClients(role) {
     if (role?.type === 'manager') return this.managerSnapshot(role).clients;
     const clients = this.state.clients.filter(item => this.canSeeClient(role, item.id));
-    if (role?.type === 'frontdesk') return clients.map(({ id, name, phone, ownerId, storeId, packageId }) => ({ id, name, phone, ownerId, storeId, packageId }));
+    if (role?.type === 'frontdesk') return clients.map(({ id, name, phone, age, problem, ownerId, storeId, packageId }) => ({ id, name, phone, age, problem, ownerId, storeId, packageId }));
     return clients;
   }
 
