@@ -964,3 +964,5 @@ button.ease-work-stat:hover { border-color: #a9c699; background: #f4f8ee; }
 .daily-operations-frontdesk { margin-top: 18px; }
 .daily-operations-note { margin-bottom: 0; }
 .daily-operations-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.daily-operations-therapists > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.daily-operations-detail-hint { margin-left: auto; color: var(--forest); font-size: 12px; }

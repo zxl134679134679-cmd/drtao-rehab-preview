@@ -1,5 +1,5 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-daily-permissions';
-import { assertScheduleAvailability } from './schedules.js?v=20261009-daily-permissions';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-daily-permissions-2';
+import { assertScheduleAvailability } from './schedules.js?v=20261009-daily-permissions-2';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });

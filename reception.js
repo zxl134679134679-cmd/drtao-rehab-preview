@@ -1,6 +1,6 @@
-import { renderPaperIntakeList } from './paper-intake.js?v=20261009-daily-permissions';
-import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261009-daily-permissions';
-import { renderReceptionAssessments } from './evaluations.js?v=20261009-daily-permissions';
+import { renderPaperIntakeList } from './paper-intake.js?v=20261009-daily-permissions-2';
+import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261009-daily-permissions-2';
+import { renderReceptionAssessments } from './evaluations.js?v=20261009-daily-permissions-2';
 
 export function receptionStores(ctx) {
   const account=ctx.model.state.frontDesks.find(r=>r.id===ctx.role.id&&r.active!==false);
