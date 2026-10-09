@@ -6,6 +6,8 @@ import { receptionDialog, receptionStores, assertReceptionAppointment } from './
 let model = new DemoModel();
 let role = {type: 'customer', id: 'c1'};
 let view = 'home';
+const previewEntry = new URLSearchParams(location.search).get('preview');
+const customerShare = previewEntry === 'customer';
 let filters = {storeId: '', therapistId: '', from: '', to: '', query: ''};
 const drafts = new Map();
 const preferences = new Map();
@@ -68,6 +70,7 @@ function roleOptions() {
 function switchRole(value, targetView) {
   closeDialog();
   const [type, id] = value.split(':');
+  if (customerShare && type !== 'customer') return;
   if(!['customer','therapist','boss','frontdesk'].includes(type))return;
   if (type === 'customer' && !find('clients', id)) return;
   if (type === 'therapist' && !find('therapists', id)?.active) return;
@@ -358,7 +361,7 @@ function buildDialog(type, id) {
     const last = clientServices(id).find(s => s.status === 'valid');
     return {title:'反馈与帮助',html:`<h3>您的负责康复师：${esc(name('therapists',find('clients',id).ownerId))}</h3><p>调整到店时间，可在下一次服务中申请改约。对已完成服务有建议，可填写评价并勾选“希望工作人员联系我”。</p><div class="action-row">${role.type === 'customer' ? button('查看预约','appointment',appointments(id)[0]?.id || '','btn-outline') : ''}${last && role.type === 'customer' ? button('反馈最近一次服务','review',last.id,'btn-primary') : ''}</div><p class="muted">正式版本会补充真实客服电话和微信联系入口。</p>`};
   }
-  if (type === 'mini-info') return {title:'小程序页面预览',html:'<p>这是可点击的微信页面原型，您可以先体验流程。微信登录、门店导航、订阅消息将在确认原型后接入。</p>'};
+  if (type === 'mini-info') return {title:'涛博士 · 客户体验预览',html:'<p>您可以体验查看康复计划、剩余次数、下一次服务、服务记录与评价。</p><p class="muted">所有姓名与服务安排均为虚构示例。评价和改约仅用于体验，刷新后恢复示例，不会提交给门店。微信登录、真实档案和消息提醒将在正式版本启用。</p>'};
   if (type === 'reset') return {title:'重置示例数据',html:form('reset','<p>将恢复初始的两家门店、五名康复师和虚构客户。本次预览中新增的记录与草稿会清除。</p>','恢复初始示例')};
   if (type === 'deactivate-therapist') {
     assertBoss();
@@ -701,7 +704,8 @@ function exportPreview() {
 const compactPreview = window.matchMedia('(max-width: 760px)');
 $('.preview-controls').open = !compactPreview.matches;
 compactPreview.addEventListener('change', event => { $('.preview-controls').open = !event.matches; });
-const previewEntry=new URLSearchParams(location.search).get('preview');
+document.body.classList.toggle('customer-share', customerShare);
+$('#share-preview-note').hidden = !customerShare;
 if(previewEntry==='boss')switchRole('boss:boss');
 else if(previewEntry==='frontdesk'&&model.state.frontDesks?.find(f=>f.active!==false))switchRole(`frontdesk:${model.state.frontDesks.find(f=>f.active!==false).id}`);
 else render();

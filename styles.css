@@ -55,6 +55,9 @@ img { display: block; max-width: 100%; }
 .app-stage { min-width: 0; padding: 30px; display: flex; justify-content: center; align-items: flex-start; }
 .app-window { background: #fff; display: flex; flex-direction: column; width: min(100%, 1200px); height: calc(100dvh - 60px); min-height: 600px; max-height: 1100px; border: 1px solid #dce4dc; border-radius: 22px; overflow: hidden; box-shadow: 0 16px 50px #17331c0c; }
 .app-window.customer-mode { width: 430px; max-height: 950px; }
+.customer-share .preview-layout { grid-template-columns: minmax(0, 1fr); }
+.customer-share .preview-sidebar { display: none; }
+.share-preview-note:not([hidden]) { background: #f3f7f3; color: #627269; padding: 5px 12px; font-size: 11px; line-height: 1.6; text-align: center; flex-shrink: 0; }
 .app-header { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 22px; background: #fff; border-bottom: 1px solid #eef1ec; flex: 0 0 auto; }
 .app-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .brand-logo { width: 142px; height: 48px; object-fit: contain; object-position: left center; }
@@ -308,6 +311,7 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
   .preview-toggle { margin-top: 12px; }
   .app-stage { padding: 0; display: block; }
   .app-window, .app-window.customer-mode { width: 100%; height: calc(100dvh - 45px); min-height: 440px; max-height: none; border: 0; border-radius: 0; box-shadow: none; }
+  .customer-share .app-window.customer-mode { height: 100dvh; }
   .preview-controls[open] ~ .app-stage { height: auto; }
   .app-header { min-height: 59px; }
   .app-window:not(.customer-mode) .app-main { padding: 21px 16px; }
