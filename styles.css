@@ -57,6 +57,29 @@ img { display: block; max-width: 100%; }
 .app-window.customer-mode { width: 430px; max-height: 950px; }
 .customer-share .preview-layout { grid-template-columns: minmax(0, 1fr); }
 .customer-share .preview-sidebar { display: none; }
+.evaluation-inbox { margin-bottom: 20px; }
+.assessment-metric-row, .evaluation-metric-inputs { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr) minmax(0,.7fr); gap: 10px; }
+.assessment-metric-row > * { min-width: 0; }
+.evaluation-section > .section-head { gap: 12px; flex-wrap: wrap; }
+.evaluation-records { display: grid; gap: 14px; margin: 16px 0; }
+.evaluation-record { padding: 16px; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.evaluation-summary { margin: 10px 0; }
+.evaluation-metrics { margin: 12px 0; display: grid; gap: 8px; }
+.evaluation-metrics > div { display: flex; justify-content: space-between; align-items: baseline; gap: 14px; padding: 10px 12px; background: var(--soft); border-radius: 9px; }
+.evaluation-metrics dt { font-size: 13px; color: var(--muted); }
+.evaluation-metrics dd { margin: 0; font-size: 20px; font-weight: 650; overflow-wrap: anywhere; text-align: right; }
+.evaluation-client-choices { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; }
+.evaluation-conclusions { display: grid; gap: 8px; margin: 12px 0; }
+.evaluation-conclusions > span { display: flex; justify-content: space-between; gap: 12px; }
+.evaluation-work-stats { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 16px 0; }
+.evaluation-work-stats > * { min-width: 0; padding: 14px 10px; border-radius: 12px; background: var(--soft); }
+.evaluation-work-stats span, .evaluation-work-stats small { font-size: 11px; color: var(--muted); }
+.evaluation-work-stats strong { display: block; font-size: 26px; line-height: 1.6; color: var(--forest); }
+@media (max-width: 380px) {
+  .assessment-metric-row, .evaluation-metric-inputs { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .assessment-metric-row > :first-child, .evaluation-metric-inputs > :first-child { grid-column: 1 / -1; }
+  .evaluation-work-stats { grid-template-columns: 1fr; }
+}
 .share-preview-note:not([hidden]) { background: #f3f7f3; color: #627269; padding: 5px 12px; font-size: 11px; line-height: 1.6; text-align: center; flex-shrink: 0; }
 .app-header { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 22px; background: #fff; border-bottom: 1px solid #eef1ec; flex: 0 0 auto; }
 .app-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }

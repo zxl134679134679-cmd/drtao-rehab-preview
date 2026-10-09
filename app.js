@@ -1,9 +1,11 @@
 import { DemoModel, TODAY, EVIDENCE_LIMITS } from './core.js?v=20261009-legacy-import';
-import { renderStaff, staffDialog } from './staff.js?v=20261009-photo-hint';
+import { renderStaff, staffDialog } from './staff.js?v=20261009-evaluations';
 import { cashDialog, updateCashFields } from './cash.js?v=20261009-legacy-import';
-import { receptionDialog, receptionStores, assertReceptionAppointment } from './reception.js?v=20261009-legacy-import';
+import { receptionDialog, receptionStores, assertReceptionAppointment } from './reception.js?v=20261009-evaluations';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-evaluations';
 
 let model = new DemoModel();
+ensureEvaluations(model);
 let role = {type: 'customer', id: 'c1'};
 let view = 'home';
 const previewEntry = new URLSearchParams(location.search).get('preview');
@@ -85,7 +87,7 @@ function switchRole(value, targetView) {
   render(true);
 }
 function navigation() {
-  const items = role.type === 'customer' ? [['home','我的康复','home'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','工作台','home'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','门店与人员','building-store']];
+  const items = role.type === 'customer' ? [['home','我的康复','home'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','工作台','home'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['reception-assessments','评估','chart-bar'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','门店与人员','building-store']];
   return items.map(([key,label,ico]) => `<button class="nav-item ${view === key ? 'active' : ''}" data-action="nav" data-id="${key}" ${view === key ? 'aria-current="page"' : ''}>${icon(ico === 'home' && view === key ? 'home-filled' : ico,25)}<span class="nav-label">${label}</span></button>`).join('');
 }
 function render(resetScroll = false) {
@@ -94,9 +96,16 @@ function render(resetScroll = false) {
   $('#app-window').className = `app-window ${customer ? 'customer-mode' : 'staff-mode'}`;
   const label = customer ? name('clients', role.id) : role.type === 'boss' ? '老板管理' : role.type==='frontdesk'?`${name('frontDesks',role.id)} · 前台`:`${name('therapists', role.id)} · 康复师`;
   $('#app-header').innerHTML = `<div class="app-brand"><img class="brand-logo" src="assets/brand-logo.png" alt="涛博士 Dr.Tao 运动康复" width="146" height="56"></div><div class="customer-head"><span class="header-name">${esc(label)}</span>${customer ? `<button class="capsule" data-action="mini-info" aria-label="小程序预览说明">${icon('dots',20)}<span></span>${icon('circle-dot',20)}</button>` : '<span class="tag tag-green">工作端</span>'}</div>`;
-  main.innerHTML = customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : renderStaff(ctx());
+  main.innerHTML = customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : `${view === 'work' ? assessmentInbox() : ''}${renderStaff(ctx())}`;
   $('#bottom-nav').innerHTML = navigation();
   if (resetScroll) main.scrollTop = 0;
+}
+
+function assessmentInbox() {
+  if (role.type !== 'therapist') return '';
+  const rows = assessmentRows(model, role).filter(r => r.status === 'pending' && (r.therapistId === role.id || find('clients',r.clientId)?.ownerId === role.id));
+  if (!rows.length) return '';
+  return `<section class="evaluation-inbox card"><div class="section-head"><h2>待核对评估</h2><span class="tag">${rows.length} 条</span></div>${rows.map(r => `<div class="row"><div><strong>${esc(name('clients',r.clientId))}</strong><p class="meta">${date(r.date)} · ${esc(r.project)}</p></div>${button('核对数据','assessment-detail',r.id,'btn-outline')}</div>`).join('')}</section>`;
 }
 
 function customerHome() {
@@ -106,7 +115,7 @@ function customerHome() {
   return `<div class="ease-customer-home"><section class="hero"><p class="hero-label">我的康复计划</p><h1 class="hero-title">${esc(c.goal)}</h1><div class="hero-facts"><div class="fact-line">${icon('clipboard-text',20)}<span>当前阶段</span><strong>${esc(c.phase)}</strong></div><div class="fact-line">${icon('user',20)}<span>负责康复师</span><strong>${esc(name('therapists',c.ownerId))}</strong></div></div><div class="next-step">${icon('arrow-right',20)}<p>下一步：${esc(c.nextStep)}</p></div>${button('查看完整计划','plan',c.id,'hero-button btn-lime','chevron-right')}</section>
   <div class="customer-surface"><section class="detail-section ease-usage-section"><button class="ease-usage" data-action="package" data-id="${c.id}"><span><span class="ease-usage-label">套餐剩余 <span class="tag">各店通用</span></span><span class="ease-usage-total">已用 ${p.total - remaining} / 共 ${p.total} 次</span></span><span class="ease-usage-value"><strong>${remaining}</strong> 次${icon('chevron-right',18)}</span></button>${remaining <= 2 ? `<div class="ease-balance-note"><p>${remaining === 0 ? '当前套餐已用完，请与负责康复师确认阶段评估和后续安排。' : '剩余次数不多，建议与负责康复师确认阶段复评和后续安排。'}</p>${next ? link('查看服务团队','nav','profile') : ''}</div>` : ''}</section>
   <section class="detail-section ease-next"><div class="ease-section-head"><h2>${icon('calendar',21)}下一次服务</h2>${next ? link('查看安排','appointment',next.id) : ''}</div>${next ? `<div class="service-date">${date(next.date)} ${weekday(next.date)} · ${esc(next.time)}</div><h3 class="service-project">${esc(next.project)}</h3><p class="service-meta">服务康复师 <strong>${esc(name('therapists',next.principalId))}</strong><span>门店 <strong>${esc(name('stores',next.storeId))}</strong></span></p>${next.status === 'reschedule_requested' ? `<p class="ease-request-note">申请改至 ${date(next.request?.date)} ${esc(next.request?.time || '')}，待工作人员确认。原预约仍保留。</p>` : ''}<div class="ease-inline-actions">${button(next.status === 'reschedule_requested' ? '修改改约申请' : '申请改约','reschedule',next.id,'btn-outline','calendar')}${button('查看门店','stores',c.id,'btn-quiet','map-pin')}</div>` : `<div class="ease-empty"><p>下一次服务尚未安排</p><span>请与负责康复师确认，安排后会显示在这里。</span><div class="ease-inline-actions">${button('查看服务团队','nav','profile','btn-outline')}${button('反馈与帮助','help',c.id,'btn-quiet')}</div></div>`}</section>
-  <section class="detail-section"><button class="section-trigger progress-row" data-action="progress" data-id="${c.id}"><span class="section-label">${icon('chart-bar',22)}<strong>康复进展</strong></span><span class="muted">${c.progress.status === 'updated' ? '查看阶段评估' : '待评估更新'}</span>${icon('chevron-right',20)}</button></section>
+  <section class="detail-section"><button class="section-trigger progress-row" data-action="progress" data-id="${c.id}"><span class="section-label">${icon('chart-bar',22)}<strong>康复进展</strong></span><span class="muted">${latestConfirmedAssessment(model,role,c.id) ? '查看评估记录' : c.progress.status === 'updated' ? '查看阶段评估' : '待评估更新'}</span>${icon('chevron-right',20)}</button></section>
   <section class="detail-section ease-recent"><div class="ease-section-head"><h2>${icon('clock',21)}最近完成</h2>${link('全部记录','nav','records')}</div>${recent ? `<h3>${date(recent.date)} · ${esc(recent.project)}</h3><p class="meta">${esc(name('therapists',recent.principalId))} · ${esc(name('stores',recent.storeId))} · 使用 ${recent.sessions} 次</p><div class="ease-inline-actions">${button(reviewFor(recent.id) ? `${reviewFor(recent.id).score} 分 · 查看评价` : '评价本次服务','review',recent.id,reviewFor(recent.id) ? 'btn-outline' : 'btn-primary','star')}${button('服务明细','service-detail',recent.id,'btn-quiet')}</div>` : '<p class="ease-empty">完成服务后，您可以在这里查看记录并评价。</p>'}</section></div></div>`;
 }
 function customerRecords() {
@@ -117,7 +126,7 @@ function customerRecords() {
 function customerProfile() {
   const c = currentClient(), pref = preferences.get(c.id) || false;
   const menu = (label,action,ico) => `<button class="ease-menu-item" data-action="${action}" data-id="${c.id}">${icon(ico,21)}<span>${label}</span>${icon('chevron-right',18)}</button>`;
-  return `<div class="customer-page ease-customer-page"><div class="profile-card"><div class="profile-avatar">${icon('user',30)}</div><div><h1>${esc(c.name)}</h1><p class="muted">${esc(c.phone.slice(0,3))}****${esc(c.phone.slice(-4))}</p></div></div><section class="ease-team"><h2>我的服务团队</h2><div class="ease-team-info"><span>负责康复师 <strong>${esc(name('therapists',c.ownerId))}</strong></span><span>所属门店 <strong>${esc(name('stores',c.storeId))}</strong></span></div>${link('查看门店信息','stores',c.id)}</section><div class="ease-profile-menu">${menu('我的套餐与剩余次数','package','stack')}${menu('我的预约记录','appointment-history','calendar')}<details class="ease-home-advice"><summary>${icon('clipboard-text',21)}<span>居家指导</span>${icon('chevron-right',18)}</summary><div><p>${esc(c.homeAdvice)}</p>${link('查看完整计划','plan',c.id)}</div></details>${menu('反馈与帮助','help','bell')}${menu('我的档案与隐私','privacy','shield-check')}</div><details class="ease-reminder"><summary>服务提醒设置</summary><label class="check"><input type="checkbox" data-preference="reminder" ${pref ? 'checked' : ''}><span>希望收到服务提醒</span></label><p class="meta">预览中只保存此页面的偏好。正式提醒需您授权后启用。</p></details><p class="ease-brand-caption">涛博士 · 让每一次康复都有清晰的安排</p></div>`;
+  return `<div class="customer-page ease-customer-page"><div class="profile-card"><div class="profile-avatar">${icon('user',30)}</div><div><h1>${esc(c.name)}</h1><p class="muted">${esc(c.phone.slice(0,3))}****${esc(c.phone.slice(-4))}</p></div></div><section class="ease-team"><h2>我的服务团队</h2><div class="ease-team-info"><span>负责康复师 <strong>${esc(name('therapists',c.ownerId))}</strong></span><span>所属门店 <strong>${esc(name('stores',c.storeId))}</strong></span></div>${link('查看门店信息','stores',c.id)}</section><div class="ease-profile-menu">${menu('我的评估记录','assessment-history','chart-bar')}${menu('我的套餐与剩余次数','package','stack')}${menu('我的预约记录','appointment-history','calendar')}<details class="ease-home-advice"><summary>${icon('clipboard-text',21)}<span>居家指导</span>${icon('chevron-right',18)}</summary><div><p>${esc(c.homeAdvice)}</p>${link('查看完整计划','plan',c.id)}</div></details>${menu('反馈与帮助','help','bell')}${menu('我的档案与隐私','privacy','shield-check')}</div><details class="ease-reminder"><summary>服务提醒设置</summary><label class="check"><input type="checkbox" data-preference="reminder" ${pref ? 'checked' : ''}><span>希望收到服务提醒</span></label><p class="meta">预览中只保存此页面的偏好。正式提醒需您授权后启用。</p></details><p class="ease-brand-caption">涛博士 · 让每一次康复都有清晰的安排</p></div>`;
 }
 
 function planDialog(id) {
@@ -127,6 +136,8 @@ function planDialog(id) {
 }
 function progressDialog(id) {
   const c = assertClient(id);
+  const latest = latestConfirmedAssessment(model,role,id);
+  if (latest) { const detail=evaluationDialog('assessment-detail',latest.id,ctx());return {title:'康复进展与评估记录',html:`${detail.html}<h3>当前安排</h3><p>${esc(c.phase)}</p><p>${esc(c.nextStep)}</p>${button('查看全部评估记录','assessment-history',id,'btn-outline')}`}; }
   return {title: '康复进展', html: `<div class="note"><strong>${c.progress.status === 'updated' ? '本阶段评估' : '等待首次阶段记录'}</strong><p>${esc(c.progress.summary)}</p></div>${c.progressUpdatedAt ? `<p class="meta">更新日期 ${date(c.progressUpdatedAt)} · 负责康复师 ${esc(name('therapists',c.ownerId))}</p>` : '<p class="muted">完成评估后，您的康复师会记录实际变化和下一步建议。</p>'}${c.progress.metrics.length ? `<div class="detail-grid">${c.progress.metrics.map(m => pair(m.label || m.name, m.value ?? `${m.before ?? "—"} → ${m.after ?? "—"} ${m.unit || ""}`)).join('')}</div>` : ''}<h3>当前安排</h3><p>${esc(c.phase)}</p><p>${esc(c.nextStep)}</p><p class="notice">套餐次数反映服务使用情况，康复进展以康复师评估记录为依据。</p>${canEditPlan(c) ? button('补充评估与计划','edit-plan',id,'btn-primary') : ''}`};
 }
 function packageRecord(pack) {
@@ -265,7 +276,7 @@ photoViewer.addEventListener('close', () => {
 function clientDialog(id) {
   const c = assertClient(id);
   const next = appointments(id)[0];
-  return {title: `${c.name}的客户档案`, html: `<div class="detail-grid">${pair('负责康复师',name('therapists',c.ownerId))}${pair('所属门店',name('stores',c.storeId))}${pair('手机号',c.phone)}${pair('剩余次数',`${model.remaining(id)} 次`)}</div>${c.openingNotes ? `<div class="note"><strong>期初核对依据</strong><p>${esc(c.openingNotes)}</p></div>` : ""}<h3>${esc(c.goal)}</h3><p>${esc(c.phase)} · ${esc(c.nextStep)}</p><div class="action-row">${button('完整计划','plan',id,'btn-outline')}${button('套餐次数','package',id,'btn-outline')}${button('预约记录','appointment-history',id,'btn-outline')}${role.type === 'boss' && model.remaining(id) === 0 ? button('续接新套餐','renew-package',id,'btn-primary') : ''}${canEditPlan(c) ? button('更新计划','edit-plan',id,'btn-outline') : ''}</div><h3>下一次服务</h3>${next ? `<p>${date(next.date)} ${next.time} · ${esc(next.project)}</p><p class="meta">${esc(name('therapists',next.principalId))} · ${esc(name('stores',next.storeId))}</p><div class="action-row">${button('改约','appointment-edit',next.id)}${button('取消预约','appointment-cancel',next.id,'btn-quiet')}</div>` : '<p class="muted">暂无待服务安排</p>'}<div class="action-row">${button('登记已完成服务','register',id,'btn-primary','plus')}${button('安排下次服务','appointment-create',id,'btn-outline','calendar')}</div><h3>服务历史</h3>${clientServices(id).map(s => `<div class="row"><div><strong>${date(s.date)} · ${esc(s.project)}</strong><p class="meta">${esc(name('therapists',s.principalId))} · ${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? '已完成' : '已撤销'}</p></div>${link('明细','service-detail',s.id)}</div>`).join('') || '<p class="muted">暂无新增服务记录</p>'}${role.type === 'boss' ? `<div class="action-row">${link('转交负责人','transfer-client',id)}${link('操作留痕','client-audit',id)}</div>` : ''}`};
+  return {title: `${c.name}的客户档案`, html: `<div class="detail-grid">${pair('负责康复师',name('therapists',c.ownerId))}${pair('所属门店',name('stores',c.storeId))}${pair('手机号',c.phone)}${pair('剩余次数',`${model.remaining(id)} 次`)}</div>${c.openingNotes ? `<div class="note"><strong>期初核对依据</strong><p>${esc(c.openingNotes)}</p></div>` : ""}<h3>${esc(c.goal)}</h3><p>${esc(c.phase)} · ${esc(c.nextStep)}</p><div class="action-row">${button('完整计划','plan',id,'btn-outline')}${button('评估记录','assessment-history',id,'btn-outline')}${button('登记评估数据','assessment-create',id,'btn-outline')}${button('套餐次数','package',id,'btn-outline')}${button('预约记录','appointment-history',id,'btn-outline')}${role.type === 'boss' && model.remaining(id) === 0 ? button('续接新套餐','renew-package',id,'btn-primary') : ''}${canEditPlan(c) ? button('更新计划','edit-plan',id,'btn-outline') : ''}</div><h3>下一次服务</h3>${next ? `<p>${date(next.date)} ${next.time} · ${esc(next.project)}</p><p class="meta">${esc(name('therapists',next.principalId))} · ${esc(name('stores',next.storeId))}</p><div class="action-row">${button('改约','appointment-edit',next.id)}${button('取消预约','appointment-cancel',next.id,'btn-quiet')}</div>` : '<p class="muted">暂无待服务安排</p>'}<div class="action-row">${button('登记已完成服务','register',id,'btn-primary','plus')}${button('安排下次服务','appointment-create',id,'btn-outline','calendar')}</div><h3>服务历史</h3>${clientServices(id).map(s => `<div class="row"><div><strong>${date(s.date)} · ${esc(s.project)}</strong><p class="meta">${esc(name('therapists',s.principalId))} · ${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? '已完成' : '已撤销'}</p></div>${link('明细','service-detail',s.id)}</div>`).join('') || '<p class="muted">暂无新增服务记录</p>'}${role.type === 'boss' ? `<div class="action-row">${link('转交负责人','transfer-client',id)}${link('操作留痕','client-audit',id)}</div>` : ''}`};
 }
 function appointmentDialog(id) {
   const c = currentClient();
@@ -303,10 +314,12 @@ function tourDialog() {
   return {title: '试一遍完整服务流程', html: `<p>建议先用许安然的 3,000 元 / 10 次套餐体验，初始剩余 10 次。</p><div class="plan-timeline"><div class="timeline-item"><span class="timeline-dot"></span><div><h3>1. 看客户首页</h3><p class="muted">查看计划、负责康复师和剩余次数。</p>${button('以许安然身份查看','tour-customer','','btn-outline')}</div></div><div class="timeline-item"><span class="timeline-dot"></span><div><h3>2. 登记一次跨店服务</h3><p class="muted">以周亦宁登记，在 A店服务，选择两位协作人员，填写服务小结并添加测试照片。剩余次数变为 9。</p>${button('打开服务登记','tour-register','','btn-primary')}</div></div><div class="timeline-item"><span class="timeline-dot"></span><div><h3>3. 核对业绩与明细</h3><p class="muted">主康复师增加 300 元，协作人员保留参与记录；全店业绩只增加 300 元。</p>${button('查看老板概览','tour-boss','','btn-outline')}</div></div><div class="timeline-item"><span class="timeline-dot"></span><div><h3>4. 体验评价和撤销</h3><p class="muted">切回客户填写评价；老板可在服务明细填写原因后撤销，次数和业绩同步恢复。</p>${button('查看客户服务记录','tour-records','','btn-outline')}</div></div></div>`};
 }
 
+const evaluationTypes = new Set(['assessment-create','assessment-history','assessment-detail','assessment-confirm','assessment-void','frontdesk-work','frontdesk-evaluate','frontdesk-evaluation-detail','frontdesk-evaluation-void']);
 const staffTypes = new Set(['register','edit-plan','appointment-create','appointment-edit','followup','add-store','add-therapist','add-frontdesk','transfer-client','import-opening','revoke-service','register-appointment','renew-package']);
 function buildDialog(type, id) {
   if(type==='import-opening-batch') { assertBoss();return {title:'表格批量录入旧客户',html:'<p class="muted" role="status">正在加载本地表格检查工具…</p>'}; }
-  if(role.type==='frontdesk'&&!['record-receipt','cash-ledger','receipt-detail','refund-detail','settle-receipt','record-arrival','appointment-create','appointment-edit','appointment-cancel','appointment-no-show','reset','tour','mini-info'].includes(type))throw new Error('此操作由康复师或老板处理');
+  if(role.type==='frontdesk'&&!['record-receipt','cash-ledger','receipt-detail','refund-detail','settle-receipt','record-arrival','appointment-create','appointment-edit','appointment-cancel','appointment-no-show','assessment-create','assessment-history','assessment-detail','frontdesk-work','frontdesk-evaluation-detail','reset','tour','mini-info'].includes(type))throw new Error('此操作由康复师或老板处理');
+  if(evaluationTypes.has(type))return evaluationDialog(type,id,ctx());
   if(type==='record-arrival')return receptionDialog(type,id,ctx());
   if (['record-receipt','cash-ledger','receipt-detail','refund-detail','refund-receipt','settle-receipt','void-receipt','void-refund'].includes(type)) {
     return cashDialog(type,id,ctx());
@@ -411,6 +424,7 @@ function openDialog(type,id = '') {
   $('.sheet-head .icon-button').innerHTML = icon('x',22);
   restoreDraft(saved);
   updateCashFields($('#sheet-body form'));
+  constrainEvaluationChoices();
   constrainStaffChoices(type,id);
   if (['register','register-appointment'].includes(type)) {
     updateParticipants();
@@ -499,7 +513,7 @@ document.addEventListener('click', event => {
     }
     if (action === 'close-dialog') return closeDialog();
     if (action === 'nav') {
-      const allowed = role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team'] : role.type==='frontdesk'?['reception','cash','reception-clients']:['work','clients','performance'];
+      const allowed = role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team'] : role.type==='frontdesk'?['reception','reception-assessments','cash','reception-clients']:['work','clients','performance'];
       if (!allowed.includes(id)) throw new Error('该页面不可访问');
       closeDialog(); view = id; render(true); return;
     }
@@ -546,6 +560,7 @@ document.addEventListener('change', event => {
   }
   if (event.target.dataset.preference === 'reminder' && role.type === 'customer') { preferences.set(role.id,event.target.checked); toast('已保存本次预览的提醒偏好'); }
   if (event.target.name === 'clientId' && ['appointment-create','appointment-edit'].includes($('#sheet-body form')?.dataset.form)) constrainStaffChoices($('#sheet-body form').dataset.form,event.target.value);
+  if (['clientId','frontDeskId'].includes(event.target.name)) constrainEvaluationChoices();
   if (event.target.name === 'principalId' && $('#sheet-body form')?.dataset.form === 'register') updateParticipants();
 });
 function updateParticipants() {
@@ -554,6 +569,26 @@ function updateParticipants() {
     el.disabled = el.value === principal;
     if (el.disabled) el.checked = false;
   });
+}
+function constrainEvaluationChoices() {
+  const f = $('#sheet-body form');
+  if (f?.dataset.form === 'assessment-create') {
+    const clientId=f.elements.clientId?.value;
+    const select=f.elements.therapistId;
+    if (!select || !clientId) return;
+    const previous=select.value;
+    const eligible=model.state.therapists.filter(t=>t.active&&model.canSeeClient({type:'therapist',id:t.id},clientId));
+    select.innerHTML=eligible.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+    select.value=eligible.some(t=>t.id===previous)?previous:find('clients',clientId)?.ownerId || eligible[0]?.id || '';
+  }
+  if (f?.dataset.form === 'frontdesk-evaluate') {
+    const account=find('frontDesks',f.elements.frontDeskId?.value);
+    const select=f.elements.storeId;
+    if (!select || !account) return;
+    const previous=select.value;
+    select.innerHTML=account.storeIds.map(id=>`<option value="${esc(id)}">${esc(name('stores',id))}</option>`).join('');
+    select.value=account.storeIds.includes(previous)?previous:account.storeIds[0];
+  }
 }
 function constrainStaffChoices(type,id) {
   const f = $('#sheet-body form');
@@ -614,9 +649,21 @@ document.addEventListener('submit', async event => {
     if (role.type !== submittingRole.type || role.id !== submittingRole.id || context !== dialogContext) throw new Error('操作已取消，请重新打开页面后提交');
     if ($('#network-toggle').checked && type !== 'reset') {
       $('#network-toggle').checked = false;
+      if (['assessment-create','assessment-confirm','assessment-void','frontdesk-evaluate','frontdesk-evaluation-void'].includes(type)) throw new Error('模拟提交失败：记录未保存，填写内容已保留，请重试。');
       throw new Error(['record-receipt','settle-receipt','refund-receipt','void-receipt','void-refund'].includes(type)?'模拟提交失败：内容已保留，收支未改变，请重试。':type==='record-arrival'?'模拟提交失败：到店状态未改变，请重试。':'模拟提交失败：内容已保留，未扣次数，请重试。');
     }
     let result;
+    if (['assessment-create','assessment-confirm','assessment-void','frontdesk-evaluate','frontdesk-evaluation-void'].includes(type)) {
+      if(type==='assessment-create')result=recordAssessment(model,{...data,requestId:context.requestId},role);
+      else if(type==='assessment-confirm')result=confirmAssessment(model,data.id,role);
+      else if(type==='assessment-void')result=voidAssessment(model,data.id,data.reason,role);
+      else if(type==='frontdesk-evaluate')result=recordFrontDeskEvaluation(model,{...data,requestId:context.requestId},role);
+      else result=voidFrontDeskEvaluation(model,data.id,data.reason,role);
+      const assessment=type.startsWith('assessment-');
+      const title=({'assessment-create':'评估数据已登记，等待核对','assessment-confirm':'评估已确认，客户可以查看','assessment-void':'评估已撤销，原记录保留','frontdesk-evaluate':'工作考核已记录','frontdesk-evaluation-void':'考核已撤销，原记录保留'})[type];
+      drafts.delete(context.key);f.dataset.succeeded='true';render();
+      showSuccess(title,`${assessment?`<p>${esc(name('clients',result.clientId))} · ${date(result.date)} · ${esc(result.project)}</p>`:'<p>本次结论、工作数据与改进安排已保留，可随时回看。</p>'}<div class="action-row">${button('查看记录',assessment?'assessment-detail':'frontdesk-evaluation-detail',result.id,'btn-primary')}</div>`);return;
+    }
     if (type === 'register' || type === 'register-appointment') {
       result = model.registerService({...data,participantIds:fd.getAll('participantIds'),evidencePhotos:context.evidencePhotos.map(photo => ({...photo})),requestId:context.requestId},role);
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
@@ -660,7 +707,7 @@ document.addEventListener('submit', async event => {
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
       showSuccess('次数已恢复，业绩已冲回',`<div class="detail-grid">${pair('客户',name('clients',result.clientId))}${pair('恢复至原套餐',name('packages',result.packageId))}${pair('原套餐剩余',`${model.packageRemaining(result.packageId)} 次`)}${pair('当前套餐剩余',`${model.remaining(result.clientId)} 次`)}${pair('冲回消费业绩',money(result.amount))}${pair('主康复师',name('therapists',result.principalId))}</div><p class="muted">原服务记录与撤销原因已保留。</p>${button('查看原记录','service-detail',result.id,'btn-outline')}`); return;
     } else if (type === 'reset') {
-      model = new DemoModel(); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
+      model = new DemoModel(); ensureEvaluations(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
       closeDialog(false); role = {type:'customer',id:'c1'}; view='home'; filters={storeId:'',therapistId:'',from:'',to:'',query:''}; render(true); toast('示例已重置'); return;
     } else throw new Error('此表单暂不可提交');
     drafts.delete(context.key); f.dataset.succeeded = 'true'; closeDialog(false); render();
@@ -686,14 +733,16 @@ function exportPreview() {
   const data = role.type === 'boss' ? {...state,services:state.services.map(exportService),receipts:state.receipts.map(cleanCash),refunds:state.refunds.map(cleanCash)} : role.type==='frontdesk'?{
     clients:state.clients.filter(c=>ids.has(c.id)).map(c=>({id:c.id,name:c.name,phone:c.phone,storeId:c.storeId,ownerId:c.ownerId,remaining:model.remaining(c.id)})),
     appointments:state.appointments.filter(a=>frontStoreIds.has(a.storeId)).map(a=>({id:a.id,clientId:a.clientId,storeId:a.storeId,date:a.date,time:a.time,principalId:a.principalId,status:a.status,arrivalAt:a.arrivalAt,arrivalBy:a.arrivalBy})),
-    receipts:state.receipts.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),refunds:state.refunds.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash)
+    receipts:state.receipts.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),refunds:state.refunds.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),
+    assessments:assessmentRows(model,role),frontDeskEvaluations:frontDeskEvaluationRows(model,role,role.id)
   } : {
     clients:state.clients.filter(c => ids.has(c.id)),
     packages:state.packages.filter(p => ids.has(p.clientId)),
     services:state.services.filter(s => ids.has(s.clientId) || (role.type === 'therapist' && (s.principalId === role.id || s.participantIds.includes(role.id)))).map(exportService),
     appointments:state.appointments.filter(a => ids.has(a.clientId)),
     tasks:state.tasks.filter(t => ids.has(t.clientId) && (role.type === 'customer' ? ['plan','assessment','review','reschedule'].includes(t.type) : t.assigneeId === role.id)),
-    reviews:state.reviews.filter(r => ids.has(r.clientId))
+    reviews:state.reviews.filter(r => ids.has(r.clientId)),
+    assessments:assessmentRows(model,role)
   };
   const blob = new Blob([JSON.stringify({说明:'虚构示例，非真实业务档案',身份:role,数据:data},null,2)],{type:'application/json'});
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='涛博士-演示记录.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000); toast('已导出当前身份可见的演示记录');
