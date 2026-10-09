@@ -1,5 +1,5 @@
-import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261009-therapist-bookings';
-import { customerBookingRows, customerBookingConfirmation } from './customer-booking.js?v=20261009-therapist-bookings';
+import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261009-finance-controls';
+import { customerBookingRows, customerBookingConfirmation } from './customer-booking.js?v=20261009-finance-controls';
 
 export const customerBookingTypes = new Set(['customer-booking', 'customer-booking-detail', 'customer-booking-cancel', 'customer-booking-confirm']);
 

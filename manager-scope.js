@@ -41,7 +41,7 @@ export function storeWorkSnapshot(model, role, filters = {}) {
     ...allAssessments.filter(row => row.recordedRole === 'frontdesk').map(row => row.recordedBy),
     ...localEvaluations.map(row => row.frontDeskId),
   ]);
-  const cashKeys = ['id', 'clientId', 'storeId', 'date', 'time', 'amount', 'amountMinor', 'status', 'channel', 'method', 'purpose', 'businessType', 'reference', 'notes', 'parentId', 'receiptId', 'settlementReceiptId', 'settlementStatus', 'recordedBy', 'recordedRole', 'recordedAt', 'createdAt', 'reason', 'voidReason', 'voidedAt', 'voidedBy'];
+  const cashKeys = ['packageId', 'packageAction', 'packageReason', 'id', 'clientId', 'storeId', 'date', 'time', 'amount', 'amountMinor', 'status', 'channel', 'method', 'purpose', 'businessType', 'reference', 'notes', 'parentId', 'receiptId', 'settlementReceiptId', 'settlementStatus', 'recordedBy', 'recordedRole', 'recordedAt', 'createdAt', 'reason', 'voidReason', 'voidedAt', 'voidedBy'];
   const receiptRows = dated(state.receipts).map(row => pick(row, cashKeys));
   const refundRows = dated(state.refunds).map(row => pick(row, cashKeys));
   return clone({

@@ -1,8 +1,8 @@
 /* Employee and owner views for the in-memory review prototype. */
-import { renderPaperIntakeInbox } from './paper-intake.js?v=20261009-therapist-bookings';
-import { cashOverview } from './cash.js?v=20261009-therapist-bookings';
-import { hourTimeField } from './hour-picker.js?v=20261009-therapist-bookings';
-import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261009-therapist-bookings';
+import { renderPaperIntakeInbox } from './paper-intake.js?v=20261009-finance-controls';
+import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261009-finance-controls';
+import { hourTimeField } from './hour-picker.js?v=20261009-finance-controls';
+import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261009-finance-controls';
 const TODAY = '2026-10-08';
 
 function h(ctx) {
@@ -31,14 +31,14 @@ function packagesAtStore(model, clientId, storeId, exhausted = false) {
   if (!client || !model.state.stores.some(row => row.id === storeId)) return [];
   const source = !exhausted && typeof model.availablePackages === 'function'
     ? model.availablePackages(clientId, storeId) : model.state.packages;
-  return source.filter(pack => pack.clientId === clientId &&
+  return source.filter(pack => !pack.closed && pack.clientId === clientId &&
     (pack.storeId === storeId || (!pack.storeId && pack.id === client.packageId)) &&
     (exhausted ? model.packageRemaining(pack.id) === 0 : model.packageRemaining(pack.id) > 0));
 }
 
 function hasStorePackage(model,clientId,storeId) {
   const client=model.state.clients.find(c=>c.id===clientId);
-  return model.state.packages.some(p=>p.clientId===clientId&&['current','historical'].includes(p.status)&&(p.storeId===storeId||(!p.storeId&&p.id===client?.packageId)));
+  return model.state.packages.some(p=>!p.closed&&p.clientId===clientId&&['current','historical'].includes(p.status)&&(p.storeId===storeId||(!p.storeId&&p.id===client?.packageId)));
 }
 
 function remainingAtStore(model, clientId, storeId) {
@@ -254,7 +254,7 @@ function overview(ctx) {
     <header class="boss-heading"><div><span class="eyebrow">${x.date(TODAY)} · 示例数据</span><h1>老板看板</h1></div><div class="action-row">${clientIntakeButton(ctx)}${x.action('一起预约','appointment-batch','','btn-outline')}${x.action('客户管理','nav','clients','btn-outline','users')}</div></header>
     <div class="boss-toolbar"><div class="boss-period" aria-label="业绩时间范围">${[['today','今天'],['month','本月'],['all','全部']].map(([id,label]) => `<button type="button" data-action="boss-period" data-id="${id}" aria-pressed="${period === (id === 'all' ? '全部时间' : label)}">${label}</button>`).join('')}</div><label class="boss-store"><span class="sr-only">看板门店</span><select data-boss-store aria-label="看板门店"><option value="">全部门店</option>${x.state.stores.map(s => `<option value="${x.esc(s.id)}" ${f.storeId === s.id ? 'selected' : ''}>${x.esc(s.name)}</option>`).join('')}</select></label><details class="boss-more"><summary>更多筛选</summary><form data-form="filters" class="boss-advanced"><input type="hidden" name="storeId" value="${x.esc(f.storeId || '')}"><label class="field"><span>康复师</span><select name="therapistId"><option value="">全部康复师</option>${x.state.therapists.map(t => `<option value="${x.esc(t.id)}" ${f.therapistId === t.id ? 'selected' : ''}>${x.esc(t.name)}</option>`).join('')}</select></label><label class="field"><span>开始日期</span><input type="date" name="from" value="${x.esc(f.from || '')}"></label><label class="field"><span>结束日期</span><input type="date" name="to" value="${x.esc(f.to || '')}"></label><div class="action-row"><button type="submit" class="btn btn-primary">应用筛选</button>${x.action('恢复今天','boss-reset','','btn-quiet')}</div><p class="boss-filter-note">业绩、预约与反馈按服务门店及主康复师查看；客户提醒按所属门店及负责人；工作待办按客户所属门店及执行人。</p></form></details></div>
     <p class="boss-scope">${x.esc(scopeLabel)} · ${period}${period === '所选日期' ? ` ${f.from ? x.date(f.from) : '不限开始'}—${f.to ? x.date(f.to) : '不限结束'}` : ''}</p>
-    ${cashOverview(ctx,period)}
+    ${cashOverview(ctx,period)}${renderCashClosingSummary(ctx)}
     <div class="boss-stats"><div class="boss-stat"><span>消费业绩</span><strong>${x.money(b.amount)}</strong><small>来自实际消课 · 收款另计</small></div><div class="boss-stat"><span>完成服务</span><strong>${b.valid.length}<small> 次</small></strong><small>${period}已登记</small></div><div class="boss-stat"><span>待跟进客户</span><strong>${b.followupCount}<small> 位</small></strong><small>当前提醒 · 按客户去重</small></div></div>
     <div class="boss-columns"><section class="boss-panel"><div class="section-head"><h2>需要处理</h2><span class="muted">点开即可处理</span></div>${renderPaperIntakeInbox(ctx)}<p class="boss-panel-note">${b.followupCount ? '查看当前提醒，不受业绩日期影响。' : '当前没有待跟进客户。'}</p>
       ${notice('需要确认的服务安排',b.appointments.length,'条',appointmentRows || '<p class="empty">当前没有待处理预约。</p>')}

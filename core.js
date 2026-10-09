@@ -1,5 +1,5 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-therapist-bookings';
-import { assertScheduleAvailability } from './schedules.js?v=20261009-therapist-bookings';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-finance-controls';
+import { assertScheduleAvailability } from './schedules.js?v=20261009-finance-controls';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -37,6 +37,22 @@ const personnelPhone = value => {
   return phone;
 };
 const CASH_CHANNELS = Object.freeze(['direct', 'douyin', 'meituan', 'other_platform']);
+const CASH_METHODS = Object.freeze(['wechat', 'alipay', 'cash', 'bank']);
+const signedMinor = (value, label = '对账金额') => {
+  if (!['string', 'number'].includes(typeof value)) throw new Error(`请核对${label}`);
+  const text = String(value).trim();
+  if (!/^-?\d+(\.\d{1,2})?$/.test(text)) throw new Error(`${label}须为最多两位小数的金额`);
+  const negative = text.startsWith('-'), [whole, fraction = ''] = (negative ? text.slice(1) : text).split('.');
+  const minor = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+  if (!Number.isSafeInteger(minor) || minor > 1000000000) throw new Error(`${label}超出安全录入金额范围`);
+  return minor === 0 ? 0 : negative ? -minor : minor;
+};
+const cashMinorSum = values => values.reduce((sum, value) => {
+  const total = sum + value;
+  if (!Number.isSafeInteger(value) || !Number.isSafeInteger(total)) throw new Error('对账金额超出安全范围，请核对账目');
+  return total;
+}, 0);
+const cashAmounts = value => Object.fromEntries(CASH_METHODS.map(method => [method, value[method] / 100]));
 const amountMinor = (value, label = '套餐金额') => {
   if (!['string', 'number'].includes(typeof value)) throw new Error(`请核对${label}`);
   const text = String(value).trim();
@@ -219,7 +235,7 @@ function seedState() {
       { id: 'task3', clientId: 'c2', appointmentId: 'a2', title: '完成本次训练后的服务记录', assigneeId: 't2', dueDate: TODAY, status: 'pending', type: 'service_note' },
       { id: 'task4', clientId: 'c6', title: '套餐已用完，核对下一阶段服务安排', assigneeId: 't5', dueDate: '2026-10-07', status: 'pending', type: 'review' },
     ],
-    reviews: [], audit: [], receipts: [], refunds: [],
+    reviews: [], audit: [], receipts: [], refunds: [], cashClosings: [],
   };
 }
 
@@ -252,7 +268,7 @@ export class DemoModel {
     const source = state === undefined ? seedState() : state;
     const collections = ['stores', 'therapists', 'clients', 'packages', 'services', 'appointments', 'tasks', 'reviews', 'audit'];
     if (!source || collections.some(key => !Array.isArray(source[key]))) throw new Error('业务状态缺少有效的数据集合');
-    for (const key of ['receipts', 'refunds', 'frontDesks', 'appointmentBatches', 'storeManagers']) {
+    for (const key of ['receipts', 'refunds', 'frontDesks', 'appointmentBatches', 'storeManagers', 'cashClosings']) {
       if (source[key] !== undefined && !Array.isArray(source[key])) throw new Error('业务状态缺少有效的数据集合');
       collections.push(key);
     }
@@ -262,6 +278,7 @@ export class DemoModel {
     this.state.frontDesks ??= [];
     this.state.appointmentBatches ??= [];
     this.state.storeManagers ??= [];
+    this.state.cashClosings ??= [];
     if (!Number.isSafeInteger(sequence) || sequence < 0) throw new Error('业务序列无效');
     const ids = collections.flatMap(key => this.state[key].map(row => row?.id));
     if (ids.some(id => typeof id !== 'string' || !id.trim())) throw new Error('业务状态包含无效记录标识');
@@ -291,6 +308,7 @@ export class DemoModel {
       if (minor < pack.total) throw new Error('套餐金额不能少于总次数对应的分金额');
       const storeId = this._packageStoreId(pack);
       if (storeId) { pack.storeId = storeId; this._client(pack.clientId); }
+      if (pack.closed !== undefined && typeof pack.closed !== 'boolean') throw new Error('套餐结束状态无效');
     });
     const claimed = new Set();
     this.state.services.forEach(service => {
@@ -312,6 +330,7 @@ export class DemoModel {
       row.amountMinor = minor;
     }
     this._validateCashState();
+    this._validateCashClosings();
   }
 
   _validateCashState() {
@@ -335,6 +354,11 @@ export class DemoModel {
       if (!['package', 'renewal', 'single', 'other', 'platform_settlement'].includes(row.purpose)) throw new Error('收款用途无效');
       if (row.channel === 'direct' && (row.settlementStatus !== 'received' || row.purpose === 'platform_settlement')) throw new Error('直接收款状态不能使用平台待结算');
       if (row.channel !== 'direct') required(row.reference, '平台参考单号', 160);
+      if (row.packageId !== undefined) {
+        const pack = this.state.packages.find(item => item.id === row.packageId);
+        if (!pack || !pack.storeId || pack.clientId !== row.clientId || pack.storeId !== row.storeId ||
+            (!row.parentId && !['package', 'renewal'].includes(row.purpose))) throw new Error('收款与套餐客户、门店或用途关联无效');
+      }
       if ((row.status === 'valid' && row.settlementStatus !== 'received') || (['pending_settlement', 'settled'].includes(row.status) && row.settlementStatus !== 'pending')) throw new Error('收款状态与到账状态不一致');
       if (['valid', 'pending_settlement'].includes(row.status)) this._assertPlatformReferenceUnique(row, row.id);
       if (row.parentId) {
@@ -343,6 +367,7 @@ export class DemoModel {
             ['storeId', 'channel', 'clientId', 'method'].some(key => row[key] !== parent[key]) || row.settlementStatus !== 'received' ||
             row.purpose !== 'platform_settlement' || `${row.date} ${row.time}` < `${parent.date} ${parent.time}` ||
             !parent.settlementReceiptIds?.includes(row.id)) throw new Error('平台到账子单与父单关联无效');
+        if (row.packageId !== parent.packageId) throw new Error('平台到账子单与原套餐关联不一致');
         if (row.status === 'valid' && (parent.status !== 'settled' || parent.settlementReceiptId !== row.id)) throw new Error('有效到账子单与父单结算状态不一致');
       }
       if (row.settlementReceiptIds !== undefined) {
@@ -357,10 +382,70 @@ export class DemoModel {
       const receipt = this.state.receipts.find(item => item.id === row.receiptId);
       if (!receipt || !['valid', 'revoked'].includes(row.status) || ['storeId', 'channel', 'clientId', 'method'].some(key => row[key] !== receipt[key]) ||
           `${row.date} ${row.time}` < `${receipt.date} ${receipt.time}` || (row.status === 'valid' && receipt.status !== 'valid')) throw new Error('退款与原有效收款关联无效');
+      if (row.packageId !== undefined) {
+        if (row.packageId !== receipt.packageId || !['keep', 'close'].includes(row.packageAction)) throw new Error('退款与套餐处理关联无效');
+        required(row.packageReason, '退款套餐处理原因', 1000);
+        if (row.packageAction === 'close' && (!row.packageClosureBefore || typeof row.packageClosureBefore.closed !== 'boolean')) throw new Error('退款缺少有效的套餐结束前记录');
+      }
     }
     for (const row of this.state.receipts) {
       const refunded = this.state.refunds.filter(item => item.receiptId === row.id && item.status === 'valid').reduce((sum, item) => sum + item.amountMinor, 0);
       if (refunded > row.amountMinor) throw new Error('累计有效退款超过原收款金额');
+    }
+    for (const pack of this.state.packages) {
+      if (pack.closedByRefundId !== undefined) {
+        const refund = this.state.refunds.find(row => row.id === pack.closedByRefundId);
+        if (pack.closed !== true || !refund || refund.status !== 'valid' || refund.packageId !== pack.id || refund.packageAction !== 'close') throw new Error('套餐结束与有效退款关联无效');
+      }
+    }
+  }
+
+  _validateCashClosings() {
+    const ids = new Set(), versions = new Set(), requests = new Set();
+    const financialIds = new Set([...this.state.receipts, ...this.state.refunds].map(row => row.id));
+    const minorFields = value => value && typeof value === 'object' && !Array.isArray(value) &&
+      Object.keys(value).length === CASH_METHODS.length && CASH_METHODS.every(method => Number.isSafeInteger(value[method]));
+    const stamp = value => typeof value === 'string' && Number.isFinite(Date.parse(value));
+    for (const row of this.state.cashClosings) {
+      this._store(row.storeId); validDate(row.date);
+      const version = count(row.version, '对账版本', 1, Number.MAX_SAFE_INTEGER - 1);
+      const key = `${row.storeId}:${row.date}:${version}`;
+      if (ids.has(row.id) || financialIds.has(row.id) || versions.has(key)) throw new Error('对账状态存在重复记录标识或版本');
+      ids.add(row.id); versions.add(key);
+      if (!['submitted', 'confirmed'].includes(row.status) || !minorFields(row.expectedMinor) || !minorFields(row.actualMinor) ||
+          typeof row.ledgerFingerprint !== 'string' || !stamp(row.submittedAt)) throw new Error('对账状态缺少有效金额或快照');
+      cashMinorSum(Object.values(row.expectedMinor)); cashMinorSum(Object.values(row.actualMinor));
+      let snapshot;
+      try { snapshot = JSON.parse(row.ledgerFingerprint); } catch { throw new Error('对账账目快照格式无效'); }
+      if (!Array.isArray(snapshot)) throw new Error('对账账目快照格式无效');
+      const seen = new Set(), expected = Object.fromEntries(CASH_METHODS.map(method => [method, 0]));
+      for (const entry of snapshot) {
+        if (!Array.isArray(entry) || entry.length !== 8) throw new Error('对账账目快照记录无效');
+        const [kind, id, date, time, status, method, minor, voidedAt] = entry;
+        const original = (kind === 'receipt' ? this.state.receipts : kind === 'refund' ? this.state.refunds : []).find(item => item.id === id);
+        if (!original || seen.has(id) || original.storeId !== row.storeId || date !== row.date || original.date !== date || original.time !== time ||
+            original.method !== method || original.amountMinor !== minor || !CASH_METHODS.includes(method) || !['valid', 'revoked'].includes(status) ||
+            !Number.isSafeInteger(minor) || minor < 1 || typeof voidedAt !== 'string' || (voidedAt && !stamp(voidedAt))) throw new Error('对账账目快照记录或金额无效');
+        seen.add(id);
+        if (status === 'valid') expected[method] = cashMinorSum([expected[method], kind === 'receipt' ? minor : -minor]);
+      }
+      if (!CASH_METHODS.every(method => row.expectedMinor[method] === expected[method])) throw new Error('对账预期金额与账目快照不一致');
+      required(row.submittedBy, '对账提交人', 80); required(row.requestId, '对账提交标识', 80); required(row.inputKey, '对账提交内容', 16000);
+      optionalText(row.notes, '对账备注', 2000);
+      if (!['boss', 'frontdesk'].includes(row.submittedRole) || (row.submittedRole === 'boss' && row.submittedBy !== 'boss') ||
+          (row.submittedRole === 'frontdesk' && !this.state.frontDesks.some(person => person.id === row.submittedBy))) throw new Error('对账提交人权限记录无效');
+      const requestKey = `${row.submittedRole}:${row.submittedBy}:${row.requestId}`;
+      if (requests.has(requestKey)) throw new Error('对账状态存在重复提交请求');
+      requests.add(requestKey);
+      if (row.status === 'confirmed') {
+        if (!['boss', 'manager'].includes(row.confirmedRole) || (row.confirmedRole === 'boss' && row.confirmedBy !== 'boss') ||
+            (row.confirmedRole === 'manager' && !this.state.storeManagers.some(person => person.id === row.confirmedBy)) ||
+            !stamp(row.confirmedAt) || !CASH_METHODS.every(method => row.actualMinor[method] === row.expectedMinor[method])) throw new Error('对账确认记录无效或存在差额');
+        required(row.confirmedBy, '对账确认人', 80); required(row.confirmRequestId, '对账确认标识', 80);
+        const confirmKey = `${row.confirmedRole}:${row.confirmedBy}:${row.confirmRequestId}`;
+        if (requests.has(confirmKey)) throw new Error('对账状态存在重复确认请求');
+        requests.add(confirmKey);
+      }
     }
   }
 
@@ -530,6 +615,75 @@ export class DemoModel {
     }
   }
 
+  _financeActor(role, storeId) {
+    let stores;
+    if (role?.type === 'boss') { this._boss(role); stores = this.state.stores.map(row => row.id); }
+    else if (role?.type === 'frontdesk') stores = this.frontDeskStoreIds(role);
+    else if (role?.type === 'manager') stores = [this.managerStoreId(role)];
+    else throw new Error('您没有查看套餐收款和营业对账的权限');
+    if (storeId) {
+      this._store(storeId);
+      if (!stores.includes(storeId)) throw new Error('您没有该门店的财务查看权限');
+    }
+    return stores;
+  }
+
+  _receiptPackage(packageId, clientId, storeId, purpose) {
+    if (!['package', 'renewal'].includes(purpose)) throw new Error('只有套餐或续费收款可以关联套餐');
+    const pack = this.state.packages.find(row => row.id === required(packageId, '关联套餐', 80));
+    if (!pack || pack.clientId !== clientId || !pack.storeId || pack.storeId !== storeId) throw new Error('关联套餐须属于同一客户和办卡门店，请核对原套餐');
+    if (pack.closed === true || !['current', 'historical'].includes(pack.status)) throw new Error('该套餐已结束或当前不可关联收款');
+    return pack;
+  }
+
+  _stageCashWrite(stamp) {
+    return Object.assign(Object.create(Object.getPrototypeOf(this)), this, { now: () => stamp,
+      state: { ...this.state, packages: this.state.packages.map(copy), receipts: this.state.receipts.map(copy),
+        refunds: this.state.refunds.map(copy), cashClosings: this.state.cashClosings.map(copy), audit: [...this.state.audit] } });
+  }
+
+  linkReceiptPackage(data, role) {
+    this._boss(role);
+    const input = { receiptId: required(data.receiptId, '原收款标识', 80), packageId: required(data.packageId, '关联套餐', 80), reason: required(data.reason, '收款关联原因', 1000) };
+    const requestId = required(data.requestId, '提交标识', 80), inputKey = JSON.stringify(input);
+    const previous = this.state.audit.find(row => row.type === 'receipt_package_linked' && row.actorType === role.type && row.actorId === role.id && row.requestId === requestId);
+    if (previous) {
+      if (previous.inputKey !== inputKey) throw new Error('同一提交请求的关联内容发生变化，请重新打开关联表');
+      return this.state.receipts.find(row => row.id === previous.receiptId);
+    }
+    const receipt = this.state.receipts.find(row => row.id === input.receiptId);
+    if (!receipt || !['valid', 'pending_settlement', 'settled'].includes(receipt.status) || receipt.parentId) throw new Error('请选择有效的套餐或续费原收款记录，平台到账请关联原单');
+    this._receiptPackage(input.packageId, receipt.clientId, receipt.storeId, receipt.purpose);
+    if (receipt.packageId && receipt.packageId !== input.packageId) throw new Error('此收款已关联其他套餐，不能重新分配');
+    const children = this.state.receipts.filter(row => row.parentId === receipt.id);
+    if (children.some(row => row.packageId && row.packageId !== input.packageId)) throw new Error('平台到账记录已经关联其他套餐，请核对原账单');
+    const stamp = this._timestamp(), staged = this._stageCashWrite(stamp);
+    const target = staged.state.receipts.find(row => row.id === receipt.id);
+    target.packageId = input.packageId;
+    staged.state.receipts.filter(row => row.parentId === target.id).forEach(row => { row.packageId = input.packageId; });
+    staged._log('receipt_package_linked', { ...input, requestId, inputKey, clientId: target.clientId, storeId: target.storeId, settlementReceiptIds: children.map(row => row.id), note: '仅关联实际收款，不修改金额、套餐次数和消费业绩' }, role);
+    this.state = staged.state; this.sequence = staged.sequence;
+    return target;
+  }
+
+  packageFinance(packageId, role) {
+    this._financeActor(role);
+    const pack = this.state.packages.find(row => row.id === packageId);
+    if (!pack) throw new Error('套餐不存在');
+    const storeId = this._packageStoreId(pack);
+    if (!storeId) throw new Error('原套餐尚未核对办卡门店，请由老板确认后查看收款关联');
+    this._financeActor(role, storeId);
+    const linked = this.state.receipts.filter(row => row.packageId === pack.id);
+    const receipts = linked.filter(row => row.status === 'valid'), pending = linked.filter(row => row.status === 'pending_settlement');
+    const receiptIds = new Set(receipts.map(row => row.id));
+    const refunds = this.state.refunds.filter(row => row.status === 'valid' && receiptIds.has(row.receiptId));
+    const receivedMinor = cashMinorSum(receipts.map(row => row.amountMinor)), refundedMinor = cashMinorSum(refunds.map(row => row.amountMinor));
+    const hasLink = linked.some(row => row.status !== 'revoked' && !row.parentId);
+    return { packageId: pack.id, clientId: pack.clientId, storeId, amount: pack.amount, received: receivedMinor / 100,
+      refunded: refundedMinor / 100, netReceived: (receivedMinor - refundedMinor) / 100, pending: cashMinorSum(pending.map(row => row.amountMinor)) / 100,
+      remaining: this.packageRemaining(pack.id), closed: pack.closed === true, status: hasLink ? 'linked' : pack.createdBy || pack.renewedBy ? 'unlinked' : 'opening' };
+  }
+
   recordReceipt(data, role) {
     this._cashActor(role);
     const requestId = required(data.requestId, '提交标识', 80);
@@ -550,9 +704,12 @@ export class DemoModel {
     const minor = amountMinor(data.amount, '收款金额');
     const input = { clientId, storeId, date: validDate(data.date), time: validTime(data.time), purpose, method, channel,
       settlementStatus, reference, amountMinor: minor, notes: optionalText(data.notes, '收款备注') };
+    const packageId = optionalText(data.packageId, '关联套餐', 80);
+    if (packageId) input.packageId = packageId;
     const inputKey = JSON.stringify(input);
     const existing = this._financialExisting(requestId, role, 'receipt', inputKey);
     if (existing) return existing;
+    if (packageId) this._receiptPackage(packageId, clientId, storeId, purpose);
     this._cashOccurrence(input, '收款');
     this._assertPlatformReferenceUnique(input);
     const stamp = this._timestamp();
@@ -560,7 +717,7 @@ export class DemoModel {
       status: settlementStatus === 'pending' ? 'pending_settlement' : 'valid', recordedBy: role.id, recordedRole: role.type,
       requestId, requestType: 'receipt', inputKey, createdAt: stamp, recordedAt: stamp };
     this.state.receipts.push(row);
-    this._log('receipt_recorded', { receiptId: row.id, clientId, storeId, channel, status: row.status, amountMinor: minor, reference }, role);
+    this._log('receipt_recorded', { receiptId: row.id, clientId, storeId, channel, status: row.status, amountMinor: minor, reference, ...(packageId ? { packageId } : {}) }, role);
     return row;
   }
 
@@ -570,20 +727,36 @@ export class DemoModel {
     const receiptId = required(data.receiptId, '原收款标识', 80), minor = amountMinor(data.amount, '退款金额');
     const input = { receiptId, date: validDate(data.date), time: validTime(data.time), amountMinor: minor,
       reason: required(data.reason, '退款原因', 1000) };
+    const receipt = this.state.receipts.find(row => row.id === receiptId);
+    let pack;
+    if (receipt?.packageId) {
+      pack = this.state.packages.find(row => row.id === receipt.packageId && row.clientId === receipt.clientId && row.storeId === receipt.storeId);
+      if (!pack) throw new Error('原收款关联套餐不一致，请核对原档案');
+      if (!['keep', 'close'].includes(data.packageAction)) throw new Error('请选择退款后保留次数或结束该套餐');
+      input.packageId = pack.id; input.packageAction = data.packageAction;
+      input.packageReason = required(data.packageReason, '退款套餐处理原因', 1000);
+    }
     const inputKey = JSON.stringify(input), existing = this._financialExisting(requestId, role, 'refund', inputKey);
     if (existing) return existing;
-    const receipt = this.state.receipts.find(row => row.id === receiptId);
     if (!receipt || receipt.status !== 'valid') throw new Error('只能从有效的已到账收款登记退款');
     this._cashOccurrence(input, '退款');
     if (`${input.date} ${input.time}` < `${receipt.date} ${receipt.time}`) throw new Error('退款时间不能早于原收款时间');
     const refunded = this.state.refunds.filter(row => row.receiptId === receiptId && row.status === 'valid').reduce((sum, row) => sum + row.amountMinor, 0);
     if (refunded + minor > receipt.amountMinor) throw new Error('累计有效退款不能超过原收款金额，请核对可退余额');
-    const stamp = this._timestamp();
-    const row = { id: this._id('refund'), ...input, clientId: receipt.clientId, storeId: receipt.storeId,
+    const stamp = this._timestamp(), staged = this._stageCashWrite(stamp);
+    const row = { id: staged._id('refund'), ...input, clientId: receipt.clientId, storeId: receipt.storeId,
       method: receipt.method, channel: receipt.channel, amount: minor / 100, status: 'valid', recordedBy: role.id, recordedRole: role.type,
       requestId, requestType: 'refund', inputKey, createdAt: stamp, recordedAt: stamp };
-    this.state.refunds.push(row);
-    this._log('refund_recorded', { refundId: row.id, receiptId, clientId: row.clientId, storeId: row.storeId, channel: row.channel, amountMinor: minor, reason: row.reason }, role);
+    if (pack && input.packageAction === 'close') {
+      const target = staged.state.packages.find(item => item.id === pack.id);
+      row.packageClosureBefore = { closed: target.closed === true };
+      for (const key of ['closedByRefundId', 'closedAt', 'closedReason']) if (target[key] !== undefined) row.packageClosureBefore[key] = target[key];
+      Object.assign(target, { closed: true, closedByRefundId: row.id, closedAt: stamp, closedReason: input.packageReason });
+    }
+    staged.state.refunds.push(row);
+    staged._log('refund_recorded', { refundId: row.id, receiptId, clientId: row.clientId, storeId: row.storeId, channel: row.channel, amountMinor: minor, reason: row.reason,
+      ...(pack ? { packageId: pack.id, packageAction: input.packageAction, packageReason: input.packageReason, remainingBefore: this.packageRemaining(pack.id), remainingAfter: staged.packageRemaining(pack.id) } : {}) }, role);
+    this.state = staged.state; this.sequence = staged.sequence;
     return row;
   }
 
@@ -608,6 +781,7 @@ export class DemoModel {
       channel: parent.channel, purpose: 'platform_settlement', method: parent.method,
       settlementStatus: 'received', amount: minor / 100, status: 'valid', recordedBy: role.id, recordedRole: role.type,
       requestId, requestType: 'settlement', inputKey, createdAt: stamp, recordedAt: stamp };
+    if (parent.packageId) row.packageId = parent.packageId;
     this.state.receipts.push(row);
     parent.status = 'settled';
     parent.settlementReceiptId = row.id;
@@ -641,11 +815,30 @@ export class DemoModel {
     if (!row) throw new Error('退款记录不存在');
     if (row.status === 'revoked') throw new Error('该退款已撤销，不能重复撤销');
     if (row.status !== 'valid') throw new Error('该退款状态不能撤销');
-    const stamp = this._timestamp();
-    row.status = 'revoked';
-    row.voidReason = why; row.voidedBy = role.id; row.voidedAt = stamp;
-    this._log('refund_voided', { refundId: row.id, receiptId: row.receiptId, reason: why, amountMinor: row.amountMinor }, role);
-    return row;
+    const stamp = this._timestamp(), staged = this._stageCashWrite(stamp);
+    const target = staged.state.refunds.find(item => item.id === id);
+    target.status = 'revoked';
+    target.voidReason = why; target.voidedBy = role.id; target.voidedAt = stamp;
+    let restored = false;
+    const pack = target.packageId && staged.state.packages.find(item => item.id === target.packageId);
+    if (target.packageAction === 'close' && pack?.closedByRefundId === target.id) {
+      let before = target.packageClosureBefore, seen = new Set([target.id]);
+      if (!before || typeof before.closed !== 'boolean') throw new Error('退款缺少套餐结束前记录，请核对原档案');
+      // A later closing refund can supersede an earlier closing decision. Skip
+      // revoked predecessors rather than reviving their cancelled decisions.
+      while (before.closed && before.closedByRefundId) {
+        const prior = staged.state.refunds.find(item => item.id === before.closedByRefundId);
+        if (!prior || prior.status !== 'revoked') break;
+        if (seen.has(prior.id) || !prior.packageClosureBefore) throw new Error('退款套餐结束记录关联异常，请核对原档案');
+        seen.add(prior.id); before = prior.packageClosureBefore;
+      }
+      for (const key of ['closed', 'closedByRefundId', 'closedAt', 'closedReason']) delete pack[key];
+      Object.assign(pack, copy(before)); restored = true;
+    }
+    staged._log('refund_voided', { refundId: target.id, receiptId: target.receiptId, reason: why, amountMinor: target.amountMinor,
+      ...(target.packageId ? { packageId: target.packageId, packageAction: target.packageAction, restoredPackageClosure: restored } : {}) }, role);
+    this.state = staged.state; this.sequence = staged.sequence;
+    return target;
   }
 
   cashSummary(filters = {}, role) {
@@ -677,6 +870,109 @@ export class DemoModel {
     return { ...totals(sum(receipts), sum(refunds), sum(pending)), receipts, refunds, channels };
   }
 
+  _cashClosingLedger(storeId, date) {
+    const expectedMinor = Object.fromEntries(CASH_METHODS.map(method => [method, 0]));
+    const rows = [
+      ...this.state.receipts.filter(row => row.storeId === storeId && row.date === date && row.settlementStatus === 'received').map(row => ({ kind: 'receipt', row })),
+      ...this.state.refunds.filter(row => row.storeId === storeId && row.date === date).map(row => ({ kind: 'refund', row })),
+    ];
+    for (const { kind, row } of rows) if (row.status === 'valid') {
+      if (!CASH_METHODS.includes(row.method)) throw new Error('对账记录包含无效收款方式');
+      expectedMinor[row.method] = cashMinorSum([expectedMinor[row.method], kind === 'receipt' ? row.amountMinor : -row.amountMinor]);
+    }
+    const ledgerFingerprint = JSON.stringify(rows.map(({ kind, row }) => [kind, row.id, row.date, row.time, row.status, row.method, row.amountMinor, row.voidedAt || '']).sort((a, b) => a[1].localeCompare(b[1])));
+    return { expectedMinor, expectedTotalMinor: cashMinorSum(Object.values(expectedMinor)), ledgerFingerprint };
+  }
+
+  _latestCashClosing(storeId, date) {
+    return this.state.cashClosings.filter(row => row.storeId === storeId && row.date === date).sort((a, b) => b.version - a.version)[0] || null;
+  }
+
+  _cashClosingRecord(row, ledgerFingerprint) {
+    if (!row) return null;
+    const differenceMinor = Object.fromEntries(CASH_METHODS.map(method => [method, cashMinorSum([row.actualMinor[method], -row.expectedMinor[method]])]));
+    const result = { id: row.id, storeId: row.storeId, date: row.date, version: row.version,
+      status: row.ledgerFingerprint === ledgerFingerprint ? row.status : 'stale', notes: row.notes, submittedBy: row.submittedBy,
+      submittedRole: row.submittedRole, submittedAt: row.submittedAt,
+      expected: cashAmounts(row.expectedMinor), actual: cashAmounts(row.actualMinor), difference: cashAmounts(differenceMinor),
+      actualTotal: cashMinorSum(Object.values(row.actualMinor)) / 100, differenceTotal: cashMinorSum(Object.values(differenceMinor)) / 100 };
+    for (const key of ['confirmedBy', 'confirmedRole', 'confirmedAt']) if (row[key] !== undefined) result[key] = row[key];
+    return result;
+  }
+
+  cashClosingSummary(role, { storeId, date = this.today } = {}) {
+    this._financeActor(role);
+    const id = required(storeId, '对账门店', 80), day = validDate(date);
+    this._financeActor(role, id);
+    const ledger = this._cashClosingLedger(id, day), record = this._cashClosingRecord(this._latestCashClosing(id, day), ledger.ledgerFingerprint);
+    return { storeId: id, date: day, expected: cashAmounts(ledger.expectedMinor), expectedMinor: { ...ledger.expectedMinor },
+      expectedTotal: ledger.expectedTotalMinor / 100, expectedTotalMinor: ledger.expectedTotalMinor, record, status: record?.status || 'missing' };
+  }
+
+  cashClosingRows(role, { date = this.today } = {}) {
+    const storeIds = this._financeActor(role), day = validDate(date);
+    return storeIds.map(storeId => this.cashClosingSummary(role, { storeId, date: day }));
+  }
+
+  _cashClosingExisting(requestId, role, operation, inputKey) {
+    for (const row of this.state.cashClosings) {
+      const submitted = row.submittedBy === role.id && row.submittedRole === role.type && row.requestId === requestId;
+      const confirmed = row.confirmedBy === role.id && row.confirmedRole === role.type && row.confirmRequestId === requestId;
+      if (!submitted && !confirmed) continue;
+      if ((operation === 'submit' && !submitted) || (operation === 'confirm' && !confirmed) ||
+          (submitted ? row.inputKey : row.confirmInputKey) !== inputKey) throw new Error('同一对账提交请求的内容或操作发生变化，请重新打开对账表');
+      return row;
+    }
+    return null;
+  }
+
+  saveCashClosing(data, role) {
+    this._cashActor(role);
+    const storeId = required(data.storeId, '对账门店', 80), date = validDate(data.date);
+    this._cashActor(role, storeId); this._store(storeId);
+    const version = count(data.version, '对账版本', 0, Number.MAX_SAFE_INTEGER - 2), requestId = required(data.requestId, '提交标识', 80);
+    const actualMinor = Object.fromEntries(CASH_METHODS.map(method => [method, signedMinor(data[`actual${method[0].toUpperCase()}${method.slice(1)}`], `${method === 'wechat' ? '微信' : method === 'alipay' ? '支付宝' : method === 'cash' ? '现金' : '银行转账'}核对金额`)]));
+    const input = { storeId, date, version, actualMinor, notes: optionalText(data.notes, '对账备注', 2000) }, inputKey = JSON.stringify(input);
+    const existing = this._cashClosingExisting(requestId, role, 'submit', inputKey);
+    if (existing) return this._cashClosingRecord(existing, this._cashClosingLedger(storeId, date).ledgerFingerprint);
+    if (date > this.today) throw new Error('不能提交尚未营业的未来日期对账');
+    const current = this._latestCashClosing(storeId, date);
+    if ((current?.version || 0) !== version) throw new Error('对账版本已更新，请重新打开并核对最新账目');
+    const ledger = this._cashClosingLedger(storeId, date), stamp = this._timestamp(), staged = this._stageCashWrite(stamp);
+    const row = { id: staged._id('cashClosing'), storeId, date, version: version + 1, status: 'submitted',
+      expectedMinor: { ...ledger.expectedMinor }, actualMinor, ledgerFingerprint: ledger.ledgerFingerprint, notes: input.notes,
+      submittedBy: role.id, submittedRole: role.type, submittedAt: stamp, requestId, inputKey };
+    // Verify all sums before the new snapshot or audit reaches shared state.
+    const result = staged._cashClosingRecord(row, ledger.ledgerFingerprint);
+    staged.state.cashClosings.push(row);
+    staged._log('cash_closing_submitted', { cashClosingId: row.id, storeId, date, version: row.version, expectedMinor: row.expectedMinor, actualMinor, note: '仅核对实际账单，不登记收款、不执行付款' }, role);
+    this.state = staged.state; this.sequence = staged.sequence;
+    return result;
+  }
+
+  confirmCashClosing(id, data, role) {
+    if (role?.type === 'boss') this._boss(role);
+    else if (role?.type === 'manager') this.managerStoreId(role);
+    else throw new Error('仅老板或本店在职店长有权限确认营业对账');
+    const row = this.state.cashClosings.find(item => item.id === required(id, '对账记录标识', 80));
+    if (!row) throw new Error('对账记录不存在');
+    this._financeActor(role, row.storeId);
+    const version = count(data.version, '对账版本', 1, Number.MAX_SAFE_INTEGER - 1), requestId = required(data.requestId, '提交标识', 80);
+    const inputKey = JSON.stringify({ id: row.id, version });
+    if (this._latestCashClosing(row.storeId, row.date)?.id !== row.id || row.version !== version) throw new Error('对账版本已更新，请查看本日最新对账');
+    const ledger = this._cashClosingLedger(row.storeId, row.date);
+    if (row.ledgerFingerprint !== ledger.ledgerFingerprint) throw new Error('营业账目已变化，请前台重新核对并提交');
+    if (!CASH_METHODS.every(method => row.actualMinor[method] === row.expectedMinor[method])) throw new Error('各收款方式仍有差额，请核对并处理后再确认');
+    const existing = this._cashClosingExisting(requestId, role, 'confirm', inputKey);
+    if (existing) return this._cashClosingRecord(existing, ledger.ledgerFingerprint);
+    if (row.status !== 'submitted') throw new Error('该对账已经确认，不能重复确认');
+    const stamp = this._timestamp(), staged = this._stageCashWrite(stamp), target = staged.state.cashClosings.find(item => item.id === row.id);
+    Object.assign(target, { status: 'confirmed', confirmedBy: role.id, confirmedRole: role.type, confirmedAt: stamp, confirmRequestId: requestId, confirmInputKey: inputKey });
+    staged._log('cash_closing_confirmed', { cashClosingId: target.id, storeId: target.storeId, date: target.date, version: target.version, expectedMinor: target.expectedMinor, actualMinor: target.actualMinor }, role);
+    this.state = staged.state; this.sequence = staged.sequence;
+    return this._cashClosingRecord(target, ledger.ledgerFingerprint);
+  }
+
   remaining(clientId) {
     const client = this._client(clientId);
     if (client.packageId === null || client.packageId === undefined || client.packageId === '') return 0;
@@ -686,6 +982,7 @@ export class DemoModel {
   packageRemaining(packageId) {
     const pack = this.state.packages.find(item => item.id === packageId);
     if (!pack) throw new Error('套餐不存在');
+    if (pack.closed === true) return 0;
     const used = this.state.services.filter(item => item.packageId === pack.id && item.status === 'valid').reduce((total, item) => total + item.sessions, 0);
     return pack.total - pack.openingUsed - used;
   }
@@ -701,7 +998,7 @@ export class DemoModel {
     const client = this._client(clientId);
     if (storeId !== undefined) this._store(storeId);
     return this.state.packages.filter(pack => {
-      if (pack.clientId !== client.id || !['current', 'historical'].includes(pack.status)) return false;
+      if (pack.clientId !== client.id || pack.closed === true || !['current', 'historical'].includes(pack.status)) return false;
       const boundStore = this._packageStoreId(pack);
       if (!boundStore && (pack.id !== client.packageId || pack.status !== 'current')) return false;
       if (storeId !== undefined && boundStore && boundStore !== storeId) return false;
@@ -771,6 +1068,7 @@ export class DemoModel {
       return existing;
     }
     if (store.active === false) throw new Error('续套餐门店已停用，请核对门店');
+    if (previous.closed === true) throw new Error('原套餐已结束，请另办新套餐，不能以剩余零次续费');
     if (this.packageRemaining(previous.id) !== 0) throw new Error('原套餐仍有剩余次数，请用完后再续套餐');
     const stamp = this._timestamp(), staged = this._stagePackageWrite(stamp);
     const replacePrimary = previous.id === client.packageId;
@@ -790,6 +1088,7 @@ export class DemoModel {
     const why = required(reason, '切换使用套餐原因');
     const target = this.state.packages.find(item => item.id === packageId);
     if (!target) throw new Error('套餐不存在');
+    if (target.closed === true) throw new Error('该套餐已结束，不能重新启用');
     const client = this._client(target.clientId);
     if (target.status !== 'historical' || client.packageId === target.id) throw new Error('只能切换使用有余额的历史套餐');
     if (this.packageRemaining(target.id) <= 0) throw new Error('该历史套餐没有剩余次数');
@@ -818,6 +1117,7 @@ export class DemoModel {
   _availableSlot(packageId) {
     const pack = this.state.packages.find(row => row.id === packageId);
     if (!pack) throw new Error('套餐不存在');
+    if (pack.closed === true) throw new Error('该套餐已结束，不能继续登记服务');
     const occupied = new Set(this.state.services.filter(row => row.packageId === packageId && row.status === 'valid').map(row => row.slotNumber));
     for (let slot = pack.openingUsed + 1; slot <= pack.total; slot++) if (!occupied.has(slot)) return slot;
     throw new Error('套餐次数已用完，请先由老板确认套餐');
