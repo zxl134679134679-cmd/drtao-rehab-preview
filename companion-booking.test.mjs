@@ -178,7 +178,16 @@ test('group booking keeps the existing sixty-minute conflict across different st
   assert.equal(boundarySave(input(), boss).length, 2);
 });
 
-test('group bookings require valid whole hours, a real date, a project, a request id and at least two members', () => {
+test('companions can start at a half hour without charging or skipping conflict checks', () => {
+  const m = model(), save = api(m), before = finances(m);
+  const rows = save(input({time:'14:30'}), frontA);
+  assert.equal(rows.length, 2);
+  assert.ok(rows.every(row => row.time === '14:30'));
+  assert.equal(finances(m), before);
+  rejectsWithoutMutation(m, save, input({time:'15:00',requestId:'half-hour-conflict'}));
+});
+
+test('group bookings require valid whole or half hours, a real date, a project, a request id and at least two members', () => {
   const m = model(), save = api(m);
   for (const change of [
     { time: '14:04' }, { time: '24:00' }, { time: '14点' }, { time: null },

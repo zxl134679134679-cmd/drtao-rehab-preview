@@ -2,10 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { DemoModel } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './core.js';
 import { workSummary, renderStaff, staffDialog } from './staff.js';
 import { receptionStores } from './reception.js';
 import { assessmentRows, frontDeskEvaluationRows, ensureEvaluations } from './evaluations.js';
+import { customerBookingRows } from './customer-booking.js';
 
 const source = await readFile(new URL('./app.js', import.meta.url), 'utf8');
 const boss = { type: 'boss', id: 'boss' };
@@ -34,7 +35,7 @@ function appReaders(model, role) {
     model, role, find, esc, name: (kind, id) => find(kind, id)?.name || id,
     date: v => v, money: v => `¥${v}`, pair: (k, v) => `<p>${esc(k)} ${esc(v)}</p>`,
     button: label => `<button>${esc(label)}</button>`, serviceEvidence: () => '',
-    ctx: () => ctx(model, role), receptionStores, assessmentRows, frontDeskEvaluationRows,
+    ctx: () => ctx(model, role), receptionStores, assessmentRows, frontDeskEvaluationRows, customerBookingRows,
     Blob, URL: { createObjectURL: blob => { download = blob; return 'blob:test'; }, revokeObjectURL: () => {} },
     document: { createElement: () => ({ click() {} }) }, setTimeout: () => {}, toast: () => {},
   };
@@ -99,6 +100,36 @@ test('actual exports exclude other customers reviews and all employee rating rec
     const data = await appReaders(model, role).export();
     assert.deepEqual(data.reviews.map(r => r.id), [review.id]);
   }
+});
+
+test('actual frontdesk export reports the authorized store sessions instead of another stores current package', async () => {
+  const { model } = fixture();
+  ensureStorePackageExamples(model);
+  model.createStorePackage({clientId:'c1',storeId:'a',name:'麦岛加次套餐',amount:1200,total:3,requestId:'export-local-card'}, boss);
+  assert.equal(model.remaining('c1'), 9, '当前套餐指针仍属于崂山店');
+  assert.equal(model.remainingInStore('c1', 'a'), 13);
+  const data = await appReaders(model, {type:'frontdesk',id:'f1'}).export();
+  const client = data.clients.find(row => row.id === 'c1');
+  assert.deepEqual(client.storeSessions, [{storeId:'a',storeName:'麦岛店',remainingSessions:13}]);
+  assert.ok(!Object.hasOwn(client, 'remaining'), '不导出没有门店归属的余次');
+  assert.ok(!JSON.stringify(data).includes(secret), '新投影不能暴露私密评价');
+});
+
+test('actual frontdesk export separates each authorized store and excludes an unassigned stores card', async () => {
+  const { model } = fixture();
+  ensureStorePackageExamples(model);
+  const thirdStore = model.addStore({name:'待开第三店',address:'虚构门店地址'}, boss);
+  model.createStorePackage({clientId:'c1',storeId:thirdStore.id,name:'第三店套餐',amount:5000,total:25,requestId:'export-third-card'}, boss);
+  const frontdesk = model.addFrontDesk({name:'两店前台',storeIds:['a','b']}, boss);
+  const data = await appReaders(model, {type:'frontdesk',id:frontdesk.id}).export();
+  const client = data.clients.find(row => row.id === 'c1');
+  assert.deepEqual(client.storeSessions, [
+    {storeId:'a',storeName:'麦岛店',remainingSessions:10},
+    {storeId:'b',storeName:'崂山店',remainingSessions:9},
+  ]);
+  assert.ok(!Object.hasOwn(client, 'remaining'));
+  assert.ok(!JSON.stringify(data).includes(thirdStore.id));
+  assert.ok(!JSON.stringify(data).includes(secret));
 });
 
 test('misassigned historical feedback tasks never appear in therapist work counts or work UI', () => {

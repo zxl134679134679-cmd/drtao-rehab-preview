@@ -2,7 +2,7 @@ const pick = (row, keys) => Object.fromEntries(keys.filter(key => row[key] !== u
 const clone = value => JSON.parse(JSON.stringify(value));
 
 export function managerClientInStore(model, client, storeId) {
-  return client.storeId === storeId || ['appointments', 'services', 'receipts', 'refunds', 'assessments'].some(collection =>
+  return client.storeId === storeId || model.state.packages.some(pack => pack.clientId === client.id && pack.storeId === storeId) || ['appointments', 'services', 'receipts', 'refunds', 'assessments'].some(collection =>
     (model.state[collection] || []).some(row => row.clientId === client.id && row.storeId === storeId));
 }
 
@@ -48,9 +48,10 @@ export function storeWorkSnapshot(model, role, filters = {}) {
     manager: pick(state.storeManagers.find(row => row.id === role.id), ['id', 'name', 'storeId', 'active']),
     store: pick(state.stores.find(row => row.id === storeId), ['id', 'name', 'address']), storeId, from, to,
     clients: clients.map(client => {
-      const pack = state.packages.find(row => row.id === client.packageId);
-      const remaining = model.remaining(client.id);
-      return { ...pick(client, ['id', 'name', 'phone', 'ownerId', 'storeId', 'packageId', 'planName', 'goal', 'phase', 'nextStep', 'phaseNote', 'progress', 'homeAdvice']), remaining, total: pack.total, used: pack.total - remaining, packageName: pack.name };
+      const packs = model.availablePackages(client.id,storeId);
+      const pack = packs[0];
+      const remaining = model.remainingInStore(client.id,storeId), total=packs.reduce((sum,p)=>sum+p.total,0);
+      return { ...pick(client, ['id', 'name', 'phone', 'ownerId', 'storeId', 'planName', 'goal', 'phase', 'nextStep', 'phaseNote', 'progress', 'homeAdvice']), packageId:pack?.id || null, remaining, total, used:total-remaining, packageName:pack?.name || '暂无本店可用套餐' };
     }),
     services: dated(state.services).map(row => ({
       ...pick(row, ['id', 'clientId', 'packageId', 'storeId', 'date', 'time', 'project', 'principalId', 'participantIds', 'ownerId', 'recordedBy', 'recordedAt', 'createdAt', 'amount', 'amountMinor', 'sessions', 'status', 'notes', 'revokeReason', 'revokedBy', 'revokedAt']),

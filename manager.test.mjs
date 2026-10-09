@@ -10,6 +10,8 @@ import { appointmentBatchDialog } from './companion-booking.js';
 import { staffDialog } from './staff.js';
 import { cashDialog } from './cash.js';
 import { assessmentRows, frontDeskEvaluationRows, evaluationDialog } from './evaluations.js';
+import { customerBookingRows } from './customer-booking.js';
+import { customerBookingTypes, customerRequestDialog } from './customer-ui.js';
 
 const boss = { type: 'boss', id: 'boss' };
 const managerA = { type: 'manager', id: 'm1' };
@@ -333,7 +335,8 @@ function appReaders(m, role) {
   const scope = {
     model: m, role, filters: {}, find, esc, ctx: () => ctx(m, role),
     managerDialog, receptionStores, receptionDialog, assertReceptionAppointment, appointmentBatchDialog, staffDialog, cashDialog,
-    assessmentRows, frontDeskEvaluationRows, evaluationDialog,
+    assessmentRows, frontDeskEvaluationRows, evaluationDialog, customerBookingRows, customerBookingTypes, customerRequestDialog,
+    customerCtx: () => ({...ctx(m,role),ui:{}}),
     canEditPlan: () => false, Blob,
     URL: { createObjectURL: blob => { download = blob; return 'blob:test'; }, revokeObjectURL() {} },
     document: { createElement: () => ({ click() {} }) }, setTimeout() {}, toast() {},

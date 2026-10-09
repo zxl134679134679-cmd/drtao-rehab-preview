@@ -1,4 +1,4 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-manager';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-client-booking';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -138,8 +138,8 @@ function seedClient(id, name, ownerId, storeId, packageId, phone) {
 function seedState() {
   return {
     stores: [
-      { id: 'a', name: 'A店', address: '青岛市示例地址 A（预览用）' },
-      { id: 'b', name: 'B店', address: '青岛市示例地址 B（预览用）' },
+      { id: 'a', name: '麦岛店', address: '青岛 · 麦岛店（详细地址待补充）' },
+      { id: 'b', name: '崂山店', address: '青岛 · 崂山店（详细地址待补充）' },
     ],
     therapists: [
       { id: 't1', name: '林予安', storeId: 'a', active: true },
@@ -149,12 +149,12 @@ function seedState() {
       { id: 't5', name: '许映', storeId: 'a', active: true },
     ],
     frontDesks: [
-      { id: 'f1', name: 'A店前台', storeIds: ['a'], active: true },
-      { id: 'f2', name: 'B店前台', storeIds: ['b'], active: true },
+      { id: 'f1', name: '麦岛店前台', storeIds: ['a'], active: true },
+      { id: 'f2', name: '崂山店前台', storeIds: ['b'], active: true },
     ],
     storeManagers: [
-      { id: 'm1', name: 'A店店长', storeId: 'a', active: true },
-      { id: 'm2', name: 'B店店长', storeId: 'b', active: true },
+      { id: 'm1', name: '麦岛店店长', storeId: 'a', active: true },
+      { id: 'm2', name: '崂山店店长', storeId: 'b', active: true },
     ],
     clients: [
       seedClient('c1', '陈一诺', 't1', 'a', 'p1', '13800000001'),
@@ -199,6 +199,22 @@ function seedState() {
   };
 }
 
+// Explicitly initialize the fictional UI example. Loading any supplied archive
+// never invents cards or changes the store ownership of existing packages.
+export function ensureStorePackageExamples(model) {
+  if (!model._usesPreviewSeed) return model;
+  const client = model.state.clients.find(row => row.id === 'c1');
+  const current = model.state.packages.find(row => row.id === 'p1');
+  if (!client || client.name !== '陈一诺' || client.ownerId !== 't1' || client.packageId !== 'p1' || !current || current.clientId !== 'c1' || current.amountMinor !== 300000 || current.total !== 10 || model.state.packages.some(row => row.id === 'p7')) return model;
+  model._store('a'); model._store('b');
+  for (const pack of model.state.packages) {
+    const owner = model.state.clients.find(row => row.id === pack.clientId);
+    if (owner) pack.storeId = pack.id === 'p1' ? 'b' : owner.storeId;
+  }
+  model.state.packages.push({ id: 'p7', clientId: 'c1', storeId: 'a', name: '运动功能恢复套餐', amount: 3000, amountMinor: 300000, total: 10, openingUsed: 0, status: 'historical' });
+  return model;
+}
+
 export class DemoModel {
   constructor({ today = TODAY, now = () => new Date().toISOString(), state, sequence = 100, seed = true, enforceServiceTime = false } = {}) {
     this.today = validDate(today);
@@ -208,6 +224,7 @@ export class DemoModel {
     this.now = now;
     this._timestamp();
     if (state === undefined && !seed) throw new Error('无种子模式须显式提供业务状态，不能自动生成示例数据');
+    this._usesPreviewSeed = state === undefined;
     const source = state === undefined ? seedState() : state;
     const collections = ['stores', 'therapists', 'clients', 'packages', 'services', 'appointments', 'tasks', 'reviews', 'audit'];
     if (!source || collections.some(key => !Array.isArray(source[key]))) throw new Error('业务状态缺少有效的数据集合');
@@ -248,6 +265,8 @@ export class DemoModel {
       pack.total = count(pack.total, '套餐总次数');
       pack.openingUsed = count(pack.openingUsed, '期初已用次数', 0, pack.total);
       if (minor < pack.total) throw new Error('套餐金额不能少于总次数对应的分金额');
+      const storeId = this._packageStoreId(pack);
+      if (storeId) { pack.storeId = storeId; this._client(pack.clientId); }
     });
     const claimed = new Set();
     this.state.services.forEach(service => {
@@ -255,6 +274,7 @@ export class DemoModel {
       if (!pack || !Number.isInteger(service.slotNumber) || service.slotNumber <= pack.openingUsed || service.slotNumber > pack.total) {
         throw new Error('历史服务缺少有效套餐槽位，请先完成数据迁移');
       }
+      if (pack.storeId && (service.storeId !== pack.storeId || service.clientId !== pack.clientId)) throw new Error('历史服务客户或门店与原套餐绑定不一致，请核对原档案');
       const minor = this.slotValueMinor(pack.id, service.slotNumber);
       if (amountMinor(service.amount) !== minor || (service.amountMinor !== undefined && service.amountMinor !== minor)) throw new Error('历史服务金额与套餐槽位不一致，请核对迁移');
       service.amountMinor = minor;
@@ -587,29 +607,96 @@ export class DemoModel {
     return pack.total - pack.openingUsed - used;
   }
 
+  _packageStoreId(pack) {
+    if (pack.storeId === undefined || pack.storeId === null || pack.storeId === '') return '';
+    const storeId = required(pack.storeId, '套餐使用门店', 80);
+    this._store(storeId);
+    return storeId;
+  }
+
+  availablePackages(clientId, storeId) {
+    const client = this._client(clientId);
+    if (storeId !== undefined) this._store(storeId);
+    return this.state.packages.filter(pack => {
+      if (pack.clientId !== client.id || !['current', 'historical'].includes(pack.status)) return false;
+      const boundStore = this._packageStoreId(pack);
+      if (!boundStore && (pack.id !== client.packageId || pack.status !== 'current')) return false;
+      if (storeId !== undefined && boundStore && boundStore !== storeId) return false;
+      return pack.status === 'current' || this.packageRemaining(pack.id) > 0;
+    }).sort((a, b) => {
+      const rank = pack => storeId !== undefined && !this._packageStoreId(pack) ? 2 : pack.status === 'current' ? 0 : 1;
+      return rank(a) - rank(b);
+    }).map(copy);
+  }
+
+  remainingInStore(clientId, storeId) {
+    this._store(storeId);
+    return this.availablePackages(clientId, storeId).reduce((total, pack) => total + this.packageRemaining(pack.id), 0);
+  }
+
+  _stagePackageWrite(stamp) {
+    return Object.assign(Object.create(Object.getPrototypeOf(this)), this, { now: () => stamp, state: { ...this.state, packages: this.state.packages.map(copy), clients: this.state.clients.map(copy), audit: [...this.state.audit] } });
+  }
+
+  _existingPackageRequest(requestId, role) {
+    return this.state.packages.find(pack => pack.requestId === requestId && (pack.createdBy === role.id || pack.renewedBy === role.id));
+  }
+
+  createStorePackage(data, role) {
+    this._boss(role);
+    const client = this._client(data.clientId), store = this._store(required(data.storeId, '办卡门店', 80));
+    const requestId = required(data.requestId, '提交标识', 80);
+    const minor = amountMinor(data.amount), total = count(data.total, '套餐总次数');
+    if (minor < total) throw new Error('套餐金额不能少于总次数对应的分金额');
+    const input = { operation: 'store_package_created', clientId: client.id, storeId: store.id, name: required(data.name, '套餐名称', 80), amount: minor / 100, total };
+    const inputKey = JSON.stringify(input), existing = this._existingPackageRequest(requestId, role);
+    if (existing) {
+      if (existing.inputKey !== inputKey) throw new Error('同一套餐提交请求的内容或操作用途发生变化，请重新打开办卡表');
+      return existing;
+    }
+    if (store.active === false) throw new Error('办卡门店已停用，请核对门店');
+    const stamp = this._timestamp(), staged = this._stagePackageWrite(stamp);
+    const row = { id: staged._id('p'), clientId: client.id, storeId: store.id, name: input.name, amount: minor / 100, amountMinor: minor, total, openingUsed: 0, status: 'historical', createdBy: role.id, createdRole: role.type, createdAt: stamp, requestId, inputKey };
+    staged.state.packages.push(row);
+    staged._log('store_package_created', { clientId: client.id, storeId: store.id, packageId: row.id, after: copy(row), note: '登记本店套餐次数，实际收款须单独登记' }, role);
+    this.state = staged.state; this.sequence = staged.sequence;
+    return row;
+  }
+
   renewPackage(data, role) {
     this._boss(role);
     const client = this._client(data.clientId);
     const requestId = required(data.requestId, '提交标识', 80);
     const minor = amountMinor(data.amount), amount = minor / 100, total = count(data.total, '套餐总次数');
     if (minor < total) throw new Error('套餐金额不能少于总次数对应的分金额');
-    const input = { clientId: client.id, name: required(data.name, '套餐名称', 80), amount, total, reason: required(data.reason, '续套餐原因', 1000) };
+    const existing = this._existingPackageRequest(requestId, role);
+    if (existing && !existing.renewedBy) throw new Error('同一套餐提交请求已用于其他操作，请重新打开续套餐表');
+    const previousId = data.previousPackageId === undefined ? existing?.previousPackageId || client.packageId : required(data.previousPackageId, '原套餐标识', 80);
+    const previous = this.state.packages.find(item => item.id === previousId && item.clientId === client.id && ['current', 'historical'].includes(item.status));
+    if (!previous) throw new Error('请选择该客户本人已用完的原套餐');
+    const boundStore = this._packageStoreId(previous);
+    const requestedStore = data.storeId === undefined ? '' : required(data.storeId, '续套餐门店', 80);
+    if (boundStore && requestedStore && boundStore !== requestedStore) throw new Error('原套餐只能在办卡门店续费，不能改成另一门店');
+    const storeId = boundStore || requestedStore || existing?.storeId || client.storeId;
+    const store = this._store(storeId);
+    const input = { operation: 'package_renewed', clientId: client.id, storeId, previousPackageId: previous.id, name: required(data.name, '套餐名称', 80), amount, total, reason: required(data.reason, '续套餐原因', 1000) };
     const inputKey = JSON.stringify(input);
-    const existing = this.state.packages.find(item => item.requestId === requestId && item.renewedBy === role.id);
     if (existing) {
       if (existing.inputKey !== inputKey) throw new Error('同一提交请求的内容发生变化，请重新打开续套餐表');
       return existing;
     }
-    const previous = this.state.packages.find(item => item.id === client.packageId && item.status === 'current');
-    if (!previous) throw new Error('该客户还没有当前套餐');
-    if (this.packageRemaining(previous.id) !== 0) throw new Error('当前套餐仍有剩余次数，请用完后再续套餐');
-    const row = { id: this._id('p'), clientId: client.id, name: input.name, amount, amountMinor: minor, total, openingUsed: 0,
-      status: 'current', previousPackageId: previous.id, renewedBy: role.id, reason: input.reason,
-      requestId, inputKey, createdAt: this._timestamp() };
-    previous.status = 'historical';
-    client.packageId = row.id;
-    this.state.packages.push(row);
-    this._log('package_renewed', { clientId: client.id, packageId: row.id, previousPackageId: previous.id, reason: input.reason, after: copy(row) }, role);
+    if (store.active === false) throw new Error('续套餐门店已停用，请核对门店');
+    if (this.packageRemaining(previous.id) !== 0) throw new Error('原套餐仍有剩余次数，请用完后再续套餐');
+    const stamp = this._timestamp(), staged = this._stagePackageWrite(stamp);
+    const replacePrimary = previous.id === client.packageId;
+    const row = { id: staged._id('p'), clientId: client.id, storeId, name: input.name, amount, amountMinor: minor, total, openingUsed: 0,
+      status: replacePrimary ? 'current' : 'historical', previousPackageId: previous.id, renewedBy: role.id, reason: input.reason,
+      requestId, inputKey, createdAt: stamp };
+    staged.state.packages.find(item => item.id === previous.id).status = 'historical';
+    if (replacePrimary) staged._client(client.id).packageId = row.id;
+    staged.state.packages.push(row);
+    staged._log('package_renewed', { clientId: client.id, storeId, packageId: row.id, previousPackageId: previous.id, reason: input.reason, after: copy(row) }, role);
+    this.state = staged.state; this.sequence = staged.sequence;
     return row;
   }
 
@@ -670,6 +757,7 @@ export class DemoModel {
       if (!frontDesk) return false;
       const stores = frontDesk.storeIds;
       return stores.includes(client.storeId) ||
+        this.state.packages.some(pack => pack.clientId === clientId && Boolean(pack.storeId) && stores.includes(pack.storeId)) ||
         this.state.appointments.some(row => row.clientId === clientId && stores.includes(row.storeId) && (pendingAppointment(row.status) || Boolean(row.arrivalAt))) ||
         this.state.services.some(row => row.clientId === clientId && stores.includes(row.storeId) && row.status === 'valid');
     }
@@ -754,11 +842,12 @@ export class DemoModel {
       evidencePhotos: serviceEvidencePhotos(data.evidencePhotos),
     };
     if (String(data.appointmentId || '').trim()) input.appointmentId = String(data.appointmentId).trim();
-    const inputKey = JSON.stringify(input);
+    if (data.packageId !== undefined && data.packageId !== '') input.packageId = required(data.packageId, '本次使用套餐', 80);
     const existing = this.state.services.find(item => item.requestId === requestId && item.recordedBy === role.id);
     if (existing) {
       if (!existing.inputKey) throw new Error('历史服务记录不能重复提交，请重新打开登记表');
-      if (existing.inputKey !== inputKey) throw new Error('同一提交请求的内容发生变化，请重新打开登记表');
+      const replayKey = JSON.stringify({ ...input, packageId: input.packageId || existing.packageId });
+      if (existing.inputKey !== replayKey) throw new Error('同一提交请求的内容发生变化，请重新打开登记表');
       return existing;
     }
     if (input.date > this.today) throw new Error('不能登记尚未发生的未来服务');
@@ -790,11 +879,24 @@ export class DemoModel {
       if (appointment && appointment.project !== input.project) throw new Error('服务项目须与所选预约一致，请先核对或调整预约');
       if (matches.some(item => item.status === 'pending_reassignment')) throw new Error('该预约需要重新分配康复师，请先确认新的服务安排');
     }
-    if (this.remaining(client.id) < 1) throw new Error('套餐次数已用完，请先由老板确认套餐');
-    const value = this.nextServiceValue(client.packageId);
+    let pack;
+    if (input.packageId) {
+      pack = this.state.packages.find(item => item.id === input.packageId && item.clientId === client.id);
+      if (!pack) throw new Error('请选择该客户本人的套餐');
+      const boundStore = this._packageStoreId(pack);
+      if (boundStore && boundStore !== input.storeId) throw new Error('该套餐只能在办卡门店使用，不能跨店扣次数');
+      if (!['current', 'historical'].includes(pack.status) || (!boundStore && (pack.id !== client.packageId || pack.status !== 'current'))) throw new Error('该套餐当前不可使用，请先由老板核对');
+      if (this.packageRemaining(pack.id) < 1) throw new Error('该套餐次数已用完，请先由老板确认套餐');
+    } else {
+      pack = this.availablePackages(client.id, input.storeId).find(item => this.packageRemaining(item.id) > 0);
+      if (!pack) throw new Error('本店没有可用套餐次数，请先核对办卡门店或办理本店套餐');
+    }
+    const value = this.nextServiceValue(pack.id);
+    input.packageId = pack.id;
+    const inputKey = JSON.stringify(input);
     const recordedAt = this._timestamp();
     const row = {
-      id: this._id('s'), ...input, packageId: client.packageId, ownerId: client.ownerId,
+      id: this._id('s'), ...input, packageId: pack.id, ownerId: client.ownerId,
       recordedBy: role.id, ...value, sessions: 1,
       evidencePhotos: input.evidencePhotos.map(photo => ({ ...photo, recordedAt, recordedBy: role.id })),
       status: 'valid', requestId, inputKey, createdAt: recordedAt, recordedAt,
@@ -927,7 +1029,7 @@ export class DemoModel {
       project: required(data.project, '服务项目', 120),
       items: data.items.map(item => ({clientId:required(item?.clientId,'客户',80),principalId:required(item?.principalId,'服务康复师',80)})),
     };
-    if (!input.time.endsWith(':00')) throw new Error('一起预约请选择整点开始时间');
+    if (!/:(00|30)$/.test(input.time)) throw new Error('一起预约请选择整点或半点开始时间');
     if (new Set(input.items.map(item => item.clientId)).size !== input.items.length) throw new Error('同一组不能重复选择客户，请每人使用自己的档案');
     if (new Set(input.items.map(item => item.principalId)).size !== input.items.length) throw new Error('每位客户须安排不同康复师，不能同一时间重复占用');
     const requestId = required(data.requestId, '提交标识', 80);
@@ -1208,7 +1310,7 @@ export class DemoModel {
     client.planNotes = '历史档案已迁入，康复计划待负责康复师确认后发布。';
     client.homeAdvice = '待负责康复师核对后补充';
     if (String(data.goal || '').trim()) client.goal = String(data.goal).trim();
-    const pack = { id: packageId, clientId, name: packageName, amount: minor / 100, amountMinor: minor, total, openingUsed: total - remaining, status: 'current' };
+    const pack = { id: packageId, clientId, storeId: data.storeId, name: packageName, amount: minor / 100, amountMinor: minor, total, openingUsed: total - remaining, status: 'current' };
     this.state.clients.push(client);
     this.state.packages.push(pack);
     this._log('opening_import', { clientId, packageId, total, remaining, openingUsed: total - remaining, sourceNotes, note: '纸质期初余额迁入，不计入系统消费业绩' }, role);

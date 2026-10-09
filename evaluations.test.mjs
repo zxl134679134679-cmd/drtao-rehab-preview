@@ -291,8 +291,8 @@ test('employee work drawer remains usable when boss previous page selected anoth
   const context = ctx(m);
   context.filters.storeId = 'b';
   const html = fn('renderFrontDeskWork')(context, 'f1');
-  assert.ok(html.includes('A店前台'));
-  assert.ok(html.includes('按A店统计'));
+  assert.ok(html.includes('麦岛店前台'));
+  assert.ok(html.includes('按麦岛店统计'));
 });
 
 test('assessment rejects same-day and cross-day future Shanghai times without saving or audit effects', () => {
