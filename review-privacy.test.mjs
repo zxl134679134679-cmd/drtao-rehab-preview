@@ -1,3 +1,4 @@
+import { paperIntakeRows } from './paper-intake.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -35,7 +36,7 @@ function appReaders(model, role) {
     model, role, find, esc, name: (kind, id) => find(kind, id)?.name || id,
     date: v => v, money: v => `¥${v}`, pair: (k, v) => `<p>${esc(k)} ${esc(v)}</p>`,
     button: label => `<button>${esc(label)}</button>`, serviceEvidence: () => '',
-    ctx: () => ctx(model, role), receptionStores, assessmentRows, frontDeskEvaluationRows, customerBookingRows,
+    ctx: () => ctx(model, role), receptionStores, assessmentRows, frontDeskEvaluationRows, customerBookingRows, paperIntakeRows,
     Blob, URL: { createObjectURL: blob => { download = blob; return 'blob:test'; }, revokeObjectURL: () => {} },
     document: { createElement: () => ({ click() {} }) }, setTimeout: () => {}, toast: () => {},
   };

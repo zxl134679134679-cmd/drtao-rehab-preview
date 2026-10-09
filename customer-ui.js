@@ -1,4 +1,4 @@
-import { customerBookingRows, customerBookingConfirmation } from './customer-booking.js?v=20261009-frontdesk-intake';
+import { customerBookingRows, customerBookingConfirmation } from './customer-booking.js?v=20261009-intake-assessment-v2';
 
 export const customerBookingTypes = new Set(['customer-booking', 'customer-booking-detail', 'customer-booking-cancel', 'customer-booking-confirm']);
 

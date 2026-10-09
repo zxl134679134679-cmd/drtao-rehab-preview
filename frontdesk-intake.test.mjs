@@ -84,14 +84,101 @@ test('reception projections retain age and the customer-stated problem without c
   assert.equal(found.age, 32); assert.equal(found.problem, '跑步后膝部不适，希望先做评估'); assert.equal('receptionInputKey' in found, false);
 });
 
-test('only real boss and active authorized front desk actors can create or check clients', () => {
+test('forged, missing and customer actors cannot create or check clients', () => {
   const model = newModel(), create = api(model, 'createReceptionClient'), check = api(model, 'findReceptionDuplicates');
-  for (const role of [null, { type: 'boss', id: 'forged' }, { type: 'frontdesk', id: 'missing' }, { type: 'therapist', id: 't1' }, { type: 'manager', id: 'm1' }, { type: 'customer', id: 'c1' }]) {
-    rejectsUnchanged(model, () => create(input(), role), /权限|老板|前台|停用/);
-    rejectsUnchanged(model, () => check('13800000001', role), /权限|老板|前台|停用/);
+  for (const role of [null, { type: 'boss', id: 'forged' }, { type: 'frontdesk', id: 'missing' }, { type: 'therapist', id: 'missing' }, { type: 'manager', id: 'missing' }, { type: 'customer', id: 'c1' }, { type: 'manager', id: 't1' }, { type: 'therapist', id: 'm1' }]) {
+    rejectsUnchanged(model, () => create(input(), role), /权限|老板|前台|停用|在职|康复师|店长/);
+    rejectsUnchanged(model, () => check('13800000001', role), /权限|老板|前台|停用|在职|康复师|店长/);
   }
   model.state.frontDesks.find(row => row.id === 'f1').active = false;
   rejectsUnchanged(model, () => create(input(), frontdesk), /权限|停用/); rejectsUnchanged(model, () => check('13800000001', frontdesk), /权限|停用/);
+});
+
+test('intake authorization resolves actual role records and excludes stopped stores', () => {
+  const model = newModel(), stores = api(model, 'receptionStoreIds');
+  assert.deepEqual(stores(boss), ['a', 'b']);
+  assert.deepEqual(stores({ type: 'manager', id: 'm1', storeId: 'b', storeIds: ['b'] }), ['a']);
+  assert.deepEqual(stores({ type: 'manager', id: 'm2' }), ['b']);
+  assert.deepEqual(stores({ type: 'therapist', id: 't1', storeId: 'b', storeIds: ['b'] }), ['a']);
+  assert.deepEqual(stores({ type: 'therapist', id: 't2' }), ['b']);
+  assert.deepEqual(stores(frontdesk), ['a']);
+  const list = stores(frontdesk); list.push('b'); assert.deepEqual(stores(frontdesk), ['a']);
+  model.state.frontDesks.find(row => row.id === 'f1').storeIds.push('b');
+  assert.deepEqual(stores(frontdesk), ['a', 'b']);
+  model.state.stores.find(row => row.id === 'a').active = false;
+  assert.deepEqual(stores(boss), ['b']); assert.deepEqual(stores(frontdesk), ['b']);
+  assert.deepEqual(stores({ type: 'manager', id: 'm1' }), []);
+  assert.deepEqual(stores({ type: 'therapist', id: 't1' }), []);
+});
+
+test('both store managers can create local basic files without gaining booking or financial permissions', () => {
+  for (const [id, storeId, ownerId, otherStore, otherOwner] of [['m1', 'a', 't1', 'b', 't2'], ['m2', 'b', 't2', 'a', 't1']]) {
+    const model = newModel(), role = { type: 'manager', id }, beforeWork = cashAndWork(model);
+    const client = api(model, 'createReceptionClient')(input({ storeId, ownerId }), role);
+    assert.equal(client.storeId, storeId); assert.equal(client.ownerId, ownerId); assert.equal(client.packageId, null);
+    assert.equal(client.createdBy, id); assert.equal(client.createdRole, 'manager');
+    assert.deepEqual(cashAndWork(model), beforeWork);
+    assert.equal(model.canSeeClient(role, client.id), true); assert.equal(model.canSeeClient({ type: 'manager', id: id === 'm1' ? 'm2' : 'm1' }, client.id), false);
+    assert.ok(model.managerSnapshot(role).clients.some(row => row.id === client.id));
+    assert.equal(model.state.audit[0].actorId, id); assert.equal(model.state.audit[0].actorType, 'manager');
+    assert.equal(model.state.audit[0].storeId, storeId); assert.equal(model.state.audit[0].type, 'reception_client_created');
+    rejectsUnchanged(model, () => model.createReceptionClient(input({ phone: '13912345679', storeId: otherStore, ownerId: otherOwner, requestId: 'manager-other-store' }), role), /门店|权限/);
+    rejectsUnchanged(model, () => model.saveAppointment({ clientId: client.id, storeId, date: '2026-10-10', time: '09:30', principalId: ownerId, project: '首次评估' }, role), /权限|康复师|老板/);
+    rejectsUnchanged(model, () => model.createStorePackage({ clientId: client.id, storeId, name: '测试套餐', amount: '3000', total: '10', requestId: 'manager-card' }, role), /权限|老板/);
+    rejectsUnchanged(model, () => model.recordReceipt({ clientId: client.id, storeId, date: '2026-10-09', time: '09:00', purpose: 'single', method: 'wechat', amount: '300', requestId: 'manager-receipt' }, role), /权限|老板|前台/);
+  }
+});
+
+test('therapists create only their own-store files assigned to themselves and can book the first assessment', () => {
+  for (const [id, storeId, localOther, otherStore, otherOwner] of [['t1', 'a', 't3', 'b', 't2'], ['t2', 'b', 't4', 'a', 't1']]) {
+    const model = newModel(), role = { type: 'therapist', id }, beforeWork = cashAndWork(model);
+    const oldVisibleIds = model.visibleClients(role).map(row => row.id);
+    const client = api(model, 'createReceptionClient')(input({ storeId, ownerId: id }), role);
+    assert.equal(client.storeId, storeId); assert.equal(client.ownerId, id); assert.equal(client.packageId, null);
+    assert.equal(client.createdBy, id); assert.equal(client.createdRole, 'therapist'); assert.deepEqual(cashAndWork(model), beforeWork);
+    assert.deepEqual(model.visibleClients(role).filter(row => row.id !== client.id).map(row => row.id), oldVisibleIds, '建档不能扩大此前无关客户的可见范围');
+    assert.equal(model.canSeeClient(role, client.id), true); assert.equal(model.canSeeClient({ type: 'therapist', id: localOther }, client.id), false);
+    assert.equal(model.state.audit[0].actorId, id); assert.equal(model.state.audit[0].actorType, 'therapist');
+    rejectsUnchanged(model, () => model.createReceptionClient(input({ phone: '13912345679', storeId, ownerId: localOther, requestId: 'therapist-other-owner' }), role), /本人|自己|负责人|权限/);
+    rejectsUnchanged(model, () => model.createReceptionClient(input({ phone: '13912345679', storeId: otherStore, ownerId: otherOwner, requestId: 'therapist-other-store' }), role), /门店|权限/);
+    const appointment = model.saveAppointment({ clientId: client.id, storeId, date: '2026-10-10', time: '14:30', principalId: id, project: '首次评估' }, role);
+    assert.equal(appointment.clientId, client.id); assert.equal(appointment.principalId, id); assert.equal(appointment.status, 'confirmed'); assert.equal(model.remaining(client.id), 0);
+  }
+});
+
+test('new intake roles keep duplicate identity scoped to canSeeClient and expose basic fields only', () => {
+  const model = newModel(), check = api(model, 'findReceptionDuplicates');
+  for (const [role, visiblePhone, visibleId, hiddenPhone] of [
+    [{ type: 'manager', id: 'm1' }, '13800000003', 'c3', '13800000002'],
+    [{ type: 'therapist', id: 't1' }, '13800000003', 'c3', '13800000005'],
+  ]) {
+    const result = check(visiblePhone, role); assert.equal(result.duplicate, true); assert.equal(result.clients[0].id, visibleId);
+    assert.deepEqual(Object.keys(result.clients[0]).sort(), ['id', 'name', 'ownerId', 'phone', 'storeId']);
+    assert.deepEqual(check(hiddenPhone, role), { duplicate: true, clients: [] });
+    rejectsUnchanged(model, () => model.createReceptionClient(input({ phone: hiddenPhone, requestId: `blocked-${role.type}` }), role), /手机号|已存在|重复/);
+  }
+});
+
+test('stopped employees and stopped home stores cannot check or create intake records', () => {
+  for (const [collection, id, type] of [['storeManagers', 'm1', 'manager'], ['therapists', 't1', 'therapist'], ['frontDesks', 'f1', 'frontdesk']]) {
+    const model = newModel(), role = { type, id }, create = api(model, 'createReceptionClient'), check = api(model, 'findReceptionDuplicates'), stores = api(model, 'receptionStoreIds');
+    model.state[collection].find(row => row.id === id).active = false;
+    rejectsUnchanged(model, () => create(input(), role), /权限|停用|在职|店长|康复师/);
+    rejectsUnchanged(model, () => check('13800000003', role), /权限|停用|在职|店长|康复师/);
+    rejectsUnchanged(model, () => stores(role), /权限|停用|在职|店长|康复师/);
+    model.state[collection].find(row => row.id === id).active = true; model.state.stores.find(row => row.id === 'a').active = false;
+    assert.deepEqual(stores(role), []);
+    rejectsUnchanged(model, () => create(input(), role), /门店|停用|权限/);
+    rejectsUnchanged(model, () => check('13800000003', role), /门店|停用|权限/);
+  }
+});
+
+test('manager and therapist submissions retain replay guarantees after new authorization', () => {
+  for (const role of [{ type: 'manager', id: 'm1' }, { type: 'therapist', id: 't1' }]) {
+    const model = newModel(), create = api(model, 'createReceptionClient'), client = create(input(), role), before = snapshot(model);
+    assert.equal(create(input(), role).id, client.id); assert.equal(snapshot(model), before);
+    rejectsUnchanged(model, () => create(input({ age: '33' }), role), /提交|内容|变化/);
+  }
 });
 
 test('create rejects unauthorized stores, inactive stores and owners from a different store', () => {

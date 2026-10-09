@@ -1,3 +1,4 @@
+import { paperIntakeRows } from './paper-intake.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -335,7 +336,7 @@ function appReaders(m, role) {
   const scope = {
     model: m, role, filters: {}, find, esc, ctx: () => ctx(m, role),
     managerDialog, receptionStores, receptionDialog, assertReceptionAppointment, appointmentBatchDialog, staffDialog, cashDialog,
-    assessmentRows, frontDeskEvaluationRows, evaluationDialog, customerBookingRows, customerBookingTypes, customerRequestDialog,
+    assessmentRows, frontDeskEvaluationRows, evaluationDialog, customerBookingRows, paperIntakeRows, customerBookingTypes, customerRequestDialog,
     customerCtx: () => ({...ctx(m,role),ui:{}}),
     canEditPlan: () => false, Blob,
     URL: { createObjectURL: blob => { download = blob; return 'blob:test'; }, revokeObjectURL() {} },

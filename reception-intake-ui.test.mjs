@@ -35,7 +35,7 @@ test('new intake window asks plain basic information and an eligible store owner
 
 test('intake window fails closed for unauthorized or inactive actors and stores',()=>{
   const m=fixture();
-  for(const role of [{type:'customer',id:'c1'},{type:'therapist',id:'t1'},{type:'manager',id:'m1'},{type:'boss',id:'fake'}])assert.throws(()=>dialog(m,'reception-create-client','a',role));
+  for(const role of [{type:'customer',id:'c1'},{type:'therapist',id:'fake'},{type:'manager',id:'fake'},{type:'boss',id:'fake'}])assert.throws(()=>dialog(m,'reception-create-client','a',role));
   assert.throws(()=>dialog(m,'reception-create-client','b'));
   m.state.frontDesks.find(f=>f.id==='f1').active=false;
   assert.throws(()=>dialog(m,'reception-create-client','a'));

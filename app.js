@@ -1,19 +1,22 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-frontdesk-intake';
-import { renderStaff, staffDialog, updateServicePackageChoices } from './staff.js?v=20261009-frontdesk-intake';
-import { renderManager, managerDialog } from './manager.js?v=20261009-frontdesk-intake';
-import { hourTimeField } from './hour-picker.js?v=20261009-frontdesk-intake';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-frontdesk-intake';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-intake-assessment-v2';
+import { renderStaff, staffDialog, updateServicePackageChoices } from './staff.js?v=20261009-intake-assessment-v2';
+import { renderManager, managerDialog } from './manager.js?v=20261009-intake-assessment-v2';
+import { hourTimeField } from './hour-picker.js?v=20261009-intake-assessment-v2';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-intake-assessment-v2';
 import { cashDialog, updateCashFields } from './cash.js?v=20261009-legacy-import';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-frontdesk-intake';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-intake-assessment-v2';
 import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-evaluations';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows } from './customer-booking.js?v=20261009-frontdesk-intake';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-frontdesk-intake';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows } from './customer-booking.js?v=20261009-intake-assessment-v2';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-intake-assessment-v2';
+
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-intake-assessment-v2';
 
 let model = new DemoModel();
 ensureStorePackageExamples(model);
 ensureEvaluations(model);
 ensureCustomerBooking(model);
+ensurePaperIntakes(model);
 let role = {type: 'customer', id: 'c1'};
 let view = 'home';
 const previewEntry = new URLSearchParams(location.search).get('preview');
@@ -311,8 +314,8 @@ function auditDialog(id, plansOnly = false) {
   assertClient(id);
   if (!plansOnly) assertBoss();
   const rows = model.state.audit.filter(a => a.clientId === id && (!plansOnly || a.type === 'plan_published'));
-  const titles = {service_registered:'服务登记',service_revoked:'服务撤销',plan_published:'计划更新',appointment_saved:'预约安排',appointment_cancelled:'取消预约',reschedule_requested:'客户改约申请',task_completed:'待办完成',review_submitted:'服务评价',review_followup_closed:'回访完成',client_transferred:'负责人转交',reception_client_created:'前台新客户建档',opening_import:'纸质期初档案录入',package_renewed:'套餐续接',package_activated:'切换使用套餐',appointment_no_show:'未到店记录'};
-  return {title: plansOnly ? '计划更新记录' : '客户操作留痕', html: rows.length ? rows.map(a => `<div class="record-item"><strong>${titles[a.type] || '档案更新'}</strong><p class="meta">${esc(a.actorType==='frontdesk'?name('frontDesks',a.actorId):name('therapists',a.actorId) === '待安排' ? name('clients',a.actorId) : name('therapists',a.actorId))} · ${esc(new Date(a.createdAt).toLocaleString('zh-CN'))}</p>${a.type === 'plan_published' ? `<p>第 ${a.after.planVersion} 版 · ${esc(a.after.phase)}</p><p>${esc(a.after.nextStep)}</p>` : `<p>${esc(a.reason || a.resolution || a.sourceNotes || a.notes || a.note || '变更已保存')}</p>`}</div>`).join('') : '<p class="empty">当前示例还没有更新记录。</p>'};
+  const titles = {service_registered:'服务登记',service_revoked:'服务撤销',plan_published:'计划更新',appointment_saved:'预约安排',appointment_cancelled:'取消预约',reschedule_requested:'客户改约申请',task_completed:'待办完成',review_submitted:'服务评价',review_followup_closed:'回访完成',client_transferred:'负责人转交',reception_client_created:'新客户建档',paper_intake_created:'初访与服务前确认',paper_intake_reviewed:'接待表专业复核',opening_import:'纸质期初档案录入',package_renewed:'套餐续接',package_activated:'切换使用套餐',appointment_no_show:'未到店记录'};
+  return {title: plansOnly ? '计划更新记录' : '客户操作留痕', html: rows.length ? rows.map(a => `<div class="record-item"><strong>${titles[a.type] || '档案更新'}</strong><p class="meta">${esc(a.actorType==='boss'?'老板':a.actorType==='manager'?name('storeManagers',a.actorId):a.actorType==='frontdesk'?name('frontDesks',a.actorId):name('therapists',a.actorId) === '待安排' ? name('clients',a.actorId) : name('therapists',a.actorId))} · ${esc(new Date(a.createdAt).toLocaleString('zh-CN'))}</p>${a.type === 'plan_published' ? `<p>第 ${a.after.planVersion} 版 · ${esc(a.after.phase)}</p><p>${esc(a.after.nextStep)}</p>` : `<p>${esc(a.reason || a.resolution || a.sourceNotes || a.notes || a.note || '变更已保存')}</p>`}</div>`).join('') : '<p class="empty">当前示例还没有更新记录。</p>'};
 }
 function storesDialog(id) {
   assertClient(id);
@@ -329,8 +332,9 @@ function buildDialog(type, id) {
   if(role.type==='manager') {
     model.managerStoreId(role);
     if(type.startsWith('manager-'))return managerDialog(type,id,ctx());
-    if(!['reset','tour','mini-info'].includes(type))throw new Error('店长仅查看和核对本店工作，请由对应工作人员或老板处理操作');
+    if(!['reset','tour','mini-info','reception-create-client','reception-client','paper-intake-create','paper-intake-detail','paper-intake-list'].includes(type))throw new Error('店长仅查看和核对本店工作，请由对应工作人员或老板处理操作');
   } else if(type.startsWith('manager-'))throw new Error('此页面仅店长可查看');
+  if(['paper-intake-create','paper-intake-detail','paper-intake-review','paper-intake-list'].includes(type))return paperIntakeDialog(type,id,ctx());
   if(['reception-create-client','reception-client'].includes(type))return receptionIntakeDialog(type,id,ctx());
   if(type==='create-store-package') {
     assertBoss();const client=assertClient(id);
@@ -466,6 +470,7 @@ function openDialog(type,id = '') {
   updateBookingMembers($('#sheet-body form'),ctx());
   updateServicePackageChoices($('#sheet-body form'),ctx());
   updateReceptionIntakeChoices($('#sheet-body form'),ctx());
+  updatePaperIntakeForm($('#sheet-body form'),ctx());
   if(type==='reception-create-client'&&$('#sheet-body form')?.elements.phone?.value)checkReceptionIntakePhone($('#sheet-body form'));
   if (['register','register-appointment'].includes(type)) {
     updateParticipants();
@@ -626,6 +631,7 @@ function checkReceptionIntakePhone(f,reportInvalid=false) {
 }
 document.addEventListener('input', event => {
   const f=event.target.closest('form');
+  updatePaperIntakeForm(f,ctx());
   if(f?.dataset.form==='reception-create-client'&&event.target.name==='phone') {
     f.dataset.duplicate='false';f.querySelector('[data-intake-duplicates]').innerHTML='';
     updateReceptionIntakeChoices(f,ctx());
@@ -633,6 +639,7 @@ document.addEventListener('input', event => {
 });
 document.addEventListener('change', event => {
   const intakeForm=event.target.closest('form');
+  updatePaperIntakeForm(intakeForm,ctx());
   if(intakeForm?.dataset.form==='reception-create-client'){
     if(event.target.name==='phone')checkReceptionIntakePhone(intakeForm);
     else if(['storeId','ownerId'].includes(event.target.name))updateReceptionIntakeChoices(intakeForm,ctx());
@@ -735,7 +742,8 @@ document.addEventListener('submit', async event => {
     } catch(error) {formError(f,error.message);}
     return;
   }
-  if(role.type==='manager'&&type!=='reset') {formError(f,'店长仅查看和核对本店工作，业务操作由对应工作人员或老板处理');return;}
+  if(type==='paper-intake-select'){openDialog('paper-intake-create',data.clientId);return;}
+  if(role.type==='manager'&&!['reset','reception-create-client','paper-intake-create'].includes(type)) {formError(f,'店长仅查看和核对本店工作，业务操作由对应工作人员或老板处理');return;}
   if (type === 'filters') {
     if (data.from && data.to && data.from > data.to) { toast('开始日期不能晚于结束日期'); return; }
     filters = {...filters,...data}; render(); return;
@@ -755,14 +763,19 @@ document.addEventListener('submit', async event => {
     if (role.type !== submittingRole.type || role.id !== submittingRole.id || context !== dialogContext) throw new Error('操作已取消，请重新打开页面后提交');
     if ($('#network-toggle').checked && type !== 'reset') {
       $('#network-toggle').checked = false;
-      if (['reception-create-client','assessment-create','assessment-confirm','assessment-void','frontdesk-evaluate','frontdesk-evaluation-void'].includes(type)) throw new Error('模拟提交失败：记录未保存，填写内容已保留，请重试。');
+      if (['reception-create-client','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','assessment-void','frontdesk-evaluate','frontdesk-evaluation-void'].includes(type)) throw new Error('模拟提交失败：记录未保存，填写内容已保留，请重试。');
       throw new Error(['record-receipt','settle-receipt','refund-receipt','void-receipt','void-refund'].includes(type)?'模拟提交失败：内容已保留，收支未改变，请重试。':type==='record-arrival'?'模拟提交失败：到店状态未改变，请重试。':'模拟提交失败：内容已保留，未扣次数，请重试。');
     }
     let result;
     if(type==='reception-create-client') {
       result=model.createReceptionClient({...data,requestId:context.requestId},role);
       drafts.delete(context.key);f.dataset.succeeded='true';render();
-      showSuccess('新客户档案已保存',`<h3>${esc(result.name)} · ${esc(result.age)} 岁</h3><p>${esc(name('stores',result.storeId))} · 负责康复师 ${esc(name('therapists',result.ownerId))}</p><p class="reception-problem">客户自述：${esc(result.problem)}</p><p class="notice">尚未办理套餐。建档未收款、未扣次数，康复师会在后续评估时制定计划。</p><div class="action-row">${button('为这位客户安排预约','appointment-create',result.id,'btn-primary','calendar')}${button('查看接待档案','reception-client',result.id,'btn-outline')}${button('继续接待新客户','reception-create-client',result.storeId,'btn-quiet')}</div>`);return;
+      showSuccess('新客户档案已保存',receptionIntakeSuccess(result,ctx()));return;
+    }
+    if(type==='paper-intake-create'||type==='paper-intake-review') {
+      result=type==='paper-intake-create'?savePaperIntake(model,{...data,requestId:context.requestId},role):reviewPaperIntake(model,data.id,{...data,requestId:context.requestId},role);
+      drafts.delete(context.key);f.dataset.succeeded='true';render();
+      showSuccess(type==='paper-intake-create'?'接待表已保存，待康复师复核':'本次复核与下一步已保存',`<h3>${esc(name('clients',result.clientId))} · ${esc(name('stores',result.storeId))}</h3><p class="meta">本次接待 ${esc(result.date)} ${esc(result.time)} · 负责康复师 ${esc(name('therapists',find('clients',result.clientId).ownerId))}</p><p class="notice">${type==='paper-intake-create'?'记录了客户本次自述，请交给负责康复师核对。尚未形成专业评估结论。':esc(result.review.nextStep)}</p><p>本次保存不收款、不扣次数。</p>${button('查看本次接待表','paper-intake-detail',result.id,'btn-primary')}`);return;
     }
     if(type==='create-store-package') {
       result=model.createStorePackage({...data,requestId:context.requestId},role);
@@ -838,7 +851,7 @@ document.addEventListener('submit', async event => {
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
       showSuccess('次数已恢复，业绩已冲回',`<div class="detail-grid">${pair('客户',name('clients',result.clientId))}${pair('恢复至原套餐',name('packages',result.packageId))}${pair('原套餐剩余',`${model.packageRemaining(result.packageId)} 次`)}${pair('当前套餐剩余',`${model.remaining(result.clientId)} 次`)}${pair('冲回消费业绩',money(result.amount))}${pair('主康复师',name('therapists',result.principalId))}</div><p class="muted">原服务记录与撤销原因已保留。</p>${button('查看原记录','service-detail',result.id,'btn-outline')}`); return;
     } else if (type === 'reset') {
-      model = new DemoModel(); ensureStorePackageExamples(model); ensureEvaluations(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
+      model = new DemoModel(); ensureStorePackageExamples(model); ensureEvaluations(model); ensurePaperIntakes(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
       closeDialog(false); role = {type:'customer',id:'c1'}; view='home'; filters={storeId:'',therapistId:'',from:'',to:'',query:''}; render(true); toast('示例已重置'); return;
     } else throw new Error('此表单暂不可提交');
     drafts.delete(context.key); f.dataset.succeeded = 'true'; closeDialog(false); render();
@@ -847,7 +860,7 @@ document.addEventListener('submit', async event => {
   finally {
     f.dataset.busy = 'false';
     submits.forEach(el => { el.disabled = false; el.textContent = el.dataset.original; });
-    if(f.isConnected)updateReceptionIntakeChoices(f,ctx());
+    if(f.isConnected){updateReceptionIntakeChoices(f,ctx());updatePaperIntakeForm(f,ctx());}
     updateEvidencePicker();
   }
 });
@@ -879,6 +892,7 @@ function exportPreview() {
     assessments:assessmentRows(model,role)
   };
   data.bookingRequests = customerBookingRows(model,role);
+  if(role.type!=='customer')data.paperIntakes=paperIntakeRows(model,role);
   const blob = new Blob([JSON.stringify({说明:'虚构示例，非真实业务档案',身份:role,数据:data},null,2)],{type:'application/json'});
   const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href=url; a.download='涛博士-演示记录.json'; a.click(); setTimeout(() => URL.revokeObjectURL(url),1000); toast('已导出当前身份可见的演示记录');
 }

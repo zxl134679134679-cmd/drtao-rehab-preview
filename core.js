@@ -1,4 +1,4 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-frontdesk-intake';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-intake-assessment-v2';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -403,12 +403,22 @@ export class DemoModel {
     if (role?.type !== 'frontdesk') throw new Error('仅前台可读取本人门店权限');
     return [...this._frontDesk(role.id).storeIds];
   }
+  receptionStoreIds(role) {
+    let ids;
+    if (role?.type === 'boss') {
+      this._boss(role);
+      ids = this.state.stores.map(store => store.id);
+    } else if (role?.type === 'manager') ids = [this.managerStoreId(role)];
+    else if (role?.type === 'frontdesk') ids = this.frontDeskStoreIds(role);
+    else if (role?.type === 'therapist') ids = [this._therapist(role.id).storeId];
+    else throw new Error('仅老板、在职店长、前台和康复师有权限新客户建档');
+    return ids.filter(id => this._store(id).active !== false);
+  }
   _receptionActor(role, storeId) {
-    if (role?.type === 'boss') return this._boss(role);
-    if (role?.type !== 'frontdesk') throw new Error('仅老板和授权门店前台有权限接待建档');
-    const frontDesk = this._frontDesk(role.id);
-    if (storeId && !frontDesk.storeIds.includes(storeId)) throw new Error('您没有该门店的新客户建档权限');
-    return frontDesk;
+    const stores = this.receptionStoreIds(role);
+    if (!stores.length) throw new Error('没有有效的新客户建档门店，请核对门店是否停用');
+    if (storeId && !stores.includes(storeId)) throw new Error('您没有该门店的新客户建档权限，或门店已停用');
+    return stores;
   }
 
   findReceptionDuplicates(value, role) {
@@ -429,6 +439,7 @@ export class DemoModel {
     if (store.active === false) throw new Error('接待门店已停用，请核对门店');
     const ownerId = required(data.ownerId, '负责康复师', 80), owner = this._therapist(ownerId);
     if (owner.storeId !== storeId) throw new Error('请选择本店在职康复师作为负责人');
+    if (role.type === 'therapist' && ownerId !== role.id) throw new Error('康复师新建档案的负责人须为本人');
     const requestId = required(data.requestId, '建档提交标识', 80);
     const input = { name: required(data.name, '客户姓名', 80), phone: receptionPhone(data.phone), age: count(data.age, '客户年龄', 0, 120),
       problem: required(data.problem, '主要问题', 1000), storeId, ownerId };
