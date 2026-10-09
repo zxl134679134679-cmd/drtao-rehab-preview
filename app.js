@@ -1,5 +1,6 @@
 import { DemoModel, TODAY, EVIDENCE_LIMITS } from './core.js?v=20261009-legacy-import';
-import { renderStaff, staffDialog } from './staff.js?v=20261009-evaluations';
+import { renderStaff, staffDialog } from './staff.js?v=20261009-hourly';
+import { hourTimeField } from './hour-picker.js?v=20261009-hourly';
 import { cashDialog, updateCashFields } from './cash.js?v=20261009-legacy-import';
 import { receptionDialog, receptionStores, assertReceptionAppointment } from './reception.js?v=20261009-evaluations';
 import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-evaluations';
@@ -297,7 +298,7 @@ function reviewDialog(id) {
 function requestDialog(id) {
   const a = find('appointments',id);
   if (!a || role.type !== 'customer' || a.clientId !== role.id) throw new Error('您没有调整该预约的权限');
-  return {title: '申请调整服务时间', html: form('reschedule', `${hidden('appointmentId',id)}<div class="note">当前预约：${date(a.date)} ${a.time} · ${esc(name('stores',a.storeId))}</div><div class="form-grid">${field('希望调整到的日期','date',a.request?.date || a.date,'date',`required min="${TODAY}"`)}${field('开始时间','time',a.request?.time || a.time,'time','required')}${textarea('改约说明','reason',a.request?.reason || '','required maxlength="500" placeholder="请说明您的时间安排"')}</div><p class="meta">工作人员确认前，原预约仍保留。申请本身不会扣除次数。</p>`,'提交改约申请')};
+  return {title: '申请调整服务时间', html: form('reschedule', `${hidden('appointmentId',id)}<div class="note">当前预约：${date(a.date)} ${a.time} · ${esc(name('stores',a.storeId))}</div><div class="form-grid">${field('希望调整到的日期','date',a.request?.date || a.date,'date',`required min="${TODAY}"`)}${hourTimeField(a.request?.time || a.time,esc)}${textarea('改约说明','reason',a.request?.reason || '','required maxlength="500" placeholder="请说明您的时间安排"')}</div><p class="meta">工作人员确认前，原预约仍保留。申请本身不会扣除次数。</p>`,'提交改约申请')};
 }
 function auditDialog(id, plansOnly = false) {
   assertClient(id);

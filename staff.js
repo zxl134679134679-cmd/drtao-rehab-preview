@@ -1,5 +1,6 @@
 /* Employee and owner views for the in-memory review prototype. */
 import { cashOverview } from './cash.js?v=20261009-legacy-import';
+import { hourTimeField } from './hour-picker.js?v=20261009-hourly';
 import { renderReception, receptionStores } from './reception.js?v=20261009-evaluations';
 const TODAY = '2026-10-08';
 
@@ -272,7 +273,7 @@ export function staffDialog(type, id, ctx) {
     const selected = ap?.clientId || c?.id || clients[0]?.id;
     if (!clients.length) return {title: '安排服务', html: '<div class="empty">暂无可安排服务的客户。</div>'};
     const stores=x.role.type==='frontdesk'?receptionStores(ctx):x.state.stores;
-    return {title: ap ? '调整服务安排' : '安排下一次服务', html: form(type, `${ap ? hidden('id', ap.id) : ''}<p class="muted">预约仅安排时间，不扣套餐次数。实际服务完成后再登记。</p><div class="form-grid">${ap ? `${hidden('clientId', selected)}<div class="field"><span>客户</span><strong>${x.esc(x.client(selected)?.name)}</strong></div>` : select('客户', 'clientId', clients, selected)}${select('服务门店', 'storeId', stores, ap?.storeId || (stores.some(s=>s.id===c?.storeId)?c.storeId:stores[0]?.id))}${select('主康复师', 'principalId', active, (active.some(t=>t.id===ap?.principalId) && ap?.status !== 'pending_reassignment' ? ap.principalId : '') || (x.role.type === 'therapist' ? x.role.id : c?.ownerId || active[0]?.id))}${input('服务项目', 'project', ap?.project || '阶段复评与训练', 'text', 'required maxlength="60"')}${input('日期', 'date', ap?.request?.date || (ap?.date >= TODAY ? ap.date : TODAY), 'date', `required min="${TODAY}"`)}${input('开始时间', 'time', ap?.request?.time || ap?.time || '10:00', 'time', 'required')}</div><div class="note">系统会检查康复师同一时间的服务冲突。</div>`, ap ? '保存新的安排' : '确认安排')};
+    return {title: ap ? '调整服务安排' : '安排下一次服务', html: form(type, `${ap ? hidden('id', ap.id) : ''}<p class="muted">预约仅安排时间，不扣套餐次数。实际服务完成后再登记。</p><div class="form-grid">${ap ? `${hidden('clientId', selected)}<div class="field"><span>客户</span><strong>${x.esc(x.client(selected)?.name)}</strong></div>` : select('客户', 'clientId', clients, selected)}${select('服务门店', 'storeId', stores, ap?.storeId || (stores.some(s=>s.id===c?.storeId)?c.storeId:stores[0]?.id))}${select('主康复师', 'principalId', active, (active.some(t=>t.id===ap?.principalId) && ap?.status !== 'pending_reassignment' ? ap.principalId : '') || (x.role.type === 'therapist' ? x.role.id : c?.ownerId || active[0]?.id))}${input('服务项目', 'project', ap?.project || '阶段复评与训练', 'text', 'required maxlength="60"')}${input('日期', 'date', ap?.request?.date || (ap?.date >= TODAY ? ap.date : TODAY), 'date', `required min="${TODAY}"`)}${hourTimeField(ap?.request?.time || ap?.time || '10:00', x.esc)}</div><div class="note">系统会检查康复师同一时间的服务冲突。</div>`, ap ? '保存新的安排' : '确认安排')};
   }
 
   if (type === 'followup') {
