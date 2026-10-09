@@ -1,3 +1,4 @@
+import {workflowTypes,workflowDialog} from './workflow-ui.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -10,7 +11,7 @@ const source=await readFile(new URL('./app.js',import.meta.url),'utf8');
 const therapist=id=>({type:'therapist',id});
 function originalFunction(name,next){const start=source.indexOf(`function ${name}(`),end=source.indexOf(next,start);assert.ok(start>=0&&end>start);return source.slice(start,end);}
 function appReader(model,role){
- const scope={model,role,TODAY:model.today,view:'clients',filters:{},preferences:new Map(),customerBookingTypes,customerRequestDialog,renderRequestHistory,hourTimeField};
+ const scope={workflowTypes,workflowDialog,model,role,TODAY:model.today,view:'clients',filters:{},preferences:new Map(),customerBookingTypes,customerRequestDialog,renderRequestHistory,hourTimeField};
  const helperNames=['esc','find','name','icon','money','date','weekday','button','link','hidden','field','textarea','form','pair','ctx','customerCtx','clientServices','appointments','reviewFor','currentClient','canEditPlan'];
  const helpers=helperNames.map(name=>source.split('\n').find(line=>line.startsWith(`const ${name} = `)));
  const begin=source.indexOf('const evaluationTypes = '),end=source.indexOf('\nfunction draftKey(',begin);

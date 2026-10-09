@@ -1,4 +1,4 @@
-import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261009-available-times';
+import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261009-flow-ease';
 
 const minutes = time => Number(time.slice(0,2))*60+Number(time.slice(3));
 const pending = row => ['confirmed','reschedule_requested','pending_reassignment'].includes(row.status);
@@ -15,13 +15,22 @@ export function bookingAvailability(model,input) {
 }
 
 export function customerBookingTherapists(model,clientId,storeId,date='') {
-  return model.state.therapists.filter(person=>person.active&&model.canSeeClient({type:'therapist',id:person.id},clientId)&&
+  return model.state.therapists.filter(person=>person.active&&(model._therapistClientWorkAllowed?.(person.id,clientId,storeId) ?? (model.canSeeClient({type:'therapist',id:person.id},clientId)||model.clientStoreTherapist?.(clientId,storeId)===person.id))&&
     (date ? (scheduleStatus(model,person.id,date).storeId||person.storeId)===storeId : person.storeId===storeId));
 }
 
 export function updateAppointmentAvailability(form,ctx) {
   const type=form?.dataset.form;
-  if(!['appointment-create','appointment-edit','appointment-batch','customer-booking','reschedule'].includes(type)||form.dataset.busy==='true')return;
+  if(!['appointment-create','appointment-edit','appointment-batch','customer-booking','reschedule','customer-booking-resolve'].includes(type)||form.dataset.busy==='true')return;
+  if(type==='customer-booking-resolve') {
+    const suggesting=form.elements.outcome.value==='reschedule_suggested';
+    const panel=form.querySelector('[data-booking-suggestion]');
+    if(panel)panel.hidden=!suggesting;
+    for(const control of [form.elements.date,form.elements.time]){control.disabled=!suggesting;control.required=suggesting;}
+    const note=form.querySelector('[data-booking-availability]');
+    if(note)note.hidden=!suggesting;
+    if(!suggesting){const submit=form.querySelector('[type="submit"]');if(submit)submit.disabled=false;return;}
+  }
   const data=Object.fromEntries(new FormData(form)),{model,esc}=ctx;
   const old=type==='reschedule'?model.state.appointments.find(row=>row.id===data.appointmentId):null;
   const storeId=old?.storeId||data.storeId,date=data.date,timeSelect=form.elements.time;
@@ -35,12 +44,12 @@ export function updateAppointmentAvailability(form,ctx) {
   const people=type==='appointment-batch'?[...form.querySelectorAll('[data-booking-member]')].map(row=>({principalId:row.querySelector('[data-booking-principal]').value,clientId:row.querySelector('[data-booking-client]').value})):
     [{principalId:old?.principalId||data.principalId,clientId:type==='customer-booking'?ctx.role.id:old?.clientId||data.clientId||''}];
   let note=form.querySelector('[data-booking-availability]');
-  if(!note){note=document.createElement('div');note.dataset.bookingAvailability='';note.className='booking-availability';note.setAttribute('role','status');const host=type==='customer-booking'?form.querySelector('[data-booking-step="2"]'):form;const footer=host.querySelector('.dialog-footer');host.insertBefore(note,footer||null);}
+  if(!note){note=document.createElement('div');note.dataset.bookingAvailability='';note.className='booking-availability';note.setAttribute('role','status');const host=type==='customer-booking'?form.querySelector('[data-booking-step="2"]'):type==='customer-booking-resolve'?form.querySelector('[data-booking-suggestion]'):form;const footer=host.querySelector('.dialog-footer');host.insertBefore(note,footer||null);}
   const complete=Boolean(date&&storeId&&people.length&&people.every(person=>person.principalId&&person.clientId));
   const previous=timeSelect?.value||'';
   // Rebuild from the complete half-hour source each time. The native menu must
   // contain only usable starts, so removed options can return after a change.
-  const available=complete?halfHourStarts.filter(time=>people.every(person=>bookingAvailability(model,{...person,storeId,date,time,excludeId:old?.id||data.id}).available)):[];
+  const available=complete?halfHourStarts.filter(time=>people.every(person=>bookingAvailability(model,{...person,storeId,date,time,excludeId:type==='customer-booking-resolve'?undefined:old?.id||data.id}).available)):[];
   const keep=Boolean(previous&&available.includes(previous));
   if(previous&&!keep)form.dataset.timeNeedsReselection='true';
   else if(keep)delete form.dataset.timeNeedsReselection;

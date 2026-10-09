@@ -1,7 +1,7 @@
-import { renderCashClosingSummary } from './cash.js?v=20261009-available-times';
+import { renderCashClosingSummary } from './cash.js?v=20261009-flow-ease';
 /* Store managers view validated local records and may create basic customer files. */
-import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261009-available-times';
-import { clientIntakeButton } from './reception.js?v=20261009-available-times';
+import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261009-flow-ease';
+import { clientIntakeButton } from './reception.js?v=20261009-flow-ease';
 const CHANNELS = {direct:'门店收款',douyin:'抖音',meituan:'美团',other_platform:'其他平台'};
 const METHODS = {wechat:'微信',alipay:'支付宝',cash:'现金',bank:'银行转账'};
 const PURPOSES = {package:'套餐',renewal:'续费',single:'单次服务',other:'其他',platform_settlement:'平台结算'};
@@ -65,7 +65,7 @@ function appointmentCard(x,row) {
   return `<article class="ease-service-card"><div class="ease-service-head"><div><span class="ease-service-time">${x.esc(row.date)} · ${x.esc(row.time)}</span><h3>${x.esc(x.clientName(row.clientId))}</h3></div>${x.tag(text,row.status === 'completed' ? 'green' : row.status !== 'confirmed' || row.arrivalAt ? 'warn' : '')}</div><p class="ease-service-project">${x.esc(row.project)}</p><p class="meta">康复师 ${x.esc(x.name('therapists',row.principalId))}${row.groupId ? ' · 同行预约，每人独立安排' : ''}</p><div class="ease-service-actions">${x.link('预约明细','manager-appointment',row.id)}${x.clientLink(row.clientId)}</div></article>`;
 }
 function taskRow(x,row) {
-  return `<div class="row"><div class="row-main"><strong>${x.esc(row.title)}</strong><div class="meta">${x.esc(x.clientName(row.clientId))} · 负责人 ${x.esc(x.actorName(row.assigneeId))}</div><div class="meta">计划日期 ${x.esc(row.dueDate || '待安排')} ${row.dueDate && row.dueDate < x.today ? x.tag('已逾期','warn') : ''}</div></div>${x.clientLink(row.clientId)}</div>`;
+  return `<div class="row"><div class="row-main"><strong>${x.esc(row.title)}</strong><div class="meta">${x.esc(x.clientName(row.clientId))} · 负责人 ${x.esc(x.actorName(row.assigneeId))}</div><div class="meta">计划日期 ${x.esc(row.dueDate || '待安排')} ${row.dueDate && row.dueDate < x.today ? x.tag('已逾期','warn') : ''}</div></div><div class="action-row">${x.button('查看待办','task-detail',row.id,'btn-small btn-outline')}${x.clientLink(row.clientId)}</div></div>`;
 }
 function cashHero(x,cash,label,showChannels = true) {
   return `<section class="cash-hero" aria-label="本店营业收入"><div class="cash-hero-head"><span>${x.esc(label)}</span><span>${x.esc(x.all.store.name)}</span></div><strong class="cash-total">${x.money(cash.net)}</strong><p class="cash-formula">收款 ${x.money(cash.received)} <span>−</span> 退款 ${x.money(cash.refunded)}</p>${showChannels ? `<div class="cash-channels">${(cash.channels || []).map(row => `<div><span>${x.esc(CHANNELS[row.channel] || '其他渠道')}</span><strong>${x.money(row.net)}</strong></div>`).join('')}</div>` : ''}<p class="cash-hero-note">按实际到账日期统计，已扣除退款。消费业绩来自已完成服务，单独统计。</p></section>`;

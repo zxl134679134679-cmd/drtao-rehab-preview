@@ -57,9 +57,11 @@ function clientFor(model, role, clientId) {
 function canRead(model, role, row, stores) {
   const client = model.state.clients.find(item => item.id === row.clientId);
   if (!client || !model.canSeeClient(role, client.id)) return false;
-  // A responsible therapist may review their own customer's record from another
-  // store. This does not grant another store's financial or staffing access.
-  if (role.type === 'therapist') return client.ownerId === role.id;
+  // The unified owner can read cross-store records. A designated execution
+  // therapist reads only records from that exact authorized store; professional
+  // review remains with the unified owner in reviewPaperIntake.
+  if (role.type === 'therapist') return client.ownerId === role.id ||
+    (typeof model.clientStoreTherapist === 'function' && model.clientStoreTherapist(client.id, row.storeId) === role.id);
   return stores.includes(row.storeId);
 }
 function attention(row) {
@@ -68,7 +70,7 @@ function attention(row) {
 function project(row) {
   const result = Object.fromEntries(ROW_KEYS.filter(key => row[key] !== undefined).map(key => [key, row[key]]));
   result.answers = Object.fromEntries(PAPER_SAFETY_QUESTIONS.filter(q => Object.hasOwn(ANSWERS, row.answers?.[q.key])).map(q => [q.key, row.answers[q.key]]));
-  if (row.review) result.review = Object.fromEntries(['decision', 'nextStep', 'notes'].filter(key => row.review[key] !== undefined).map(key => [key, row.review[key]]));
+  if (row.review) result.review = Object.fromEntries(['decision', 'nextStep', 'notes', 'assigneeId', 'dueDate', 'taskId', 'assignmentDefaulted'].filter(key => row.review[key] !== undefined).map(key => [key, row.review[key]]));
   result.attentionItems = attention(row);
   return clone(result);
 }
@@ -90,10 +92,25 @@ function localTimestamp(value) {
   return `${parts.year}年${Number(parts.month)}月${Number(parts.day)}日 ${parts.hour}:${parts.minute}`;
 }
 function nextSequence(model) {
-  const suffixes = collection(model).map(row => Number(/(\d+)$/.exec(row.id)?.[1] || 0));
+  const suffixes = Object.values(model.state).filter(Array.isArray).flatMap(rows => rows.map(row => Number(/(\d+)$/.exec(row?.id)?.[1] || 0)));
   const next = Math.max(model.sequence, 0, ...suffixes) + 1;
-  if (!Number.isSafeInteger(next + 1)) throw new Error('记录编号超出可用范围');
+  if (!Number.isSafeInteger(next + 2)) throw new Error('记录编号超出可用范围');
   return next;
+}
+function followupAssignees(model, client, storeId) {
+  const localId = typeof model.clientStoreTherapist === 'function' ? model.clientStoreTherapist(client.id, storeId) : '';
+  return model.state.therapists.filter(t => t.active === true && [client.ownerId, localId].includes(t.id) && model.canSeeClient({ type: 'therapist', id: t.id }, client.id));
+}
+function followupAssignment(model, client, storeId, data) {
+  // Old callers did not supply assignment fields. An explicit but incomplete
+  // assignment never falls back: new forms must choose both person and date.
+  const assignmentDefaulted = !Object.hasOwn(data, 'assigneeId') && !Object.hasOwn(data, 'dueDate');
+  const assigneeId = text(assignmentDefaulted ? client.ownerId : data.assigneeId, '下一步负责人', true, 80);
+  const dueDate = text(assignmentDefaulted ? model.today : data.dueDate, '计划日期', true, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dueDate) || !Number.isFinite(Date.parse(dueDate)) || new Date(dueDate).toISOString().slice(0, 10) !== dueDate) throw new Error('请填写有效的计划日期');
+  if (dueDate < model.today) throw new Error('计划日期不能早于今天，请选择下一步实际计划完成的日期');
+  if (!followupAssignees(model, client, storeId).some(t => t.id === assigneeId)) throw new Error('下一步负责人须为在职且有该客户授权的负责康复师或本店执行康复师');
+  return { assigneeId, dueDate, assignmentDefaulted };
 }
 function audit(id, action, row, role, stamp, extra = {}) {
   return { id, type: action, actorId: role.id, actorType: role.type, createdAt: stamp, clientId: row.clientId, storeId: row.storeId, paperIntakeId: row.id, after: { status: row.status, ownerId: row.ownerId }, ...extra };
@@ -152,13 +169,16 @@ export function reviewPaperIntake(model, id, data, role) {
   if (!data || typeof data !== 'object') throw new Error('请填写复核记录');
   const decision = choice(data.decision, DECISIONS, '下一步安排');
   if (!decision) throw new Error('请选择下一步安排');
-  const review = { decision, nextStep: text(data.nextStep, '下一步具体事项', true, 500), notes: text(data.notes, '复核说明', false, 1000) }, requestId = text(data.requestId, '复核提交标识', true, 100), inputKey = JSON.stringify(review);
+  const review = { decision, nextStep: text(data.nextStep, '下一步具体事项', true, 500), notes: text(data.notes, '复核说明', false, 1000), ...followupAssignment(model, client, row.storeId, data) }, requestId = text(data.requestId, '复核提交标识', true, 100), inputKey = JSON.stringify(review);
   if (row.reviewRequestId === requestId && row.reviewedBy === role.id) { if (row.reviewInputKey !== inputKey) throw new Error('同一复核提交的内容发生变化'); return project(row); }
   if (row.status !== 'pending') throw new Error('该记录已复核，请新增本次接待确认表记录变化');
   if (PAPER_SAFETY_QUESTIONS.some(q => !Object.hasOwn(ANSWERS, row.answers?.[q.key]))) throw new Error('安全确认尚未逐项填写，请核对原记录');
-  const moment = currentStamp(model), sequence = nextSequence(model), updated = { ...row, status: 'reviewed', reviewedAt: moment.createdAt, reviewedBy: role.id, review, reviewRequestId: requestId, reviewInputKey: inputKey };
+  const moment = currentStamp(model), sequence = nextSequence(model), taskId = `task${sequence}`;
+  const task = { id: taskId, clientId: row.clientId, storeId: row.storeId, paperIntakeId: row.id, type: 'intake_followup', title: review.nextStep, assigneeId: review.assigneeId, dueDate: review.dueDate, status: 'pending', createdBy: role.id, createdRole: role.type, createdAt: moment.createdAt };
+  const updated = { ...row, status: 'reviewed', reviewedAt: moment.createdAt, reviewedBy: role.id, review: { ...review, taskId }, reviewRequestId: requestId, reviewInputKey: inputKey };
   model.state.paperIntakes = collection(model).map(item => item.id === id ? updated : item);
-  model.state.audit = [...model.state.audit, audit(`audit${sequence}`, 'paper_intake_reviewed', updated, role, moment.createdAt, { before: { status: row.status }, note: review.nextStep })]; model.sequence = sequence;
+  model.state.tasks = [...model.state.tasks, task];
+  model.state.audit = [...model.state.audit, audit(`audit${sequence + 1}`, 'paper_intake_reviewed', updated, role, moment.createdAt, { before: { status: row.status }, note: review.nextStep, taskId, assigneeId: review.assigneeId, dueDate: review.dueDate, assignmentDefaulted: review.assignmentDefaulted })]; model.sequence = sequence + 1;
   return project(updated);
 }
 
@@ -168,8 +188,18 @@ function field(ctx, label, name, value = '', attrs = '') { return `<label class=
 function area(ctx, label, name, value = '', attrs = '') { return `<label class="field span-all"><span>${label}</span><textarea name="${name}" rows="2" ${attrs}>${ctx.esc(value)}</textarea></label>`; }
 function select(ctx, label, name, choices, value = '', blank = '请选择（选填）') { return `<label class="field"><span>${label}</span><select name="${name}"><option value="">${blank}</option>${Object.entries(choices).map(([key, title]) => `<option value="${key}"${key === value ? ' selected' : ''}>${title}</option>`).join('')}</select></label>`; }
 function reviewable(ctx, row) { const client = ctx.model.state.clients.find(c => c.id === row.clientId); return ctx.role.type === 'therapist' && ctx.role.id === client?.ownerId && row.status === 'pending'; }
+function handoffSummary(ctx,row,showResult=false) {
+  const review=row.review;
+  if(!review?.taskId)return '';
+  const task=ctx.model.state.tasks.find(t=>t.id===review.taskId&&t.clientId===row.clientId&&t.storeId===row.storeId&&t.paperIntakeId===row.id);
+  const personName=id=>id==='boss'?'老板':names(ctx,'therapists',id);
+  const assigneeId=task?task.assigneeId:review.assigneeId,dueDate=task?task.dueDate:review.dueDate;
+  const changed=task&&(task.assigneeId!==review.assigneeId||task.dueDate!==review.dueDate);
+  const original=showResult&&changed?`<p class="meta">复核时安排：${ctx.esc(personName(review.assigneeId))} · ${ctx.esc(review.dueDate)}</p>`:'';
+  return `<div class="paper-intake-handoff"><p class="meta">${task?'下一步负责人':'复核时安排：'} ${ctx.esc(personName(assigneeId))} · 计划日期 ${ctx.esc(dueDate)} · ${!task?'待核对待办':task.status==='completed'?'已处理':'待处理'}</p>${original}${review.assignmentDefaulted?'<p class="meta">旧版提交未选择负责人和日期，复核时默认交给当时负责康复师，计划当天处理。</p>':''}${showResult&&task?.completionResult?`<p>处理结果：${ctx.esc(task.completionResult)}</p>`:''}</div>`;
+}
 function summary(ctx, row) {
-  return `<article class="paper-intake-row"><div class="section-head"><h3>${ctx.esc(names(ctx, 'clients', row.clientId))}</h3><span class="tag ${row.status === 'reviewed' ? 'tag-green' : ''}">${row.status === 'reviewed' ? '已由负责人复核' : '待负责康复师复核'}</span></div><p class="paper-intake-problem">${ctx.esc(row.problem)}</p><p class="meta">${ctx.esc(row.date)} ${ctx.esc(row.time)} · ${ctx.esc(names(ctx, 'stores', row.storeId))} · 负责人 ${ctx.esc(names(ctx, 'therapists', ctx.model.state.clients.find(c => c.id === row.clientId)?.ownerId || row.ownerId))}</p><p class="paper-intake-attention">${row.attentionItems.length ? '需核对：' + row.attentionItems.map(item => `${ctx.esc(item.label)}（${ANSWERS[item.answer] || '未填写'}）`).join('；') : '十项已逐项填写，仍需负责人专业复核。'}</p><p class="meta">下一步：${ctx.esc(row.review?.nextStep || '联系负责康复师，核对后安排专业评估')}</p><div class="action-row">${action(ctx, '查看接待表', 'paper-intake-detail', row.id)}${reviewable(ctx, row) ? action(ctx, '复核与下一步', 'paper-intake-review', row.id, 'btn-primary') : ''}</div></article>`;
+  return `<article class="paper-intake-row"><div class="section-head"><h3>${ctx.esc(names(ctx, 'clients', row.clientId))}</h3><span class="tag ${row.status === 'reviewed' ? 'tag-green' : ''}">${row.status === 'reviewed' ? '已由负责人复核' : '待负责康复师复核'}</span></div><p class="paper-intake-problem">${ctx.esc(row.problem)}</p><p class="meta">${ctx.esc(row.date)} ${ctx.esc(row.time)} · ${ctx.esc(names(ctx, 'stores', row.storeId))} · 负责人 ${ctx.esc(names(ctx, 'therapists', ctx.model.state.clients.find(c => c.id === row.clientId)?.ownerId || row.ownerId))}</p><p class="paper-intake-attention">${row.attentionItems.length ? '需核对：' + row.attentionItems.map(item => `${ctx.esc(item.label)}（${ANSWERS[item.answer] || '未填写'}）`).join('；') : '十项已逐项填写，仍需负责人专业复核。'}</p><p class="meta">下一步：${ctx.esc(row.review?.nextStep || '联系负责康复师，核对后安排专业评估')}</p>${handoffSummary(ctx,row)}<div class="action-row">${action(ctx, '查看接待表', 'paper-intake-detail', row.id)}${reviewable(ctx, row) ? action(ctx, '复核与下一步', 'paper-intake-review', row.id, 'btn-primary') : ''}</div></article>`;
 }
 
 export function renderPaperIntakeInbox(ctx) {
@@ -203,10 +233,12 @@ export function paperIntakeDialog(type, id, ctx) {
   const raw = readRecord(model, id, role), row = project(raw), client = model.state.clients.find(c => c.id === row.clientId);
   if (type === 'paper-intake-review') {
     if (!reviewable(ctx, row)) throw new Error('仅客户当前负责康复师可复核待处理接待表');
-    return { title: '康复师复核与下一步', html: `<form data-form="paper-intake-review"><input type="hidden" name="id" value="${esc(row.id)}"><div class="note"><strong>${esc(client.name)} · ${esc(row.date)} ${esc(row.time)}</strong><p>${esc(row.problem)}</p><p>客户目标：${esc(row.goal)}</p></div><p class="notice">${row.attentionItems.length ? '需核对：' + row.attentionItems.map(q => `${esc(q.label)}（${ANSWERS[q.answer] || '未填写'}）`).join('；') : '十项均记录为“否”，请结合本次情况专业复核。'}${row.safetyNotes ? '<br>客户补充：' + esc(row.safetyNotes) : ''}</p><p class="meta">${action(ctx, '查看完整接待表', 'paper-intake-detail', row.id)}</p>${select(ctx, '复核后的下一步', 'decision', DECISIONS, '', '请选择下一步安排')}${area(ctx, '下一步具体事项', 'nextStep', '', 'required maxlength="500" placeholder="写清接下来做什么、由谁安排"')}${area(ctx, '复核说明（选填）', 'notes', '', 'maxlength="1000"')}<p class="meta">这里只记录本次专业核对与工作安排，原始客户回答完整保留；不会自动生成诊断或修改套餐次数。</p><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="close-dialog">返回</button><button type="submit" class="btn btn-primary">保存复核与下一步</button></div></form>` };
+    const assignees=followupAssignees(model,client,row.storeId);
+    const assignment=`<div class="form-grid"><label class="field"><span>下一步交给谁</span><select name="assigneeId" required><option value="">请选择已授权康复师</option>${assignees.map(t=>`<option value="${esc(t.id)}"${t.id===client.ownerId?' selected':''}>${esc(t.name)} · ${esc(names(ctx,'stores',t.storeId))}</option>`).join('')}</select></label>${field(ctx,'计划完成日期','dueDate',model.today,`type="date" min="${esc(model.today)}" required`)}</div><p class="meta">保存后生成待办，交给所选康复师处理；完成时须留下结果。</p>`;
+    return { title: '康复师复核与下一步', html: `<form data-form="paper-intake-review"><input type="hidden" name="id" value="${esc(row.id)}"><div class="note"><strong>${esc(client.name)} · ${esc(row.date)} ${esc(row.time)}</strong><p>${esc(row.problem)}</p><p>客户目标：${esc(row.goal)}</p></div><p class="notice">${row.attentionItems.length ? '需核对：' + row.attentionItems.map(q => `${esc(q.label)}（${ANSWERS[q.answer] || '未填写'}）`).join('；') : '十项均记录为“否”，请结合本次情况专业复核。'}${row.safetyNotes ? '<br>客户补充：' + esc(row.safetyNotes) : ''}</p><p class="meta">${action(ctx, '查看完整接待表', 'paper-intake-detail', row.id)}</p>${select(ctx, '复核后的下一步', 'decision', DECISIONS, '', '请选择下一步安排')}${area(ctx, '下一步具体事项', 'nextStep', '', 'required maxlength="500" placeholder="写清接下来做什么、由谁安排"')}${assignment}${area(ctx, '复核说明（选填）', 'notes', '', 'maxlength="1000"')}<p class="meta">这里只记录本次专业核对与工作安排，原始客户回答完整保留；不会自动生成诊断或修改套餐次数。</p><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="close-dialog">返回</button><button type="submit" class="btn btn-primary">保存复核与下一步</button></div></form>` };
   }
   const show = (label, value) => `<div class="detail-pair"><span class="muted">${label}</span><strong>${esc(value || '未记录')}</strong></div>`;
-  return { title: `${client.name}的接待确认表`, html: `<div class="note"><strong>${row.status === 'pending' ? '待负责康复师复核' : '已由负责康复师复核'}</strong><p>${esc(row.date)} ${esc(row.time)} · ${esc(names(ctx, 'stores', row.storeId))} · 负责人 ${esc(names(ctx, 'therapists', client.ownerId))}</p><p>记录的是当时情况，历史表不能替代下一次服务前确认。</p></div><h3>主要问题与目标</h3><div class="detail-grid">${show('客户自述问题', row.problem)}${show('客户目标', row.goal)}${show('年龄', `${row.age} 岁`)}${show('主要部位', row.bodyArea)}${show('持续时间', row.duration)}${show('影响活动', row.impact)}${show('客户自述疼痛', row.pain == null ? '未记录' : `${row.pain} / 10`)}</div><h3>本次逐项确认</h3><div class="paper-intake-answers">${PAPER_SAFETY_QUESTIONS.map(q => `<div class="row"><span>${esc(q.label)}</span><strong class="${row.answers[q.key] === 'no' ? '' : 'paper-intake-attention'}">${ANSWERS[row.answers[q.key]] || '未填写'}</strong></div>`).join('')}</div>${row.safetyNotes ? `<p class="paper-intake-problem">情况说明：${esc(row.safetyNotes)}</p>` : ''}<details class="paper-intake-section"><summary>背景与联系人（按需查看）</summary><div class="detail-grid">${show('性别', { male: '男', female: '女', undisclosed: '不方便填写' }[row.sex])}${show('客户来源', SOURCES[row.source])}${show('介绍人', row.referrer)}${show('运动频率', EXERCISE[row.exercise])}${show('客户自述就医 / 病史', row.recentCare)}${show('手术情况', row.surgery)}${show('过敏情况', row.allergies)}${show('紧急联系人', [row.emergencyName, row.emergencyPhone].filter(Boolean).join(' · '))}${show('监护人', [row.guardianName, row.guardianPhone].filter(Boolean).join(' · '))}</div></details><h3>下一步</h3><p class="paper-intake-problem">${esc(row.review?.nextStep || '联系负责康复师复核，再安排专业评估')}</p>${row.review ? `<p class="meta">${esc(DECISIONS[row.review.decision])} · ${esc(localTimestamp(row.reviewedAt))} · ${esc(names(ctx, 'therapists', row.reviewedBy))}</p>${row.review.notes ? `<p>${esc(row.review.notes)}</p>` : ''}` : ''}<p class="meta">录入人 ${esc(row.createdRole === 'boss' ? '老板' : names(ctx, row.createdRole === 'frontdesk' ? 'frontDesks' : row.createdRole === 'manager' ? 'storeManagers' : 'therapists', row.createdBy))} · ${esc(localTimestamp(row.createdAt))}</p><div class="action-row">${reviewable(ctx, row) ? action(ctx, '复核与下一步', 'paper-intake-review', row.id, 'btn-primary') : ''}${action(ctx, '新增本次接待确认', 'paper-intake-create', row.clientId)}${action(ctx, '关闭', 'close-dialog', '')}</div>` };
+  return { title: `${client.name}的接待确认表`, html: `<div class="note"><strong>${row.status === 'pending' ? '待负责康复师复核' : '已由负责康复师复核'}</strong><p>${esc(row.date)} ${esc(row.time)} · ${esc(names(ctx, 'stores', row.storeId))} · 负责人 ${esc(names(ctx, 'therapists', client.ownerId))}</p><p>记录的是当时情况，历史表不能替代下一次服务前确认。</p></div><h3>主要问题与目标</h3><div class="detail-grid">${show('客户自述问题', row.problem)}${show('客户目标', row.goal)}${show('年龄', `${row.age} 岁`)}${show('主要部位', row.bodyArea)}${show('持续时间', row.duration)}${show('影响活动', row.impact)}${show('客户自述疼痛', row.pain == null ? '未记录' : `${row.pain} / 10`)}</div><h3>本次逐项确认</h3><div class="paper-intake-answers">${PAPER_SAFETY_QUESTIONS.map(q => `<div class="row"><span>${esc(q.label)}</span><strong class="${row.answers[q.key] === 'no' ? '' : 'paper-intake-attention'}">${ANSWERS[row.answers[q.key]] || '未填写'}</strong></div>`).join('')}</div>${row.safetyNotes ? `<p class="paper-intake-problem">情况说明：${esc(row.safetyNotes)}</p>` : ''}<details class="paper-intake-section"><summary>背景与联系人（按需查看）</summary><div class="detail-grid">${show('性别', { male: '男', female: '女', undisclosed: '不方便填写' }[row.sex])}${show('客户来源', SOURCES[row.source])}${show('介绍人', row.referrer)}${show('运动频率', EXERCISE[row.exercise])}${show('客户自述就医 / 病史', row.recentCare)}${show('手术情况', row.surgery)}${show('过敏情况', row.allergies)}${show('紧急联系人', [row.emergencyName, row.emergencyPhone].filter(Boolean).join(' · '))}${show('监护人', [row.guardianName, row.guardianPhone].filter(Boolean).join(' · '))}</div></details><h3>下一步</h3><p class="paper-intake-problem">${esc(row.review?.nextStep || '联系负责康复师复核，再安排专业评估')}</p>${row.review ? `<p class="meta">${esc(DECISIONS[row.review.decision])} · ${esc(localTimestamp(row.reviewedAt))} · ${esc(names(ctx, 'therapists', row.reviewedBy))}</p>${row.review.notes ? `<p>${esc(row.review.notes)}</p>` : ''}${handoffSummary(ctx,row,true)}` : ''}<p class="meta">录入人 ${esc(row.createdRole === 'boss' ? '老板' : names(ctx, row.createdRole === 'frontdesk' ? 'frontDesks' : row.createdRole === 'manager' ? 'storeManagers' : 'therapists', row.createdBy))} · ${esc(localTimestamp(row.createdAt))}</p><div class="action-row">${reviewable(ctx, row) ? action(ctx, '复核与下一步', 'paper-intake-review', row.id, 'btn-primary') : ''}${role.type!=='therapist'||client.ownerId===role.id?action(ctx, '新增本次接待确认', 'paper-intake-create', row.clientId):''}${action(ctx, '关闭', 'close-dialog', '')}</div>` };
 }
 
 export function updatePaperIntakeForm(form, ctx) {

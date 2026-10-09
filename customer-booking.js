@@ -1,8 +1,9 @@
 // Desired times are requests, not live availability or confirmed appointments.
 // The preview's existing appointment model remains the confirmation authority.
-import { assertScheduleAvailability } from './schedules.js?v=20261009-available-times';
+import { assertScheduleAvailability } from './schedules.js?v=20261009-flow-ease';
+import { bookingAvailability } from './booking-availability.js?v=20261009-flow-ease';
 const clone = value => JSON.parse(JSON.stringify(value));
-const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt'];
+const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt', 'resolutionReason', 'resolvedBy', 'resolvedRole', 'resolvedAt', 'suggestedDate', 'suggestedTime', 'acceptedRequestId', 'acceptedBy', 'acceptedAt', 'sourceRequestId'];
 const publicRow = row => clone(Object.fromEntries(fields.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
 function text(value, label, limit = 80) {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > limit) throw new Error(`请填写有效的${label}`);
@@ -35,15 +36,16 @@ function reader(model, role) {
 function confirmActor(model, row, role) {
   if (isBoss(role)) return model._boss(role);
   if (role?.type === 'frontdesk') return model._bookingActor(role, row.clientId, row.storeId);
-  if (role?.type === 'therapist' && model._client(row.clientId).ownerId === role.id) return model._staff(role, row.clientId);
-  throw new Error('仅老板、授权门店前台或该客户的负责康复师有权限确认；店长只读');
+  if (role?.type === 'therapist' && (model._client(row.clientId).ownerId === role.id || row.principalId === role.id && model.clientStoreTherapist?.(row.clientId,row.storeId) === role.id)) return model._staff(role, row.clientId, row.storeId);
+  throw new Error('仅老板、授权门店前台或该客户的负责康复师、本店执行康复师有处理权限；店长只读');
 }
 function assignment(model, row) {
   if (row.date < model.today) throw new Error('不能申请或确认过去的预约日期');
   const store = model._store(row.storeId);
   if (store.active === false) throw new Error('该门店已停用，请选择其他门店');
   const person = model._therapist(row.principalId);
-  if (!model.canSeeClient({ type: 'therapist', id: person.id }, row.clientId)) throw new Error('请先联系负责康复师安排所选门店的服务人员');
+  const permitted=model._therapistClientWorkAllowed?.(person.id,row.clientId,row.storeId) ?? (model.canSeeClient({ type: 'therapist', id: person.id }, row.clientId)||model.clientStoreTherapist?.(row.clientId,row.storeId)===person.id);
+  if (!permitted) throw new Error('请先联系负责康复师或老板安排本店执行康复师');
   assertScheduleAvailability(model, row);
 }
 function request(model, id) {
@@ -80,8 +82,14 @@ export function ensureCustomerBooking(model) {
       if (submissions.has(submission)) throw new Error('预约申请包含重复的客户提交标识或别名，请核对');
       submissions.add(submission);
     }
-    if (ids.has(row.id) || !['pending', 'confirmed', 'cancelled'].includes(row.status) || row.requestedRole !== 'customer' || row.requestedBy !== row.clientId || !Number.isFinite(Date.parse(row.requestedAt))) throw new Error('预约申请包含无效或重复记录，请核对');
+    if (ids.has(row.id) || !['pending', 'confirmed', 'cancelled', 'reschedule_suggested', 'rejected', 'expired', 'suggestion_accepted'].includes(row.status) || row.requestedRole !== 'customer' || row.requestedBy !== row.clientId || !Number.isFinite(Date.parse(row.requestedAt))) throw new Error('预约申请包含无效或重复记录，请核对');
     if (row.status === 'confirmed') text(row.appointmentId, '已确认预约标识');
+    if (['reschedule_suggested','rejected','expired','suggestion_accepted'].includes(row.status)) {
+      text(row.resolutionReason,'处理原因',500); text(row.resolvedBy,'处理人');
+      if (!['boss','frontdesk','therapist'].includes(row.resolvedRole) || !Number.isFinite(Date.parse(row.resolvedAt))) throw new Error('预约申请处理记录无效');
+    }
+    if (['reschedule_suggested','suggestion_accepted'].includes(row.status)) { date(row.suggestedDate); time(row.suggestedTime); }
+    if (row.status === 'suggestion_accepted') { text(row.acceptedRequestId,'已接受申请标识'); if (row.acceptedBy !== row.clientId || !Number.isFinite(Date.parse(row.acceptedAt))) throw new Error('客户接受建议的记录无效'); }
     ids.add(row.id);
   }
   return model;
@@ -124,7 +132,7 @@ export function cancelCustomerBooking(model, id, role) {
   const client = customer(model, role);
   const current = request(model, id);
   if (current.clientId !== client.id) throw new Error('仅客户本人可以取消自己的预约申请');
-  if (current.status !== 'pending') throw new Error('只能取消待门店确认的申请；已确认预约请联系门店改约或取消');
+  if (!['pending','reschedule_suggested'].includes(current.status)) throw new Error('只能取消待门店确认或待接受建议的申请；已确认预约请提交取消申请');
   const staged = stage(model), row = staged.state.bookingRequests.find(item => item.id === id);
   Object.assign(row, { status: 'cancelled', cancelledBy: role.id, cancelledRole: role.type, cancelledAt: staged._timestamp() });
   staged._log('customer_booking_cancelled', { bookingRequestId: id, clientId: row.clientId, storeId: row.storeId, result: 'cancelled' }, role);
@@ -155,7 +163,7 @@ export function confirmCustomerBooking(model, id, role) {
     if (!model.state.appointments.some(row => row.id === current.appointmentId && row.clientId === current.clientId)) throw new Error('已确认申请的预约记录不完整，请由老板核对');
     return publicRow(current);
   }
-  if (current.status !== 'pending') throw new Error('已取消的申请不能确认，请客户重新发起预约');
+  if (current.status !== 'pending') throw new Error('此申请已处理或取消，不能确认；建议时间须由客户接受后重新确认');
   assignment(model, current);
   const staged = stage(model), row = staged.state.bookingRequests.find(item => item.id === id);
   const appointment = staged.saveAppointment({ clientId: row.clientId, storeId: row.storeId, date: row.date, time: row.time, principalId: row.principalId, project: row.project }, role);
@@ -168,12 +176,72 @@ export function customerBookingConfirmation(model, id, role) {
   const visible = customerBookingRows(model, role).find(row => row.id === id);
   if (!visible) throw new Error('您没有查看该预约申请的权限');
   const row = request(model, id);
-  if (row.status !== 'pending') return { canConfirm: false, reason: row.status === 'confirmed' ? '已安排预约，请查看预约记录' : '申请已取消' };
+  if (row.status !== 'pending') return { canConfirm: false, reason: row.status === 'confirmed' ? '已安排预约，请查看预约记录' : row.status === 'reschedule_suggested' ? '等待客户接受建议时间' : '申请已处理或取消' };
+  try { confirmActor(model, row, role); }
+  catch(error) { return { canConfirm:false, reason:`需客户负责人或老板确认：${error.message}` }; }
   try {
-    confirmActor(model, row, role);
     assignment(model, row);
-    return { canConfirm: true, reason: '确认时会再次检查康复师和客户的预约冲突' };
+    const availability = bookingAvailability(model,row);
+    if (!availability.available) throw new Error(availability.message);
+    return { canConfirm: true, reason: '当前无预约冲突，确认时会再次核对' };
   } catch (error) {
-    return { canConfirm: false, reason: `需客户负责人或老板确认：${error.message}` };
+    return { canConfirm: false, reason: error.message };
   }
+}
+
+export function customerBookingHandling(model,id,role) {
+  const visible=customerBookingRows(model,role).find(row=>row.id===id);
+  if(!visible)throw new Error('您没有查看该预约申请的权限');
+  if(visible.status!=='pending'&&!(visible.status==='reschedule_suggested'&&visible.suggestedDate<model.today))return {canHandle:false,reason:'申请已处理或仍在等待客户接受'};
+  try {confirmActor(model,visible,role);return {canHandle:true,reason:''};}
+  catch(error){return {canHandle:false,reason:error.message};}
+}
+
+export function resolveCustomerBooking(model,data,role) {
+  const current=request(model,data?.id);
+  confirmActor(model,current,role);
+  if(!['reschedule_suggested','rejected','expired'].includes(data?.outcome))throw new Error('请选择有效的处理结果');
+  const reason=text(data.reason,'处理原因',500),outcome=data.outcome;
+  const suggestion=outcome==='reschedule_suggested'?{date:date(data.date),time:time(data.time)}:null;
+  const resolutionKey=JSON.stringify({outcome,reason,...suggestion});
+  const expireSuggestion=current.status==='reschedule_suggested'&&outcome==='expired';
+  if(current.status!=='pending'&&!expireSuggestion) {
+    if(current.resolutionKey===resolutionKey)return publicRow(current);
+    throw new Error('此申请已经处理，请查看结果，不能重复修改');
+  }
+  if(outcome==='expired'&&(expireSuggestion?current.suggestedDate:current.date)>=model.today)throw new Error('只有到店日期已过去的申请才可标记过期');
+  if(suggestion) {
+    if(suggestion.date===current.date&&suggestion.time===current.time)throw new Error('建议时间须与原申请不同');
+    const replacement={...current,...suggestion};
+    assignment(model,replacement);
+    const availability=bookingAvailability(model,replacement);
+    if(!availability.available)throw new Error(availability.message);
+  }
+  const staged=stage(model),row=staged.state.bookingRequests.find(item=>item.id===current.id);
+  Object.assign(row,{status:outcome,resolutionReason:reason,resolutionKey,resolvedBy:role.id,resolvedRole:role.type,resolvedAt:staged._timestamp()});
+  if(suggestion)Object.assign(row,{suggestedDate:suggestion.date,suggestedTime:suggestion.time});
+  staged._log('customer_booking_resolved',{bookingRequestId:row.id,clientId:row.clientId,storeId:row.storeId,result:outcome,reason,suggestedDate:row.suggestedDate,suggestedTime:row.suggestedTime},role);
+  return commit(model,staged,row);
+}
+
+export function acceptCustomerBookingSuggestion(model,id,role) {
+  const client=customer(model,role),current=request(model,id);
+  if(current.clientId!==client.id)throw new Error('只有客户本人可以接受自己的预约建议');
+  if(current.status==='suggestion_accepted') {
+    const next=request(model,current.acceptedRequestId);
+    if(next.clientId!==client.id)throw new Error('接受建议的申请关联无效，请联系老板');
+    return publicRow(next);
+  }
+  if(current.status!=='reschedule_suggested')throw new Error('此申请已取消或已处理，没有待接受的建议');
+  const replacement={...current,date:current.suggestedDate,time:current.suggestedTime};
+  assignment(model,replacement);
+  const availability=bookingAvailability(model,replacement);
+  if(!availability.available)throw new Error(`建议时间暂不可用：${availability.message}。请联系门店重新安排`);
+  const staged=stage(model);
+  const accepted=requestCustomerBooking(staged,{clientId:client.id,storeId:replacement.storeId,principalId:replacement.principalId,date:replacement.date,time:replacement.time,project:replacement.project,requestId:`suggestion-${current.id}`},role);
+  const row=staged.state.bookingRequests.find(item=>item.id===id),next=staged.state.bookingRequests.find(item=>item.id===accepted.id);
+  Object.assign(row,{status:'suggestion_accepted',acceptedRequestId:next.id,acceptedBy:role.id,acceptedAt:staged._timestamp()});
+  next.sourceRequestId=id;
+  staged._log('customer_booking_suggestion_accepted',{bookingRequestId:id,newBookingRequestId:next.id,clientId:client.id,storeId:next.storeId,result:'pending'},role);
+  return commit(model,staged,next);
 }

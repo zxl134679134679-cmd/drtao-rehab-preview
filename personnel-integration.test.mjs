@@ -1,3 +1,4 @@
+import {workflowTypes,workflowDialog} from './workflow-ui.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -9,7 +10,7 @@ const boss={type:'boss',id:'boss'};
 const roles=[{type:'customer',id:'c1'},{type:'frontdesk',id:'f1'},{type:'therapist',id:'t1'},{type:'manager',id:'m1'},{type:'boss',id:'wrong'}];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function dialogs(model,role){
- const scope={model,role,personnelDialog:staff.personnelDialog,staffDialog:staff.staffDialog,scheduleDialog:()=>null,customerBookingTypes:new Set(),ctx:()=>({model,role,filters:{},esc})};
+ const scope={workflowTypes,workflowDialog,model,role,personnelDialog:staff.personnelDialog,staffDialog:staff.staffDialog,scheduleDialog:()=>null,customerBookingTypes:new Set(),ctx:()=>({model,role,filters:{},esc})};
  const begin=source.indexOf('const evaluationTypes = '),end=source.indexOf('\nfunction draftKey(',begin);
  const guardStart=source.indexOf('function assertBoss('),guardEnd=source.indexOf('\nfunction assertService',guardStart);
  vm.runInNewContext(source.slice(guardStart,guardEnd)+'\n'+source.slice(begin,end)+'\nglobalThis.open=buildDialog;',scope);
@@ -26,7 +27,7 @@ function submitRuntime(model,role,simulateFailure=false){
  const f={dataset:{form:'edit-frontdesk'},isConnected:true,data:{id:'f1',name:'示例前台新姓名',phone:'13900000011',notes:'示例人员备注',storeIds:['a','b'],active:'true',reason:'示例更正前台资料',expectedVersion:'0'},reportValidity:()=>true,querySelector:()=>error,querySelectorAll:()=>[button]};
  f.closest=()=>f;
  const toggle={checked:simulateFailure},context={requestId:'profile-ui-edit',key:'personnel-edit'};
- const scope={model,role,ctx:()=>({model,role,filters:{},esc}),dialogContext:context,FormData:FakeData,drafts:new Map(),document:{addEventListener(type,fn){scope.submit=fn;}},$:()=>toggle,setTimeout:resolve=>resolve(),saveDraft(){},updateEvidencePicker(){},updateReceptionIntakeChoices(){},updatePaperIntakeForm(){},updateScheduleForm(){},updateAppointmentAvailability(){},render(){scope.rendered=true;},showSuccess(title,html){scope.success={title,html};},formError(form,message){scope.error=message;},toast(message){scope.error=message;},closeDialog(){},esc,name:(kind,id)=>model.state[kind].find(row=>row.id===id)?.name||id,button:label=>label,pair:(label,value)=>`${label}: ${value}`};
+ const scope={workflowTypes,workflowDialog,model,role,ctx:()=>({model,role,filters:{},esc}),dialogContext:context,FormData:FakeData,drafts:new Map(),document:{addEventListener(type,fn){scope.submit=fn;}},$:()=>toggle,setTimeout:resolve=>resolve(),saveDraft(){},updateEvidencePicker(){},updateReceptionIntakeChoices(){},updatePaperIntakeForm(){},updateScheduleForm(){},updateAppointmentAvailability(){},render(){scope.rendered=true;},showSuccess(title,html){scope.success={title,html};},formError(form,message){scope.error=message;},toast(message){scope.error=message;},closeDialog(){},esc,name:(kind,id)=>model.state[kind].find(row=>row.id===id)?.name||id,button:label=>label,pair:(label,value)=>`${label}: ${value}`};
  const start=source.indexOf("document.addEventListener('submit', async event => {"),end=source.indexOf('\nfunction exportPreview(',start);
  assert.ok(start>0&&end>start);vm.runInNewContext(source.slice(start,end),scope);
  return {scope,f,event:{target:f,preventDefault(){}}};

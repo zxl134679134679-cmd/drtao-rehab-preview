@@ -1,3 +1,4 @@
+import {workflowTypes,workflowDialog} from './workflow-ui.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -48,7 +49,7 @@ test('actual app dispatch allows manager basic intake and keeps appointment, ass
   const m=fixture(),role=roles.manager,source=await readFile(new URL('./app.js',import.meta.url),'utf8');
   const start=source.indexOf('function buildDialog('),end=source.indexOf('\nfunction draftKey(',start);
   assert.ok(start>=0&&end>start);
-  const scope={role,model:m,customerBookingTypes:new Set(),receptionIntakeDialog:reception.receptionIntakeDialog,managerDialog,scheduleDialog, personnelDialog,ctx:()=>ctx(m,role)};
+  const scope={workflowTypes,workflowDialog,role,model:m,customerBookingTypes:new Set(),receptionIntakeDialog:reception.receptionIntakeDialog,managerDialog,scheduleDialog, personnelDialog,ctx:()=>ctx(m,role)};
   vm.runInNewContext(source.slice(start,end)+'\nglobalThis.open=buildDialog;',scope);
   assert.match(scope.open('reception-create-client','a').html,/客户姓名/);
   for(const type of ['appointment-create','assessment-create','record-receipt'])assert.throws(()=>scope.open(type,'c1'));

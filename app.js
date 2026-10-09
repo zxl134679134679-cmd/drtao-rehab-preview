@@ -1,20 +1,21 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-available-times';
-import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261009-available-times';
-import { renderManager, managerDialog } from './manager.js?v=20261009-available-times';
-import { hourTimeField } from './hour-picker.js?v=20261009-available-times';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-available-times';
-import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261009-available-times';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-available-times';
-import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-available-times';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-flow-ease';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261009-flow-ease';
+import { renderManager, managerDialog } from './manager.js?v=20261009-flow-ease';
+import { hourTimeField } from './hour-picker.js?v=20261009-flow-ease';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-flow-ease';
+import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261009-flow-ease';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-flow-ease';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-flow-ease';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows } from './customer-booking.js?v=20261009-available-times';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-available-times';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261009-flow-ease';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-flow-ease';
 
-import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-available-times';
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-flow-ease';
 
-import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-available-times';
-import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-available-times';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261009-available-times';
+import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-flow-ease';
+import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-flow-ease';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261009-flow-ease';
+import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261009-flow-ease';
 
 let model = new DemoModel();
 ensureStorePackageExamples(model);
@@ -134,7 +135,7 @@ function customerHome() { return renderCustomerHome(customerCtx()); }
 function customerRecords() {
   const services = clientServices(role.id), valid = services.filter(s => s.status === 'valid');
   const unrated = valid.filter(s => !reviewFor(s.id));
-  return `<div class="customer-page ease-customer-page"><div class="page-head"><div><span class="eyebrow">每一次服务，都有记录</span><h1>服务记录</h1><p class="muted">已完成 ${valid.length} 次${unrated.length ? ` · ${unrated.length} 次待评价` : ''}</p></div></div>${unrated.length ? `<div class="ease-review-prompt"><span>分享您的真实体验，帮助我们改进服务。</span>${button('去评价','review',unrated[0].id,'btn-primary')}</div>` : ''}<div class="ease-record-list">${services.length ? services.map(s => `<article class="ease-record-card"><div class="ease-section-head"><span class="ease-record-date">${date(s.date)} · ${esc(s.time)}</span><span class="tag ${s.status === 'valid' ? 'tag-green' : 'tag-warn'}">${s.status === 'valid' ? '已完成' : '已撤销'}</span></div><h2>${esc(s.project)}</h2><p class="meta">${esc(name('therapists',s.principalId))} · ${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? `使用 ${s.sessions} 次` : find('packages',s.packageId)?.closed?'已纠正消课，套餐已结束':'次数已恢复'}</p><details class="ease-record-note"><summary>本次服务小结</summary><p>${esc(s.notes)}</p></details><div class="ease-inline-actions">${button('服务明细','service-detail',s.id,'btn-outline')}${s.status === 'valid' ? button(reviewFor(s.id) ? '查看我的评价' : '评价本次服务','review',s.id,reviewFor(s.id) ? 'btn-quiet' : 'btn-primary','star') : ''}</div></article>`).join('') : '<div class="empty card">还没有服务记录，完成服务后会显示在这里。</div>'}</div><div class="ease-page-links">${link('套餐使用明细','package',role.id)}${link('预约记录','appointment-history',role.id)}</div></div>`;
+  return `<div class="customer-page ease-customer-page"><div class="page-head"><div><span class="eyebrow">每一次服务，都有记录</span><h1>服务记录</h1><p class="muted">已完成 ${valid.length} 次${unrated.length ? ` · ${unrated.length} 次待评价` : ''}</p></div></div>${unrated.length ? `<div class="ease-review-prompt"><span>分享您的真实体验，帮助我们改进服务。</span>${button('去评价','review',unrated[0].id,'btn-primary')}</div>` : ''}<div class="ease-record-list">${services.length ? services.map(s => `<article class="ease-record-card"><div class="ease-section-head"><span class="ease-record-date">${date(s.date)} · ${esc(s.time)}</span><span class="tag ${s.status === 'valid' ? 'tag-green' : 'tag-warn'}">${s.status === 'valid' ? '已完成' : '已撤销'}</span></div><h2>${esc(s.project)}</h2><p class="meta">${esc(name('therapists',s.principalId))} · ${esc(name('stores',s.storeId))} · ${s.billingMode==='single'?'单次服务 · 不扣套餐次数':s.status === 'valid' ? `使用 ${s.sessions} 次` : find('packages',s.packageId)?.closed?'已纠正消课，套餐已结束':'次数已恢复'}</p><details class="ease-record-note"><summary>本次服务小结</summary><p>${esc(s.notes)}</p></details><div class="ease-inline-actions">${button('服务明细','service-detail',s.id,'btn-outline')}${s.status === 'valid' ? button(reviewFor(s.id) ? '查看我的评价' : '评价本次服务','review',s.id,reviewFor(s.id) ? 'btn-quiet' : 'btn-primary','star') : ''}</div></article>`).join('') : '<div class="empty card">还没有服务记录，完成服务后会显示在这里。</div>'}</div><div class="ease-page-links">${link('套餐使用明细','package',role.id)}${link('预约记录','appointment-history',role.id)}</div></div>`;
 }
 function customerProfile() {
   const c = currentClient(), pref = preferences.get(c.id) || false;
@@ -184,7 +185,7 @@ function appointmentHistoryDialog(id) {
     const needsAssignment = a.status === 'pending_reassignment';
     const status = !needsAssignment && pending && a.date < TODAY ? '到店情况待确认' : labels[a.status] || '待确认';
     const staff = role.type !== 'customer';
-    return `<article class="record-item"><div class="section-head"><h3>${date(a.date)} · ${esc(a.time)}</h3><span class="tag ${a.status === 'completed' ? 'tag-green' : a.status === 'no_show' || (pending && a.date < TODAY) ? 'tag-warn' : ''}">${status}</span></div><p>${esc(a.project)}</p><p class="meta">${esc(name('therapists',a.principalId))} · ${esc(name('stores',a.storeId))}</p>${needsAssignment ? '<p class="notice">此安排需要工作人员重新确认服务人员，请等待新安排后到店。</p>' : ''}${(a.participantIds || []).length ? `<p class="meta">协作康复师：${esc(a.participantIds.map(t=>name('therapists',t)).join('、'))}</p>` : ''}${a.status === 'reschedule_requested' ? `<div class="note"><strong>客户申请改至 ${date(a.request?.date)} ${esc(a.request?.time || '')}</strong><p>改约说明：${esc(a.requestNote || a.request?.reason || '未填写说明')}</p></div>` : ''}${a.status === 'no_show' ? `<p>未到店说明：${esc(a.noShowReason)}</p><p class="meta">本次未扣次数，未产生消费业绩。</p>` : a.status === 'cancelled' ? `<p>取消说明：${esc(a.cancelReason)}</p><p class="meta">本次未扣次数。</p>` : ''}<div class="action-row">${role.type==='therapist' ? link('预约详情','appointment',a.id) : ''}${a.status === 'completed' && a.serviceId ? link('查看对应服务','service-detail',a.serviceId) : ''}${pending && !needsAssignment && staff && a.date <= TODAY ? button('按预约登记服务','register-appointment',a.id,'btn-primary') : ''}${pending && !needsAssignment && staff && a.date <= TODAY && (role.type === 'boss' || role.id === a.principalId) ? button('记录未到店','appointment-no-show',a.id,'btn-outline') : ''}${pending && staff ? `${link('调整安排','appointment-edit',a.id)}${link('取消预约','appointment-cancel',a.id)}` : pending && !needsAssignment && role.type === 'customer' && a.date >= TODAY ? button(a.status === 'reschedule_requested' ? '修改改约申请' : '申请改约','reschedule',a.id,'btn-outline') : ''}</div></article>`;
+    return `<article class="record-item"><div class="section-head"><h3>${date(a.date)} · ${esc(a.time)}</h3><span class="tag ${a.status === 'completed' ? 'tag-green' : a.status === 'no_show' || (pending && a.date < TODAY) ? 'tag-warn' : ''}">${status}</span></div><p>${esc(a.project)}</p><p class="meta">${esc(name('therapists',a.principalId))} · ${esc(name('stores',a.storeId))}</p>${needsAssignment ? '<p class="notice">此安排需要工作人员重新确认服务人员，请等待新安排后到店。</p>' : ''}${(a.participantIds || []).length ? `<p class="meta">协作康复师：${esc(a.participantIds.map(t=>name('therapists',t)).join('、'))}</p>` : ''}${a.status === 'reschedule_requested' ? `<div class="note"><strong>客户申请改至 ${date(a.request?.date)} ${esc(a.request?.time || '')}</strong><p>改约说明：${esc(a.requestNote || a.request?.reason || '未填写说明')}</p></div>` : ''}${a.status === 'no_show' ? `<p>未到店说明：${esc(a.noShowReason)}</p><p class="meta">本次未扣次数，未产生消费业绩。</p>` : a.status === 'cancelled' ? `<p>取消说明：${esc(a.cancelReason)}</p><p class="meta">本次未扣次数。</p>` : ''}<div class="action-row">${role.type==='therapist' ? link('预约详情','appointment',a.id) : ''}${a.status === 'completed' && a.serviceId ? link('查看对应服务','service-detail',a.serviceId) : ''}${pending && !needsAssignment && staff && a.date <= TODAY ? button('按预约登记服务','register-appointment',a.id,'btn-primary') : ''}${pending && !needsAssignment && staff && a.date <= TODAY && (role.type === 'boss' || role.id === a.principalId) ? button('记录未到店','appointment-no-show',a.id,'btn-outline') : ''}${pending && staff ? `${link('调整安排','appointment-edit',a.id)}${link('取消预约','appointment-cancel',a.id)}` : pending && !needsAssignment && role.type === 'customer' && a.date >= TODAY ? button(a.status === 'reschedule_requested' ? '修改改约申请' : '申请改约','reschedule',a.id,'btn-outline')+button(a.cancellationRequest?.status==='pending'?'取消申请待处理':'申请取消','appointment-cancel-request',a.id,'btn-quiet') : ''}</div></article>`;
   }).join('') || '<div class="empty">还没有预约记录。</div>'}`};
 }
 
@@ -192,7 +193,7 @@ function serviceDialog(id) {
   const s = assertService(id);
   const r = reviewFor(id);
   const canOpenClient = model.canSeeClient(role, s.clientId);
-  return {title: '服务明细', html: `<span class="tag ${s.status === 'valid' ? 'tag-green' : 'tag-warn'}">${s.status === 'valid' ? '已完成' : '已撤销'}</span><h3>${esc(s.project)}</h3><div class="detail-grid">${pair('客户',name('clients',s.clientId))}${pair('服务日期',`${date(s.date)} ${s.time}`)}${pair('服务门店',name('stores',s.storeId))}${pair('本次主康复师',name('therapists',s.principalId))}${pair('参与康复师',s.participantIds.map(t => name('therapists',t)).join('、') || '独立服务')}${pair('登记时客户负责人',name('therapists',s.ownerId))}${pair('登记人',name('therapists',s.recordedBy))}${pair('使用套餐',find('packages',s.packageId)?.name || '原套餐')}${pair('套餐次数',s.status === 'valid' ? `使用 ${s.sessions} 次` : find('packages',s.packageId)?.closed ? '已纠正消课，原套餐已结束' : '已恢复原套餐 1 次')}${role.type !== 'customer' ? pair('消费业绩',s.status === 'valid' ? `${money(s.amount)}，归${name('therapists',s.principalId)}` : `${money(s.amount)} 已冲回`) : ''}</div><h3>这次为您做了什么</h3><p>${esc(s.notes)}</p>${serviceEvidence(s)}${s.status === 'revoked' ? `<div class="note"><strong>撤销说明</strong><p>${esc(s.revokeReason)}</p><p class="meta">处理人 ${esc(name('therapists',s.revokedBy))} · 原记录保留</p></div>` : ''}${r ? `<div class="note"><strong>客户评价 ${r.score} 分</strong><p>${esc(r.feedback || '未填写文字反馈')}</p><p class="meta">${r.followupStatus === 'closed' ? '已完成回访' : r.followupStatus === 'pending' ? '老板待跟进' : '已记录'}</p></div>` : ''}<div class="action-row">${role.type === 'customer' && s.status === 'valid' ? button(r ? '查看我的评价' : '评价本次服务','review',id,'btn-primary','star') : ''}${role.type !== 'customer' && canOpenClient ? button('打开客户档案','client-detail',s.clientId,'btn-outline') : ''}${role.type === 'boss' && s.status === 'valid' ? button('撤销错误登记','revoke-service',id,'btn-quiet') : ''}${role.type === 'boss' && r?.followupStatus === 'pending' ? button('记录回访','followup',r.id,'btn-primary') : ''}</div>`};
+  return {title: '服务明细', html: `<span class="tag ${s.status === 'valid' ? 'tag-green' : 'tag-warn'}">${s.status === 'valid' ? '已完成' : '已撤销'}</span><h3>${esc(s.project)}</h3><div class="detail-grid">${pair('客户',name('clients',s.clientId))}${pair('服务日期',`${date(s.date)} ${s.time}`)}${pair('服务门店',name('stores',s.storeId))}${pair('本次主康复师',name('therapists',s.principalId))}${pair('参与康复师',s.participantIds.map(t => name('therapists',t)).join('、') || '独立服务')}${pair('登记时客户负责人',name('therapists',s.ownerId))}${pair('登记人',name('therapists',s.recordedBy))}${pair('登记方式',s.billingMode==='single'?'单次服务 · 不扣套餐次数':find('packages',s.packageId)?.name || '原套餐')}${s.billingMode==='single'?role.type!=='customer'?pair('对应单次收款',s.receiptId):'':pair('套餐次数',s.status === 'valid' ? `使用 ${s.sessions} 次` : find('packages',s.packageId)?.closed ? '已纠正消课，原套餐已结束' : '已恢复原套餐 1 次')}${role.type !== 'customer' ? pair('消费业绩',s.status === 'valid' ? `${money(s.amount)}，归${name('therapists',s.principalId)}` : `${money(s.amount)} 已冲回`) : ''}</div><h3>这次为您做了什么</h3><p>${esc(s.notes)}</p>${s.nextStepSuggestion?`<h3>下次建议</h3><p>${esc(s.nextStepSuggestion)}</p>${role.type!=='customer'&&s.status==='valid'&&canEditPlan(find('clients',s.clientId))?button('确认客户下一步','confirm-service-next-step',s.id,'btn-outline'):''}`:''}${serviceEvidence(s)}${s.status === 'revoked' ? `<div class="note"><strong>撤销说明</strong><p>${esc(s.revokeReason)}</p><p class="meta">处理人 ${esc(name('therapists',s.revokedBy))} · 原记录保留</p></div>` : ''}${r ? `<div class="note"><strong>客户评价 ${r.score} 分</strong><p>${esc(r.feedback || '未填写文字反馈')}</p><p class="meta">${r.followupStatus === 'closed' ? '已完成回访' : r.followupStatus === 'pending' ? '老板待跟进' : '已记录'}</p></div>` : ''}<div class="action-row">${role.type === 'customer' && s.status === 'valid' ? button(r ? '查看我的评价' : '评价本次服务','review',id,'btn-primary','star') : ''}${role.type !== 'customer' && canOpenClient ? button('打开客户档案','client-detail',s.clientId,'btn-outline') : ''}${role.type === 'boss' && s.status === 'valid' ? button('撤销错误登记','revoke-service',id,'btn-quiet') : ''}${role.type === 'boss' && r?.followupStatus === 'pending' ? button('记录回访','followup',r.id,'btn-primary') : ''}</div>`};
 }
 function serviceEvidence(service) {
   const photos = service.evidencePhotos || [];
@@ -291,7 +292,7 @@ photoViewer.addEventListener('close', () => {
 function clientDialog(id) {
   const c = assertClient(id);
   const next = appointments(id)[0];
-  return {title: `${c.name}的客户档案`, html: `<div class="detail-grid">${pair('负责康复师',name('therapists',c.ownerId))}${pair('所属门店',name('stores',c.storeId))}${pair('手机号',c.phone)}${pair(name('stores',c.storeId)+'剩余',`${model.remainingInStore(id,c.storeId)} 次`)}</div>${c.openingNotes ? `<div class="note"><strong>期初核对依据</strong><p>${esc(c.openingNotes)}</p></div>` : ""}<h3>${esc(c.goal)}</h3><p>${esc(c.phase)} · ${esc(c.nextStep)}</p><div class="action-row">${button('完整计划','plan',id,'btn-outline')}${button('评估记录','assessment-history',id,'btn-outline')}${button('登记评估数据','assessment-create',id,'btn-outline')}${button('套餐次数','package',id,'btn-outline')}${role.type==='boss'?button('办理本店套餐','create-store-package',id,'btn-outline'):''}${button('预约记录','appointment-history',id,'btn-outline')}${role.type === 'boss' && c.packageId && !find('packages',c.packageId)?.closed && model.remaining(id) === 0 ? button('续接新套餐','renew-package',id,'btn-primary') : ''}${canEditPlan(c) ? button('更新计划','edit-plan',id,'btn-outline') : ''}</div><h3>下一次服务</h3>${next ? `<p>${date(next.date)} ${next.time} · ${esc(next.project)}</p><p class="meta">${esc(name('therapists',next.principalId))} · ${esc(name('stores',next.storeId))}</p><div class="action-row">${button('改约','appointment-edit',next.id)}${button('取消预约','appointment-cancel',next.id,'btn-quiet')}</div>` : '<p class="muted">暂无待服务安排</p>'}<div class="action-row">${button('登记已完成服务','register',id,'btn-primary','plus')}${button('安排下次服务','appointment-create',id,'btn-outline','calendar')}${button('与朋友一起预约','appointment-batch',id,'btn-outline')}</div><h3>服务历史</h3>${clientServices(id).map(s => `<div class="row"><div><strong>${date(s.date)} · ${esc(s.project)}</strong><p class="meta">${esc(name('therapists',s.principalId))} · ${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? '已完成' : '已撤销'}</p></div>${link('明细','service-detail',s.id)}</div>`).join('') || '<p class="muted">暂无新增服务记录</p>'}${role.type === 'boss' ? `<div class="action-row">${link('转交负责人','transfer-client',id)}${link('操作留痕','client-audit',id)}</div>` : ''}`};
+  return {title: `${c.name}的客户档案`, html: `<div class="detail-grid">${pair('负责康复师',name('therapists',c.ownerId))}${pair('所属门店',name('stores',c.storeId))}${pair('手机号',c.phone)}${pair(name('stores',c.storeId)+'剩余',`${model.remainingInStore(id,c.storeId)} 次`)}</div>${c.openingNotes ? `<div class="note"><strong>期初核对依据</strong><p>${esc(c.openingNotes)}</p></div>` : ""}<h3>${esc(c.goal)}</h3><p>${esc(c.phase)} · ${esc(c.nextStep)}</p><div class="action-row">${button('完整计划','plan',id,'btn-outline')}${button('评估记录','assessment-history',id,'btn-outline')}${button('登记评估数据','assessment-create',id,'btn-outline')}${button('套餐次数','package',id,'btn-outline')}${role.type==='boss'?button('办理本店套餐','create-store-package',id,'btn-outline')+button('指定各店执行师','assign-store-therapist',id,'btn-outline'):''}${button('预约记录','appointment-history',id,'btn-outline')}${role.type === 'boss' && c.packageId && !find('packages',c.packageId)?.closed && model.remaining(id) === 0 ? button('续接新套餐','renew-package',id,'btn-primary') : ''}${canEditPlan(c) ? button('更新计划','edit-plan',id,'btn-outline') : ''}</div><h3>下一次服务</h3>${next ? `<p>${date(next.date)} ${next.time} · ${esc(next.project)}</p><p class="meta">${esc(name('therapists',next.principalId))} · ${esc(name('stores',next.storeId))}</p><div class="action-row">${button('改约','appointment-edit',next.id)}${button('取消预约','appointment-cancel',next.id,'btn-quiet')}</div>` : '<p class="muted">暂无待服务安排</p>'}<div class="action-row">${button('登记已完成服务','register',id,'btn-primary','plus')}${button('安排下次服务','appointment-create',id,'btn-outline','calendar')}${button('与朋友一起预约','appointment-batch',id,'btn-outline')}</div><h3>服务历史</h3>${clientServices(id).map(s => `<div class="row"><div><strong>${date(s.date)} · ${esc(s.project)}</strong><p class="meta">${esc(name('therapists',s.principalId))} · ${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? '已完成' : '已撤销'}</p></div>${link('明细','service-detail',s.id)}</div>`).join('') || '<p class="muted">暂无新增服务记录</p>'}${role.type === 'boss' ? `<div class="action-row">${link('转交负责人','transfer-client',id)}${link('操作留痕','client-audit',id)}</div>` : ''}`};
 }
 function appointmentDialog(id) {
   const c = currentClient();
@@ -312,7 +313,7 @@ function appointmentDialog(id) {
     const explanation=a.status==='pending_reassignment'?'门店需要重新确认服务人员，请收到新安排后再到店。':a.status==='completed'?'本次服务已完成，请查看服务记录。':'此安排无需按原时间到店，可重新提交预约申请。';
     return {title:label,html:`<h3>${date(a.date)} · ${esc(a.time)}</h3><p>${esc(a.project)} · ${esc(store.name)}</p><p class="notice">${explanation}</p><div class="action-row">${role.type==='customer'?button('查看预约记录','appointment-history',a.clientId,'btn-outline'):''}${a.status==='completed'&&a.serviceId?button('查看服务记录','service-detail',a.serviceId,'btn-outline'):role.type==='customer'?button('预约康复','customer-booking',a.clientId,'btn-primary'):''}</div>`};
   }
-  return {title: '下一次服务安排', html: `<h3>${date(a.date)} ${weekday(a.date)} · ${esc(a.time)}</h3><p>${esc(a.project)}</p><div class="detail-grid">${pair('服务康复师',name('therapists',a.principalId))}${pair('服务门店',store.name)}</div><p class="muted">${esc(store.address)}</p>${a.groupId?'<p class="meta">同行预约 · 这是您本人的服务安排，调整时仅修改您的预约。</p>':''}<p class="notice">按当前服务安排到店，完成服务后才扣套餐次数。</p>${a.status === 'reschedule_requested' ? `<div class="note"><strong>改约申请待确认</strong><p>希望调整到 ${date(a.request.date)} ${a.request.time}</p><p>${esc(a.request.reason)}</p><p class="meta">工作人员确认前，原预约时间仍保留。</p></div>` : ''}<div class="action-row">${button(a.status === 'reschedule_requested' ? '修改改约申请' : '申请调整时间','reschedule',a.id,'btn-primary','calendar')}${button('查看门店信息','stores',a.clientId)}</div>`};
+  return {title: '下一次服务安排', html: `<h3>${date(a.date)} ${weekday(a.date)} · ${esc(a.time)}</h3><p>${esc(a.project)}</p><div class="detail-grid">${pair('服务康复师',name('therapists',a.principalId))}${pair('服务门店',store.name)}</div><p class="muted">${esc(store.address)}</p>${a.groupId?'<p class="meta">同行预约 · 这是您本人的服务安排，调整时仅修改您的预约。</p>':''}<p class="notice">按当前服务安排到店，完成服务后才扣套餐次数。</p>${a.status === 'reschedule_requested' ? `<div class="note"><strong>改约申请待确认</strong><p>希望调整到 ${date(a.request.date)} ${a.request.time}</p><p>${esc(a.request.reason)}</p><p class="meta">工作人员确认前，原预约时间仍保留。</p></div>` : ''}<div class="action-row">${button(a.status === 'reschedule_requested' ? '修改改约申请' : '申请调整时间','reschedule',a.id,'btn-primary','calendar')}${button(a.cancellationRequest?.status==='pending'?'查看取消申请':'申请取消预约','appointment-cancel-request',a.id,'btn-quiet')}${button('查看门店信息','stores',a.clientId)}</div>`};
 }
 function reviewDialog(id) {
   const s = assertService(id);
@@ -345,6 +346,7 @@ function tourDialog() {
 const evaluationTypes = new Set(['assessment-create','assessment-history','assessment-detail','assessment-confirm','assessment-void','frontdesk-work','frontdesk-evaluate','frontdesk-evaluation-detail','frontdesk-evaluation-void']);
 const staffTypes = new Set(['register','edit-plan','appointment-create','appointment-edit','followup','add-store','add-therapist','add-frontdesk','transfer-client','import-opening','revoke-service','register-appointment','renew-package']);
 function buildDialog(type, id) {
+  if(workflowTypes.has(type))return workflowDialog(type,id,ctx());
   if(['add-therapist','add-frontdesk','add-manager','edit-therapist','edit-frontdesk','edit-manager'].includes(type))return personnelDialog(type,id,ctx());
   if(['schedule-edit','schedule-request','schedule-decision','schedule-notification'].includes(type))return scheduleDialog(type,id,ctx());
   if (customerBookingTypes.has(type)) return customerRequestDialog(type,id,customerCtx());
@@ -365,14 +367,14 @@ function buildDialog(type, id) {
     return {title:'停用店长账号',html:form(type,`${hidden('id',id)}<p>停用 ${esc(manager.name)} 后，该账号无法查看本店工作；历史业务记录保留。</p>`,'确认停用')};
   }
   if(type==='import-opening-batch') { assertBoss();return {title:'表格批量录入旧客户',html:'<p class="muted" role="status">正在加载本地表格检查工具…</p>'}; }
-  if(role.type==='frontdesk'&&!['record-receipt','cash-ledger','receipt-detail','refund-detail','settle-receipt','record-arrival','appointment-batch','appointment-create','appointment-edit','appointment-cancel','appointment-no-show','assessment-create','assessment-history','assessment-detail','frontdesk-work','frontdesk-evaluation-detail','reset','tour','mini-info'].includes(type))throw new Error('此操作由康复师或老板处理');
+  if(role.type==='frontdesk'&&!['reception-appointment-list','record-receipt','cash-ledger','receipt-detail','refund-detail','settle-receipt','record-arrival','appointment-batch','appointment-create','appointment-edit','appointment-cancel','appointment-no-show','assessment-create','assessment-history','assessment-detail','frontdesk-work','frontdesk-evaluation-detail','reset','tour','mini-info'].includes(type))throw new Error('此操作由康复师或老板处理');
   if(evaluationTypes.has(type))return evaluationDialog(type,id,ctx());
   if(type==='appointment-batch') {
     if(role.type==='customer')throw new Error('一起预约请联系前台安排');
     if(id)assertClient(id);
     return appointmentBatchDialog(id,ctx());
   }
-  if(type==='record-arrival')return receptionDialog(type,id,ctx());
+  if(['record-arrival','reception-appointment-list'].includes(type))return receptionDialog(type,id,ctx());
   if (['record-receipt','cash-ledger','receipt-detail','refund-detail','refund-receipt','settle-receipt','void-receipt','void-refund'].includes(type)) {
     return cashDialog(type,id,ctx());
   }
@@ -492,6 +494,7 @@ function openDialog(type,id = '') {
   constrainStaffChoices(type,id);
   updateBookingMembers($('#sheet-body form'),ctx());
   updateServicePackageChoices($('#sheet-body form'),ctx());
+  updateWorkflowForm($('#sheet-body form'),ctx());
   updateReceptionIntakeChoices($('#sheet-body form'),ctx());
   updatePaperIntakeForm($('#sheet-body form'),ctx());
   updateScheduleForm($('#sheet-body form'),ctx());
@@ -513,7 +516,7 @@ function openDialog(type,id = '') {
 async function loadLegacyDialog(context) {
   const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
   try {
-    const legacy=await import('./legacy.js?v=20261009-available-times');
+    const legacy=await import('./legacy.js?v=20261009-flow-ease');
     if(!active())return;
     $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
     context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,
@@ -631,7 +634,8 @@ document.addEventListener('click', event => {
       }
       if (task?.type === 'reschedule') return openDialog('appointment-edit',task.appointmentId);
       if (task?.type === 'review_followup') return openDialog('followup',task.reviewId);
-      model.completeTask(id,role); render(); toast('待办已完成，记录已保留'); return;
+      if (task?.type === 'appointment_cancellation') return openDialog('appointment-cancel-handle',task.appointmentId);
+      return openDialog('task-complete',id);
     }
     if (action === 'tour-customer') return switchRole('customer:c2');
     if (action === 'tour-register') { switchRole('therapist:t2'); openDialog('register','c2'); $('#sheet-body [name="storeId"]').value = 'b'; return; }
@@ -676,7 +680,8 @@ document.addEventListener('change', event => {
   if (event.target.matches('[data-booking-client],[data-booking-principal]')) updateBookingMembers(event.target.closest('form'),ctx());
   if (['channel','settlementStatus','purpose'].includes(event.target.name)) updateCashFields(event.target.closest('form'),event.target.name);
   if (['channel','clientId','storeId','purpose','packageId'].includes(event.target.name)) updateCashPackageChoices(event.target.closest('form'),ctx());
-  if (['clientId','storeId','packageId','previousPackageId'].includes(event.target.name)) updateServicePackageChoices(event.target.closest('form'),ctx());
+  if (['clientId','storeId','packageId','previousPackageId','billingMode','receiptId'].includes(event.target.name)) updateServicePackageChoices(event.target.closest('form'),ctx());
+  if (event.target.name==='storeId') updateWorkflowForm(event.target.closest('form'),ctx());
   if (event.target.hasAttribute('data-evidence-picker')) { void addEvidencePhotos(event.target); return; }
   if (event.target.id === 'role-select') switchRole(event.target.value);
   if (event.target.hasAttribute('data-boss-store')) { assertBoss(); filters.storeId = event.target.value; render(); }
@@ -806,6 +811,22 @@ document.addEventListener('submit', async event => {
       throw new Error(['record-receipt','settle-receipt','refund-receipt','void-receipt','void-refund','link-receipt-package','cash-closing','cash-closing-confirm'].includes(type)?'模拟提交失败：内容已保留，收支、套餐和日结未改变，请重试。':type==='record-arrival'?'模拟提交失败：到店状态未改变，请重试。':'模拟提交失败：内容已保留，未扣次数，请重试。');
     }
     let result;
+    if(['task-complete','task-edit','assign-store-therapist','appointment-cancel-request','appointment-cancel-handle','confirm-service-next-step'].includes(type)) {
+      if(type==='task-complete') result=model.completeTask(data.id,role,{result:data.result});
+      else if(type==='task-edit'){assertBoss();result=model.updateTask(data.id,data,role);}
+      else if(type==='assign-store-therapist'){assertBoss();result=model.assignStoreTherapist(data,role);}
+      else if(type==='appointment-cancel-request')result=model.requestAppointmentCancellation(data.id,{reason:data.reason,requestId:context.requestId},role);
+      else if(type==='appointment-cancel-handle')result=model.handleAppointmentCancellation(data.id,data,role);
+      else {
+        const service=assertService(data.serviceId),client=find('clients',service.clientId);
+        if(service.status!=='valid'||!service.nextStepSuggestion||!canEditPlan(client))throw new Error('请由客户负责人或老板确认有效服务的下一步建议');
+        result=model.publishPlan(client.id,{goal:client.goal,phase:client.phase,planNotes:client.planNotes,homeAdvice:client.homeAdvice,progress:client.progress,nextStep:data.nextStep},role);
+      }
+      drafts.delete(context.key);f.dataset.succeeded='true';render();
+      const titles={'task-complete':'待办已完成，处理结果已保留','task-edit':'待办负责人和日期已调整','assign-store-therapist':'本店执行康复师已指定','appointment-cancel-request':'取消申请已提交，待门店处理','appointment-cancel-handle':data.decision==='approve'?'预约已取消，时间已释放':'处理说明已保存，原预约保留','confirm-service-next-step':'客户下一步已更新'};
+      const details=type==='task-complete'?`<p>${esc(result.completionResult||'关联业务已处理')}</p>${button('查看待办记录','task-detail',result.id,'btn-primary')}`:type==='task-edit'?`<p>${esc(name('therapists',result.assigneeId))} · ${esc(result.dueDate)}</p>${button('查看待办','task-detail',result.id,'btn-primary')}`:type==='assign-store-therapist'?`<p>${esc(name('clients',data.clientId))} · ${esc(name('stores',data.storeId))} · ${esc(name('therapists',data.therapistId))}</p><p class="notice">统一负责人和套餐次数保留，客户可以选择该店执行师预约。</p>${button('查看客户档案','client-detail',data.clientId,'btn-primary')}`:type==='confirm-service-next-step'?`<p>${esc(data.nextStep)}</p>${button('查看客户计划','plan',result.id,'btn-primary')}`:`<p class="notice">${type==='appointment-cancel-request'?'原预约仍保留，收到门店处理结果后再确认安排。':'客户可以查看处理结果。'}本次没有扣次数、收款或退款。</p>${button('查看预约记录','appointment-history',result.clientId,'btn-primary')}`;
+      showSuccess(titles[type],details);return;
+    }
     if(['link-receipt-package','cash-closing','cash-closing-confirm'].includes(type)) {
       if(type==='link-receipt-package')assertBoss();
       result=type==='link-receipt-package'?model.linkReceiptPackage({...data,requestId:context.requestId},role):type==='cash-closing'?model.saveCashClosing({...data,requestId:context.requestId},role):model.confirmCashClosing(data.id,{version:data.version,requestId:context.requestId},role);
@@ -840,21 +861,23 @@ document.addEventListener('submit', async event => {
     if(type==='paper-intake-create'||type==='paper-intake-review') {
       result=type==='paper-intake-create'?savePaperIntake(model,{...data,requestId:context.requestId},role):reviewPaperIntake(model,data.id,{...data,requestId:context.requestId},role);
       drafts.delete(context.key);f.dataset.succeeded='true';render();
-      showSuccess(type==='paper-intake-create'?'接待表已保存，待康复师复核':'本次复核与下一步已保存',`<h3>${esc(name('clients',result.clientId))} · ${esc(name('stores',result.storeId))}</h3><p class="meta">本次接待 ${esc(result.date)} ${esc(result.time)} · 负责康复师 ${esc(name('therapists',find('clients',result.clientId).ownerId))}</p><p class="notice">${type==='paper-intake-create'?'记录了客户本次自述，请交给负责康复师核对。尚未形成专业评估结论。':esc(result.review.nextStep)}</p><p>本次保存不收款、不扣次数。</p>${button('查看本次接待表','paper-intake-detail',result.id,'btn-primary')}`);return;
+      showSuccess(type==='paper-intake-create'?'接待表已保存，待康复师复核':'本次复核与下一步已保存',`<h3>${esc(name('clients',result.clientId))} · ${esc(name('stores',result.storeId))}</h3><p class="meta">本次接待 ${esc(result.date)} ${esc(result.time)} · 负责康复师 ${esc(name('therapists',find('clients',result.clientId).ownerId))}</p><p class="notice">${type==='paper-intake-create'?'记录了客户本次自述，请交给负责康复师核对。尚未形成专业评估结论。':esc(result.review.nextStep)}</p><p>本次保存不收款、不扣次数。</p>${button('查看本次接待表','paper-intake-detail',result.id,'btn-primary')}${type==='paper-intake-review'&&result.review.taskId?button('查看下一步待办','task-detail',result.review.taskId,'btn-outline'):''}`);return;
     }
     if(type==='create-store-package') {
       result=model.createStorePackage({...data,requestId:context.requestId},role);
       drafts.delete(context.key);f.dataset.succeeded='true';render();
       showSuccess('本店套餐已建立','<h3>'+esc(name('clients',result.clientId))+' · '+esc(name('stores',result.storeId))+'</h3><p>本套餐剩余 '+model.packageRemaining(result.id)+' 次，仅限本店使用。</p><p class="notice">办卡本身不登记收入。已收到钱时，手动登记这份套餐的收款；之前已经记过的款项，请打开原收款关联，避免重复记账。</p><div class="action-row">'+button('登记本套餐收款','record-receipt',result.id,'btn-primary')+button('查看收款记录','cash-ledger','','btn-outline')+button('查看套餐','package',result.clientId,'btn-outline')+'</div>');return;
     }
-    if (['customer-booking','customer-booking-cancel','customer-booking-confirm'].includes(type)) {
+    if (['customer-booking','customer-booking-cancel','customer-booking-confirm','customer-booking-resolve','customer-booking-accept'].includes(type)) {
       if(type==='customer-booking')result=requestCustomerBooking(model,{...data,requestId:context.requestId},role);
       else if(type==='customer-booking-cancel')result=cancelCustomerBooking(model,data.id,role);
+      else if(type==='customer-booking-resolve')result=resolveCustomerBooking(model,data,role);
+      else if(type==='customer-booking-accept')result=acceptCustomerBookingSuggestion(model,data.id,role);
       else result=confirmCustomerBooking(model,data.id,role);
       drafts.delete(context.key);f.dataset.succeeded='true';render();
-      const title=type==='customer-booking'?'预约申请已提交，待门店确认':type==='customer-booking-cancel'?'预约申请已取消':'预约已确认';
+      const title=type==='customer-booking'?'预约申请已提交，待门店确认':type==='customer-booking-cancel'?'预约申请已取消':type==='customer-booking-resolve'?'预约申请处理结果已保存':type==='customer-booking-accept'?'已接受建议，等待门店确认':'预约已确认';
       showSuccess(title,
-        '<h3>'+date(result.date)+' · '+esc(result.time)+' · '+esc(name('stores',result.storeId))+'</h3><p>'+(type==='customer-booking'?'收到门店确认后再到店。':type==='customer-booking-cancel'?'套餐次数未改变。':'客户可在首页查看确认的预约安排。')+'</p><p class="muted">本次未扣次数、未收款。预览记录仅保存在当前页面，刷新会恢复示例，不会发送给真实门店。</p>'+button('查看申请记录','customer-booking-detail',result.id,'btn-outline'));return;
+        '<h3>'+date(result.date)+' · '+esc(result.time)+' · '+esc(name('stores',result.storeId))+'</h3><p>'+(type==='customer-booking'||type==='customer-booking-accept'?'收到门店确认后再到店。':type==='customer-booking-cancel'?'套餐次数未改变。':type==='customer-booking-resolve'?'客户可查看处理结果；建议时间需要客户接受后，再由门店确认。':'客户可在首页查看确认的预约安排。')+'</p><p class="muted">本次未扣次数、未收款。预览记录仅保存在当前页面，刷新会恢复示例，不会发送给真实门店。</p>'+button('查看申请记录','customer-booking-detail',result.id,'btn-outline'));return;
     }
     if (['assessment-create','assessment-confirm','assessment-void','frontdesk-evaluate','frontdesk-evaluation-void'].includes(type)) {
       if(type==='assessment-create')result=recordAssessment(model,{...data,requestId:context.requestId},role);
@@ -870,7 +893,7 @@ document.addEventListener('submit', async event => {
     if (type === 'register' || type === 'register-appointment') {
       result = model.registerService({...data,participantIds:fd.getAll('participantIds'),evidencePhotos:context.evidencePhotos.map(photo => ({...photo})),requestId:context.requestId},role);
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
-      showSuccess('本次服务已登记',`<h3>${esc(name('clients',result.clientId))} · ${esc(result.project)}</h3><div class="success-summary detail-grid">${pair('本次套餐剩余',`${model.packageRemaining(result.packageId)} 次`)}${pair('消费业绩',`${money(result.amount)}，归${name('therapists',result.principalId)}`)}${pair('照片留底',`${result.evidencePhotos.length} 张，可在服务明细查看`)}</div><p class="muted">协作人员只保留参与记录，本次仅扣 1 次。</p><div class="action-row">${button('查看服务明细','service-detail',result.id,'btn-outline')}${button('安排下一次服务','appointment-create',result.clientId,'btn-outline')}</div>`); return;
+      showSuccess('本次服务已登记',`<h3>${esc(name('clients',result.clientId))} · ${esc(result.project)}</h3>${serviceResultSummary(result,ctx())}<div class="action-row">${button('查看服务明细','service-detail',result.id,'btn-outline')}${button('安排下一次服务','appointment-create',result.clientId,'btn-outline')}${result.nextStepSuggestion&&canEditPlan(find('clients',result.clientId))?button('确认客户下一步','confirm-service-next-step',result.id,'btn-primary'):''}</div>`); return;
     }
     if (type === 'record-receipt' || type === 'settle-receipt' || type === 'refund-receipt') {
       if(type==='refund-receipt')assertBoss();
@@ -912,7 +935,7 @@ document.addEventListener('submit', async event => {
     else if (type === 'revoke-service') {
       result = model.revokeService(data.id,data.reason,role);
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
-      showSuccess(find('packages',result.packageId)?.closed?'消课已更正，业绩已冲回':'次数已恢复，业绩已冲回',`<div class="detail-grid">${pair('客户',name('clients',result.clientId))}${pair('恢复至原套餐',name('packages',result.packageId))}${pair('原套餐剩余',`${model.packageRemaining(result.packageId)} 次`)}${pair('当前套餐剩余',`${model.remaining(result.clientId)} 次`)}${pair('冲回消费业绩',money(result.amount))}${pair('主康复师',name('therapists',result.principalId))}</div><p class="muted">原服务记录与撤销原因已保留。${find('packages',result.packageId)?.closed?'套餐已结束，本次更正不会重新启用次数。':''}</p>${button('查看原记录','service-detail',result.id,'btn-outline')}`); return;
+      showSuccess(result.billingMode==='single'?'服务已更正，业绩已冲回':find('packages',result.packageId)?.closed?'消课已更正，业绩已冲回':'次数已恢复，业绩已冲回',`${serviceResultSummary(result,ctx(),'revoked')}${button('查看原记录','service-detail',result.id,'btn-outline')}`); return;
     } else if (type === 'reset') {
       model = new DemoModel(); ensureStorePackageExamples(model); ensureEvaluations(model); ensurePaperIntakes(model); ensureCustomerBooking(model); ensureSchedules(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
       closeDialog(false); role = {type:'customer',id:'c1'}; view='home'; filters={storeId:'',therapistId:'',from:'',to:'',query:''}; render(true); toast('示例已重置'); return;
@@ -923,7 +946,7 @@ document.addEventListener('submit', async event => {
   finally {
     f.dataset.busy = 'false';
     submits.forEach(el => { el.disabled = false; el.textContent = el.dataset.original; });
-    if(f.isConnected){updateReceptionIntakeChoices(f,ctx());updatePaperIntakeForm(f,ctx());updateScheduleForm(f,ctx());updateAppointmentAvailability(f,ctx());}
+    if(f.isConnected){if(f.dataset.form==='assign-store-therapist')updateWorkflowForm(f,ctx());updateReceptionIntakeChoices(f,ctx());updatePaperIntakeForm(f,ctx());updateScheduleForm(f,ctx());updateAppointmentAvailability(f,ctx());}
     updateEvidencePicker();
   }
 });
@@ -935,7 +958,7 @@ function exportPreview() {
   const exportService = s => {
     const {inputKey, taskSnapshots, appointmentSnapshots, evidencePhotos, ...record} = s;
     const photos = model.canSeeEvidence(role, s.id) ? evidencePhotos || [] : undefined;
-    return role.type === 'customer' ? {id:s.id,clientId:s.clientId,storeId:s.storeId,date:s.date,time:s.time,project:s.project,principalId:s.principalId,participantIds:s.participantIds,sessions:s.sessions,status:s.status,notes:s.notes,revokeReason:s.revokeReason,recordedAt:s.recordedAt || s.createdAt,recordedBy:s.recordedBy,evidencePhotos:photos} : {...record,...(photos ? {evidencePhotos:photos} : {})};
+    return role.type === 'customer' ? {id:s.id,clientId:s.clientId,storeId:s.storeId,date:s.date,time:s.time,project:s.project,principalId:s.principalId,participantIds:s.participantIds,sessions:s.sessions,billingMode:s.billingMode,status:s.status,notes:s.notes,nextStepSuggestion:s.nextStepSuggestion,revokeReason:s.revokeReason,recordedAt:s.recordedAt || s.createdAt,recordedBy:s.recordedBy,evidencePhotos:photos} : {...record,...(photos ? {evidencePhotos:photos} : {})};
   };
   const cleanAudit=row=>{const {inputKey,requestId,personnelOperation,...safe}=row;return safe;};
   const cleanCash=row=>{const {inputKey,requestId,requestType,confirmRequestId,confirmInputKey,ledgerFingerprint,...safe}=row;return safe;};

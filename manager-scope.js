@@ -2,8 +2,10 @@ const pick = (row, keys) => Object.fromEntries(keys.filter(key => row[key] !== u
 const clone = value => JSON.parse(JSON.stringify(value));
 
 export function managerClientInStore(model, client, storeId) {
-  return client.storeId === storeId || model.state.packages.some(pack => pack.clientId === client.id && pack.storeId === storeId) || ['appointments', 'services', 'receipts', 'refunds', 'assessments'].some(collection =>
-    (model.state[collection] || []).some(row => row.clientId === client.id && row.storeId === storeId));
+  return client.storeId === storeId || model.state.packages.some(pack => pack.clientId === client.id && pack.storeId === storeId) ||
+    model.state.therapists.some(person=>person.active&&person.storeId===storeId&&client.storeTherapistIds?.[storeId]===person.id) ||
+    ['appointments', 'services', 'receipts', 'refunds', 'assessments', 'paperIntakes', 'tasks'].some(collection =>
+      (model.state[collection] || []).some(row => row.clientId === client.id && row.storeId === storeId && (collection !== 'tasks' || row.type !== 'review_followup' && !row.reviewId)));
 }
 
 // Scope every record by its actual store. A shared client or visiting member of
@@ -54,13 +56,13 @@ export function storeWorkSnapshot(model, role, filters = {}) {
       return { ...pick(client, ['id', 'name', 'phone', 'age', 'problem', 'ownerId', 'storeId', 'planName', 'goal', 'phase', 'nextStep', 'phaseNote', 'progress', 'homeAdvice']), packageId:pack?.id || null, remaining, total, used:total-remaining, packageName:pack?.name || '暂无本店可用套餐' };
     }),
     services: dated(state.services).map(row => ({
-      ...pick(row, ['id', 'clientId', 'packageId', 'storeId', 'date', 'time', 'project', 'principalId', 'participantIds', 'ownerId', 'recordedBy', 'recordedAt', 'createdAt', 'amount', 'amountMinor', 'sessions', 'status', 'notes', 'revokeReason', 'revokedBy', 'revokedAt']),
+      ...pick(row, ['id', 'clientId', 'packageId', 'storeId', 'date', 'time', 'project', 'principalId', 'participantIds', 'ownerId', 'recordedBy', 'recordedAt', 'createdAt', 'amount', 'amountMinor', 'sessions', 'billingMode', 'receiptId', 'nextStepSuggestion', 'status', 'notes', 'revokeReason', 'revokedBy', 'revokedAt']),
       // Keep large photo bytes out of summary responses. The photo viewer reads
       // the requested photo only after checking this service's store again.
       evidencePhotos: (row.evidencePhotos || []).map(photo => pick(photo, ['id', 'width', 'height', 'recordedAt', 'recordedBy'])),
     })),
-    appointments: dated(state.appointments).map(row => pick(row, ['id', 'clientId', 'storeId', 'date', 'time', 'project', 'principalId', 'participantIds', 'status', 'groupId', 'serviceId', 'request', 'requestNote', 'arrivalAt', 'arrivalBy', 'arrivalByRole', 'createdAt', 'cancelReason', 'cancelledAt', 'noShowReason', 'noShowAt'])),
-    tasks: tasks.map(row => pick(row, ['id', 'clientId', 'title', 'assigneeId', 'dueDate', 'status', 'type', 'appointmentId', 'serviceId', 'completedAt'])),
+    appointments: dated(state.appointments).map(row => pick(row, ['id', 'clientId', 'storeId', 'date', 'time', 'project', 'principalId', 'participantIds', 'status', 'groupId', 'serviceId', 'request', 'requestNote', 'arrivalAt', 'arrivalBy', 'arrivalByRole', 'cancellationRequest', 'cancellationHistory', 'createdAt', 'cancelReason', 'cancelledAt', 'noShowReason', 'noShowAt'])),
+    tasks: tasks.map(row => pick(row, ['id', 'clientId', 'title', 'assigneeId', 'dueDate', 'status', 'type', 'appointmentId', 'serviceId', 'paperIntakeId', 'storeId', 'completedAt', 'completedBy', 'completionResult'])),
     assessments: dated(state.assessments).map(row => pick(row, ['id', 'clientId', 'storeId', 'date', 'time', 'type', 'project', 'therapistId', 'summary', 'metrics', 'status', 'recordedBy', 'recordedRole', 'createdAt', 'confirmedBy', 'confirmedAt', 'voidReason', 'voidedBy', 'voidedAt'])),
     receipts: receiptRows, refunds: refundRows,
     frontDeskEvaluations: localEvaluations.filter(row => (!from || row.to >= from) && (!to || row.from <= to)).map(row => pick(row, ['id', 'frontDeskId', 'storeId', 'from', 'to', 'dataConclusion', 'receptionConclusion', 'cashConclusion', 'summary', 'improvement', 'dueDate', 'status', 'createdAt', 'voidReason'])),

@@ -1,3 +1,4 @@
+import {workflowTypes,workflowDialog} from './workflow-ui.js';
 import { paperIntakeRows } from './paper-intake.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -337,7 +338,7 @@ function sourceFunction(name, after) {
 function appReaders(m, role) {
   let download;
   const find = (kind, id) => m.state[kind]?.find(row => row.id === id);
-  const scope = {
+  const scope = { workflowTypes,workflowDialog,
     model: m, role, filters: {}, find, esc, ctx: () => ctx(m, role),
     managerDialog, receptionStores, receptionDialog, assertReceptionAppointment, appointmentBatchDialog, staffDialog, personnelDialog, cashDialog,
     assessmentRows, frontDeskEvaluationRows, evaluationDialog, customerBookingRows, paperIntakeRows, customerBookingTypes, customerRequestDialog,

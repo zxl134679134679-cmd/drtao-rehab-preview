@@ -929,3 +929,30 @@ fieldset.field.evidence-field legend { padding: 0 6px; font-size: 14px; font-wei
 }
 
 .booking-availability{padding:14px 16px;border:1px solid #d5e3cf;border-radius:14px;background:#f4f8f0;margin:16px 0;line-height:1.7;font-size:14px;overflow-wrap:anywhere}.booking-availability p{margin:3px 0}.schedule-slot-warning{color:#785125;font-weight:600}.staff-mode .nav-item{min-width:0}.staff-mode .nav-label{font-size:12px}@media(max-width:360px){.staff-mode .nav-label{font-size:11px}}
+
+/* Daily work first; optional details stay available without filling the screen. */
+.cash-hero-compact { padding: 20px 24px; }
+.cash-hero-compact .cash-total { font-size: 44px; margin: 8px 0 4px; }
+.cash-hero-compact .cash-hero-actions { margin: 12px 0; }
+.cash-hero-compact .cash-hero-note { margin-top: 10px; }
+.cash-channel-details { margin-top: 10px; border-top: 1px solid #ffffff30; padding-top: 10px; }
+.cash-channel-details summary { cursor: pointer; color: #ecf6ed; font-size: 13px; }
+.cash-channel-details .cash-channels { border-top: 0; padding-top: 12px; }
+.cash-hero-compact + .cash-pending-bar { padding: 10px 16px; margin-bottom: 14px; }
+.reception-closing { border: 1px solid var(--line); border-radius: 14px; background: #fff; margin: 18px 0; }
+.reception-closing > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer; padding: 16px 18px; }
+.reception-closing > summary span { color: var(--muted); font-size: 13px; }
+.reception-closing .cash-closing-summary { margin: 0 14px 14px; }
+button.ease-work-stat { text-align: left; color: inherit; cursor: pointer; font: inherit; }
+button.ease-work-stat:hover { border-color: #a9c699; background: #f4f8ee; }
+.boss-dashboard .cash-hero-compact ~ .boss-stats { margin-bottom: 16px; }
+[data-service-package-block][hidden], [data-service-single-block][hidden] { display: none; }
+[data-service-package-block] .note { margin-top: 12px; }
+.booking-store-balances { display:flex; flex-wrap:wrap; gap:8px 18px; margin:12px 0 20px; color:var(--muted); font-size:13px; }
+.booking-store-balances strong { color:var(--green); }
+.booking-store-balances small { width:100%; font-size:12px; }
+@media (max-width: 600px) {
+  .cash-hero-compact { padding: 18px; }
+  .cash-hero-compact .cash-total { font-size: 38px; }
+  .reception-closing > summary { padding: 14px; }
+}
