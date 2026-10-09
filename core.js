@@ -666,6 +666,16 @@ export class DemoModel {
     return clients;
   }
 
+  reviewRows(role) {
+    if (role?.type === 'boss' && role.id === 'boss') return this.state.reviews;
+    if (role?.type === 'customer' && this.state.clients.some(client => client.id === role.id)) {
+      return this.state.reviews.filter(review => review.clientId === role.id);
+    }
+    // Being responsible for or participating in a service never grants access
+    // to that customer's private rating or the boss's follow-up record.
+    return [];
+  }
+
   serviceRows(filters = {}) {
     return this.state.services.filter(item =>
       (!filters.storeId || item.storeId === filters.storeId) &&
@@ -968,6 +978,7 @@ export class DemoModel {
   completeTask(id, role) {
     const row = this.state.tasks.find(item => item.id === id);
     if (!row) throw new Error('待办事项不存在');
+    if (row.type === 'review_followup') this._boss(role);
     if (role?.type === 'boss') this._boss(role);
     else if (role?.type !== 'therapist' || role.id !== row.assigneeId || !this.canSeeClient(role, row.clientId)) throw new Error('仅待办负责人或老板有权限完成');
     const appointment = this.state.appointments.find(item => item.id === row.appointmentId);

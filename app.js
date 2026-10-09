@@ -1,5 +1,5 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS } from './core.js?v=20261009-legacy-import';
-import { renderStaff, staffDialog } from './staff.js?v=20261009-hourly';
+import { DemoModel, TODAY, EVIDENCE_LIMITS } from './core.js?v=20261009-review-privacy';
+import { renderStaff, staffDialog } from './staff.js?v=20261009-review-privacy';
 import { hourTimeField } from './hour-picker.js?v=20261009-hourly';
 import { cashDialog, updateCashFields } from './cash.js?v=20261009-legacy-import';
 import { receptionDialog, receptionStores, assertReceptionAppointment } from './reception.js?v=20261009-evaluations';
@@ -41,14 +41,14 @@ const pair = (label, value) => `<div class="detail-pair"><span class="muted">${l
 const ctx = () => ({model, role, view, filters, esc, icon, fmt: {money, date}, ui: {}});
 const clientServices = id => model.serviceRows({clientId: id});
 const appointments = id => model.state.appointments.filter(a => a.clientId === id && a.date >= TODAY && ['confirmed','reschedule_requested'].includes(a.status)).sort((a,b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
-const reviewFor = id => model.state.reviews.find(r => r.serviceId === id);
+const reviewFor = id => model.reviewRows(role).find(r => r.serviceId === id);
 const currentClient = () => find('clients', role.id);
 const canEditPlan = client => role.type === 'boss' || (role.type === 'therapist' && client.ownerId === role.id);
 function assertClient(id) {
   if (!model.canSeeClient(role, id)) throw new Error('您没有查看该客户档案的权限');
   return find('clients', id);
 }
-function assertBoss() { if (role.type !== 'boss') throw new Error('此操作仅老板可使用'); }
+function assertBoss() { if (role.type !== 'boss' || role.id !== 'boss') throw new Error('此操作仅老板可使用'); }
 function assertStaff() { if (!['boss','therapist'].includes(role.type)) throw new Error('此操作仅工作人员可使用'); }
 function assertService(id) {
   if(role.type==='frontdesk')throw new Error('前台只查看接待信息，服务明细由客户、康复师和老板查看');
@@ -178,7 +178,7 @@ function serviceDialog(id) {
   const s = assertService(id);
   const r = reviewFor(id);
   const canOpenClient = model.canSeeClient(role, s.clientId);
-  return {title: '服务明细', html: `<span class="tag ${s.status === 'valid' ? 'tag-green' : 'tag-warn'}">${s.status === 'valid' ? '已完成' : '已撤销'}</span><h3>${esc(s.project)}</h3><div class="detail-grid">${pair('客户',name('clients',s.clientId))}${pair('服务日期',`${date(s.date)} ${s.time}`)}${pair('服务门店',name('stores',s.storeId))}${pair('本次主康复师',name('therapists',s.principalId))}${pair('参与康复师',s.participantIds.map(t => name('therapists',t)).join('、') || '独立服务')}${pair('登记时客户负责人',name('therapists',s.ownerId))}${pair('登记人',name('therapists',s.recordedBy))}${pair('使用套餐',find('packages',s.packageId)?.name || '原套餐')}${pair('套餐次数',s.status === 'valid' ? `使用 ${s.sessions} 次` : '已恢复原套餐 1 次')}${role.type !== 'customer' ? pair('消费业绩',s.status === 'valid' ? `${money(s.amount)}，归${name('therapists',s.principalId)}` : `${money(s.amount)} 已冲回`) : ''}</div><h3>这次为您做了什么</h3><p>${esc(s.notes)}</p>${serviceEvidence(s)}${s.status === 'revoked' ? `<div class="note"><strong>撤销说明</strong><p>${esc(s.revokeReason)}</p><p class="meta">处理人 ${esc(name('therapists',s.revokedBy))} · 原记录保留</p></div>` : ''}${r ? `<div class="note"><strong>客户评价 ${r.score} 分</strong><p>${esc(r.feedback || '未填写文字反馈')}</p><p class="meta">${r.followupStatus === 'closed' ? '已完成回访' : r.followupStatus === 'pending' ? '工作人员待跟进' : '已记录'}</p></div>` : ''}<div class="action-row">${role.type === 'customer' && s.status === 'valid' ? button(r ? '查看我的评价' : '评价本次服务','review',id,'btn-primary','star') : ''}${role.type !== 'customer' && canOpenClient ? button('打开客户档案','client-detail',s.clientId,'btn-outline') : ''}${role.type === 'boss' && s.status === 'valid' ? button('撤销错误登记','revoke-service',id,'btn-quiet') : ''}${role.type === 'boss' && r?.followupStatus === 'pending' ? button('记录回访','followup',r.id,'btn-primary') : ''}</div>`};
+  return {title: '服务明细', html: `<span class="tag ${s.status === 'valid' ? 'tag-green' : 'tag-warn'}">${s.status === 'valid' ? '已完成' : '已撤销'}</span><h3>${esc(s.project)}</h3><div class="detail-grid">${pair('客户',name('clients',s.clientId))}${pair('服务日期',`${date(s.date)} ${s.time}`)}${pair('服务门店',name('stores',s.storeId))}${pair('本次主康复师',name('therapists',s.principalId))}${pair('参与康复师',s.participantIds.map(t => name('therapists',t)).join('、') || '独立服务')}${pair('登记时客户负责人',name('therapists',s.ownerId))}${pair('登记人',name('therapists',s.recordedBy))}${pair('使用套餐',find('packages',s.packageId)?.name || '原套餐')}${pair('套餐次数',s.status === 'valid' ? `使用 ${s.sessions} 次` : '已恢复原套餐 1 次')}${role.type !== 'customer' ? pair('消费业绩',s.status === 'valid' ? `${money(s.amount)}，归${name('therapists',s.principalId)}` : `${money(s.amount)} 已冲回`) : ''}</div><h3>这次为您做了什么</h3><p>${esc(s.notes)}</p>${serviceEvidence(s)}${s.status === 'revoked' ? `<div class="note"><strong>撤销说明</strong><p>${esc(s.revokeReason)}</p><p class="meta">处理人 ${esc(name('therapists',s.revokedBy))} · 原记录保留</p></div>` : ''}${r ? `<div class="note"><strong>客户评价 ${r.score} 分</strong><p>${esc(r.feedback || '未填写文字反馈')}</p><p class="meta">${r.followupStatus === 'closed' ? '已完成回访' : r.followupStatus === 'pending' ? '老板待跟进' : '已记录'}</p></div>` : ''}<div class="action-row">${role.type === 'customer' && s.status === 'valid' ? button(r ? '查看我的评价' : '评价本次服务','review',id,'btn-primary','star') : ''}${role.type !== 'customer' && canOpenClient ? button('打开客户档案','client-detail',s.clientId,'btn-outline') : ''}${role.type === 'boss' && s.status === 'valid' ? button('撤销错误登记','revoke-service',id,'btn-quiet') : ''}${role.type === 'boss' && r?.followupStatus === 'pending' ? button('记录回访','followup',r.id,'btn-primary') : ''}</div>`};
 }
 function serviceEvidence(service) {
   const photos = service.evidencePhotos || [];
@@ -291,9 +291,9 @@ function reviewDialog(id) {
   const s = assertService(id);
   if (role.type !== 'customer' || role.id !== s.clientId) throw new Error('只有客户本人可以填写评价');
   const r = reviewFor(id);
-  if (r) return {title: '我的服务评价', html: `<div class="review-score"><strong>${r.score}</strong><span> / 5 分</span></div><p>${esc(r.feedback || '您没有填写文字反馈。')}</p><p class="meta">${date(s.date)} · ${esc(s.project)} · ${esc(name('therapists',s.principalId))}</p>${r.followupStatus === 'pending' ? '<div class="notice">您的反馈已进入待跟进列表，工作人员将在后续服务中与您沟通。</div>' : r.followupStatus === 'closed' ? `<div class="note"><strong>已完成回访</strong><p>${esc(r.resolution)}</p></div>` : '<p class="notice">感谢您的反馈，我们会持续完善每次服务。</p>'}`};
+  if (r) return {title: '我的服务评价', html: `<div class="notice" role="note"><strong>评价仅老板可见</strong><p>除您本人外，评分和文字反馈仅老板可查看，康复师和前台无法查看。请放心填写真实体验。</p></div><div class="review-score"><strong>${r.score}</strong><span> / 5 分</span></div><p>${esc(r.feedback || '您没有填写文字反馈。')}</p><p class="meta">${date(s.date)} · ${esc(s.project)} · ${esc(name('therapists',s.principalId))}</p>${r.followupStatus === 'pending' ? '<div class="notice">您的反馈已交给老板，等待老板进一步了解情况。</div>' : r.followupStatus === 'closed' ? `<div class="note"><strong>已完成回访</strong><p>${esc(r.resolution)}</p></div>` : '<p class="notice">感谢您的反馈，我们会持续完善每次服务。</p>'}`};
   if (s.status !== 'valid') throw new Error('已撤销的服务不能评价');
-  return {title: '这次服务体验怎么样？', html: form('review', `${hidden('serviceId',id)}<p class="muted">${date(s.date)} · ${esc(s.project)} · ${esc(name('therapists',s.principalId))}</p><fieldset class="field"><legend>请为本次服务评分</legend><div class="star-picker">${[1,2,3,4,5].map(n => `<label class="star-option"><input type="radio" name="score" value="${n}" required aria-label="${n} 分">${icon('star',30)}<span>${n} 分</span></label>`).join('')}</div></fieldset>${textarea('您的反馈（可选）','feedback','','maxlength="1000" placeholder="哪里帮助到了您？还有什么需要改进？"')}<label class="check"><input type="checkbox" name="wantContact"><span>希望工作人员联系我，进一步了解情况</span></label><p class="meta">您的真实反馈会帮助我们改进后续服务。</p>`,'提交评价')};
+  return {title: '这次服务体验怎么样？', html: form('review', `${hidden('serviceId',id)}<p class="muted">${date(s.date)} · ${esc(s.project)} · ${esc(name('therapists',s.principalId))}</p><div class="notice" role="note"><strong>评价仅老板可见</strong><p>除您本人外，评分和文字反馈仅老板可查看，康复师和前台无法查看。请放心填写真实体验。</p></div><fieldset class="field"><legend>请为本次服务评分</legend><div class="star-picker">${[1,2,3,4,5].map(n => `<label class="star-option"><input type="radio" name="score" value="${n}" required aria-label="${n} 分">${icon('star',30)}<span>${n} 分</span></label>`).join('')}</div></fieldset>${textarea('您的反馈（可选）','feedback','','maxlength="1000" placeholder="哪里帮助到了您？还有什么需要改进？"')}<label class="check"><input type="checkbox" name="wantContact"><span>希望老板联系我，进一步了解情况</span></label><p class="meta">您的真实反馈会帮助我们改进后续服务。</p>`,'提交评价')};
 }
 function requestDialog(id) {
   const a = find('appointments',id);
@@ -368,12 +368,12 @@ function buildDialog(type, id) {
   }
   if (type === 'privacy') {
     assertClient(id);
-    return {title:'我的档案与隐私',html:'<p>客户端查看本人的计划、套餐与服务记录。康复师查看自己负责或实际参与服务的客户，老板统一管理各店记录。</p><p>服务留底照片由客户本人、当前负责康复师、本次主/协作康复师及老板查看。参与该客户其他服务，不会自动获得本次照片权限。</p><p class="muted">本次预览使用虚构数据，角色切换仅用于体验。正式版本需要真实身份验证和服务器权限校验。</p>'};
+    return {title:'我的档案与隐私',html:'<p>客户端查看本人的计划、套餐与服务记录。康复师查看自己负责或实际参与服务的客户，老板统一管理各店记录。</p><p>服务留底照片由客户本人、当前负责康复师、本次主/协作康复师及老板查看。参与该客户其他服务，不会自动获得本次照片权限。</p><p>除客户本人外，服务评分、文字反馈和老板的回访记录仅老板可查看，康复师和前台无法查看。</p><p class="muted">本次预览使用虚构数据，角色切换仅用于体验。正式版本需要真实身份验证和服务器权限校验。</p>'};
   }
   if (type === 'help') {
     assertClient(id);
     const last = clientServices(id).find(s => s.status === 'valid');
-    return {title:'反馈与帮助',html:`<h3>您的负责康复师：${esc(name('therapists',find('clients',id).ownerId))}</h3><p>调整到店时间，可在下一次服务中申请改约。对已完成服务有建议，可填写评价并勾选“希望工作人员联系我”。</p><div class="action-row">${role.type === 'customer' ? button('查看预约','appointment',appointments(id)[0]?.id || '','btn-outline') : ''}${last && role.type === 'customer' ? button('反馈最近一次服务','review',last.id,'btn-primary') : ''}</div><p class="muted">正式版本会补充真实客服电话和微信联系入口。</p>`};
+    return {title:'反馈与帮助',html:`<h3>您的负责康复师：${esc(name('therapists',find('clients',id).ownerId))}</h3><p>调整到店时间，可在下一次服务中申请改约。对已完成服务有建议，可填写评价并勾选“希望老板联系我”。除您本人外，评分与文字反馈仅老板可查看，康复师和前台无法查看。</p><div class="action-row">${role.type === 'customer' ? button('查看预约','appointment',appointments(id)[0]?.id || '','btn-outline') : ''}${last && role.type === 'customer' ? button('反馈最近一次服务','review',last.id,'btn-primary') : ''}</div><p class="muted">正式版本会补充真实客服电话和微信联系入口。</p>`};
   }
   if (type === 'mini-info') return {title:'涛博士 · 客户体验预览',html:'<p>您可以体验查看康复计划、剩余次数、下一次服务、服务记录与评价。</p><p class="muted">所有姓名与服务安排均为虚构示例。评价和改约仅用于体验，刷新后恢复示例，不会提交给门店。微信登录、真实档案和消息提醒将在正式版本启用。</p>'};
   if (type === 'reset') return {title:'重置示例数据',html:form('reset','<p>将恢复初始的两家门店、五名康复师和虚构客户。本次预览中新增的记录与草稿会清除。</p>','恢复初始示例')};
@@ -694,7 +694,7 @@ document.addEventListener('submit', async event => {
     else if (type === 'review') {
       result = model.submitReview(data.serviceId,{...data,wantContact:fd.has('wantContact')},role);
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
-      showSuccess('评价已提交',`<h3>感谢您的真实反馈</h3><p>${result.followupStatus === 'pending' ? '您的反馈已进入工作人员的待跟进列表。' : '您的反馈会帮助我们完善后续服务。'}</p>`); return;
+      showSuccess('评价已提交',`<h3>感谢您的真实反馈</h3><p>${result.followupStatus === 'pending' ? '您的反馈已进入老板的待跟进列表。' : '您的评价仅老板可查看，会帮助我们完善后续服务。'}</p>`); return;
     } else if (type === 'followup') model.closeFollowup(data.reviewId,data.result,role);
     else if (type === 'add-store') model.addStore(data,role);
     else if (type === 'add-therapist') model.addTherapist(data,role);
@@ -722,6 +722,7 @@ document.addEventListener('submit', async event => {
 });
 
 function exportPreview() {
+  if (role.type === 'boss') assertBoss();
   const ids = new Set(model.visibleClients(role).map(c => c.id));
   const state = model.state;
   const exportService = s => {
@@ -741,8 +742,8 @@ function exportPreview() {
     packages:state.packages.filter(p => ids.has(p.clientId)),
     services:state.services.filter(s => ids.has(s.clientId) || (role.type === 'therapist' && (s.principalId === role.id || s.participantIds.includes(role.id)))).map(exportService),
     appointments:state.appointments.filter(a => ids.has(a.clientId)),
-    tasks:state.tasks.filter(t => ids.has(t.clientId) && (role.type === 'customer' ? ['plan','assessment','review','reschedule'].includes(t.type) : t.assigneeId === role.id)),
-    reviews:state.reviews.filter(r => ids.has(r.clientId)),
+    tasks:state.tasks.filter(t => ids.has(t.clientId) && (role.type === 'customer' ? ['plan','assessment','review','reschedule'].includes(t.type) : t.type !== 'review_followup' && t.assigneeId === role.id)),
+    reviews:model.reviewRows(role),
     assessments:assessmentRows(model,role)
   };
   const blob = new Blob([JSON.stringify({说明:'虚构示例，非真实业务档案',身份:role,数据:data},null,2)],{type:'application/json'});

@@ -20,7 +20,7 @@ function h(ctx) {
   const clients = ctx.model.visibleClients(role);
   const rows = filters => ctx.model.serviceRows(filters || {});
   const inScope = service => role.type === 'boss' || clients.some(c => c.id === service.clientId);
-  const pendingTasks = (state.tasks || []).filter(t => t.status !== 'completed' && t.status !== 'done' && (role.type === 'boss' || (t.assigneeId === role.id && clients.some(c => c.id === t.clientId)))).sort((a, b) => (a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31') || a.title.localeCompare(b.title));
+  const pendingTasks = (state.tasks || []).filter(t => t.status !== 'completed' && t.status !== 'done' && (role.type === 'boss' || (t.type !== 'review_followup' && t.assigneeId === role.id && clients.some(c => c.id === t.clientId)))).sort((a, b) => (a.dueDate || '9999-12-31').localeCompare(b.dueDate || '9999-12-31') || a.title.localeCompare(b.title));
   const appointments = (state.appointments || []).filter(a => ['confirmed', 'reschedule_requested', 'pending_reassignment'].includes(a.status) && (role.type === 'boss' || (clients.some(c => c.id === a.clientId) && (a.principalId === role.id || (a.status === 'pending_reassignment' && client(a.clientId)?.ownerId === role.id)))));
   return { state, esc, find, name, ico, money, date, action, link, tag, role, client, clients, rows, inScope, pendingTasks, appointments };
 }
@@ -44,7 +44,7 @@ export function workSummary(model, role, today = model.today || TODAY) {
   const visible = new Set(clients.map(c => c.id));
   const isPending = item => !['completed', 'done'].includes(item.status);
   const pendingTasks = (state.tasks || []).filter(t => isPending(t) && visible.has(t.clientId) &&
-    (role.type === 'boss' || t.assigneeId === role.id));
+    (role.type === 'boss' || (t.type !== 'review_followup' && t.assigneeId === role.id)));
   const assignedRequests = new Set(pendingTasks.filter(t => t.type === 'reschedule').map(t => t.appointmentId));
   const ordered = rows => rows.slice().sort((a, b) => `${a.date || ''} ${a.time || ''}`.localeCompare(`${b.date || ''} ${b.time || ''}`));
   const appointments = ordered((state.appointments || []).filter(a => ['confirmed', 'reschedule_requested', 'pending_reassignment'].includes(a.status) && visible.has(a.clientId) &&
@@ -182,7 +182,7 @@ function overview(ctx) {
   const scopeLabel = `${f.storeId ? x.name('stores',f.storeId) : '全部门店'}${f.therapistId ? ` · ${x.name('therapists',f.therapistId)}` : ''}`;
   const notice = (title, count, unit, html) => `<details class="boss-notice"><summary><span>${title}</span><span class="boss-notice-count ${count ? 'has-items' : ''}">${count} ${unit}</span>${x.ico('chevron-right',18)}</summary><div class="boss-notice-body">${html}</div></details>`;
   const appointmentRows = b.appointments.map(a => `<div class="boss-detail-row"><strong>${x.esc(x.client(a.clientId)?.name)} · ${a.status === 'pending_reassignment' ? '服务人员待重新安排' : a.date < TODAY ? '到店情况待确认' : '申请改约'}</strong><p class="meta">${x.date(a.date)} ${x.esc(a.time)} · ${x.esc(x.name('stores',a.storeId))} · ${x.esc(x.name('therapists',a.principalId))}</p><div class="action-row">${x.action('核实与处理','appointment-history',a.clientId,'btn-small btn-primary')}</div></div>`).join('');
-  const reviewRows = b.reviews.map(r => { const s = x.find('services',r.serviceId); return `<div class="boss-detail-row"><strong>${x.esc(x.client(s?.clientId || r.clientId)?.name)} · ${r.score} 分评价</strong><p>${x.esc(r.feedback || '客户希望工作人员联系')}</p>${x.action('记录回访','followup',r.id,'btn-small btn-primary')}</div>`; }).join('');
+  const reviewRows = b.reviews.map(r => { const s = x.find('services',r.serviceId); return `<div class="boss-detail-row"><strong>${x.esc(x.client(s?.clientId || r.clientId)?.name)} · ${r.score} 分评价</strong><p>${x.esc(r.feedback || '客户希望老板联系')}</p>${x.action('记录回访','followup',r.id,'btn-small btn-primary')}</div>`; }).join('');
   const clientRows = (clients,kind) => clients.map(c => `<div class="boss-detail-row"><strong>${x.esc(c.name)}${kind === 'low' ? ` · 剩余 ${ctx.model.remaining(c.id)} 次` : ''}</strong><p class="meta">${x.esc(x.name('stores',c.storeId))} · 负责人 ${x.esc(x.name('therapists',c.ownerId))}</p><div class="action-row">${kind === 'unplanned' ? x.action('安排下次服务','appointment-create',c.id,'btn-small btn-primary') : ctx.model.remaining(c.id) === 0 ? x.action('续接套餐','renew-package',c.id,'btn-small btn-primary') : x.action('查看套餐','package',c.id,'btn-small btn-outline')}${x.link('客户档案','client-detail',c.id)}</div></div>`).join('');
   const taskRows = b.tasks.map(t => `<div class="boss-detail-row"><strong>${x.esc(x.client(t.clientId)?.name)} · ${x.esc(t.title)}</strong><p class="meta">${x.esc(x.name('therapists',t.assigneeId))} · ${x.date(t.dueDate)}${t.dueDate && t.dueDate < TODAY ? ' · 已逾期' : ''}</p><div class="action-row">${x.link('客户档案','client-detail',t.clientId)}${x.action(['reschedule','review_followup'].includes(t.type) ? '处理' : '完成待办','task-complete',t.id,'btn-small btn-outline')}</div></div>`).join('');
   return `<div class="boss-dashboard">
@@ -277,10 +277,11 @@ export function staffDialog(type, id, ctx) {
   }
 
   if (type === 'followup') {
-    const r = x.find('reviews', id);
+    if (x.role.type !== 'boss' || x.role.id !== 'boss') throw new Error('仅老板有权限查看和处理客户反馈');
+    const r = ctx.model.reviewRows(x.role).find(row => row.id === id);
     if (!r) return null;
     const s = x.find('services', r.serviceId);
-    return {title: '记录客户回访', html: form('followup', `${hidden('reviewId', id)}<div class="note"><strong>${x.esc(x.client(s?.clientId || r.clientId)?.name || '客户')} · ${x.esc(r.score || r.rating)} 分</strong><p>${x.esc(r.feedback || r.comment || r.text || '客户希望工作人员联系。')}</p></div><div class="form-grid"><div class="field"><span>处理人</span><strong>老板</strong></div>${textarea('沟通情况与后续安排', 'result', r.resolution || '', 'required maxlength="1000" placeholder="记录已了解的问题、和客户确认的安排及跟进时间"')}</div>`, '保存回访结果')};
+    return {title: '记录客户回访', html: form('followup', `${hidden('reviewId', id)}<div class="note"><strong>${x.esc(x.client(s?.clientId || r.clientId)?.name || '客户')} · ${x.esc(r.score || r.rating)} 分</strong><p>${x.esc(r.feedback || r.comment || r.text || '客户希望老板联系。')}</p></div><div class="form-grid"><div class="field"><span>处理人</span><strong>老板</strong></div>${textarea('沟通情况与后续安排', 'result', r.resolution || '', 'required maxlength="1000" placeholder="记录已了解的问题、和客户确认的安排及跟进时间"')}</div>`, '保存回访结果')};
   }
 
   if (type === 'add-store') {
