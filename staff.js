@@ -1,8 +1,8 @@
 /* Employee and owner views for the in-memory review prototype. */
-import { renderPaperIntakeInbox } from './paper-intake.js?v=20261009-finance-controls';
-import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261009-finance-controls';
-import { hourTimeField } from './hour-picker.js?v=20261009-finance-controls';
-import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261009-finance-controls';
+import { renderPaperIntakeInbox } from './paper-intake.js?v=20261009-available-times';
+import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261009-available-times';
+import { hourTimeField } from './hour-picker.js?v=20261009-available-times';
+import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261009-available-times';
 const TODAY = '2026-10-08';
 
 function h(ctx) {

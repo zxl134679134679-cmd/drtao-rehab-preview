@@ -1,7 +1,8 @@
-import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261009-finance-controls';
+import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261009-available-times';
 
 const minutes = time => Number(time.slice(0,2))*60+Number(time.slice(3));
 const pending = row => ['confirmed','reschedule_requested','pending_reassignment'].includes(row.status);
+const halfHourStarts = Array.from({length:48},(_,slot)=>`${String(Math.floor(slot/2)).padStart(2,'0')}:${slot%2?'30':'00'}`);
 
 export function bookingAvailability(model,input) {
   try {
@@ -32,26 +33,37 @@ export function updateAppointmentAvailability(form,ctx) {
     data.principalId=selected;
   }
   const people=type==='appointment-batch'?[...form.querySelectorAll('[data-booking-member]')].map(row=>({principalId:row.querySelector('[data-booking-principal]').value,clientId:row.querySelector('[data-booking-client]').value})):
-    [{principalId:old?.principalId||data.principalId,clientId:old?.clientId||data.clientId||ctx.role.id}];
+    [{principalId:old?.principalId||data.principalId,clientId:type==='customer-booking'?ctx.role.id:old?.clientId||data.clientId||''}];
   let note=form.querySelector('[data-booking-availability]');
   if(!note){note=document.createElement('div');note.dataset.bookingAvailability='';note.className='booking-availability';note.setAttribute('role','status');const host=type==='customer-booking'?form.querySelector('[data-booking-step="2"]'):form;const footer=host.querySelector('.dialog-footer');host.insertBefore(note,footer||null);}
-  const complete=Boolean(date&&storeId&&people.length&&people.every(person=>person.principalId));
-  if(!complete){note.innerHTML='<p>先选门店、日期和康复师，再选班内时间。</p>';for(const option of timeSelect?.options||[])option.disabled=false;}
+  const complete=Boolean(date&&storeId&&people.length&&people.every(person=>person.principalId&&person.clientId));
+  const previous=timeSelect?.value||'';
+  // Rebuild from the complete half-hour source each time. The native menu must
+  // contain only usable starts, so removed options can return after a change.
+  const available=complete?halfHourStarts.filter(time=>people.every(person=>bookingAvailability(model,{...person,storeId,date,time,excludeId:old?.id||data.id}).available)):[];
+  const keep=Boolean(previous&&available.includes(previous));
+  if(previous&&!keep)form.dataset.timeNeedsReselection='true';
+  else if(keep)delete form.dataset.timeNeedsReselection;
+  if(timeSelect) {
+    const placeholder=!complete?'先选门店、日期和康复师':available.length?'请选择可预约时间':'当天没有可预约时间';
+    timeSelect.innerHTML=`<option value="" disabled${keep?'':' selected'}>${esc(placeholder)}</option>${available.map(time=>`<option value="${time}"${previous===time?' selected':''}>${time}</option>`).join('')}`;
+    timeSelect.value=keep?previous:'';
+    timeSelect.disabled=!complete||!available.length;
+  }
+  if(!complete)note.innerHTML='<p>先选客户、门店、日期和康复师，再选班内时间。</p>';
   else {
     const summaries=people.map(person=>{
       const row=scheduleStatus(model,person.principalId,date),name=model.state.therapists.find(t=>t.id===person.principalId)?.name||'康复师';
       const shift=row.status==='work'?`${model.state.stores.find(s=>s.id===row.storeId)?.name||'门店'} · ${row.startTime}–${row.endTime}`:row.status==='rest'?'当天休息':'尚未排班，请联系店长';
       return `<p><strong>${esc(name)}</strong> · ${esc(shift)}</p>`;
     });
-    for(const option of timeSelect?.options||[])option.disabled=Boolean(option.value&&people.some(person=>!bookingAvailability(model,{...person,storeId,date,time:option.value,excludeId:old?.id||data.id}).available));
-    const invalid=data.time&&people.map(person=>bookingAvailability(model,{...person,storeId,date,time:data.time,excludeId:old?.id||data.id})).find(row=>!row.available);
-    const hasTime=[...timeSelect?.options||[]].some(option=>option.value&&!option.disabled);
-    note.innerHTML=summaries.join('')+`<p class="${invalid||!hasTime?'schedule-slot-warning':'meta'}">${esc(invalid?.message||(!hasTime?'这一天没有可安排时段，请改选日期或康复师。':'仅显示已确认排班内的可选时间；本次服务按 60 分钟预留。'))}</p>`;
+    const reselect=form.dataset.timeNeedsReselection==='true';
+    const message=!available.length?'这一天没有可安排时段，请改选日期或康复师。':reselect?'原选时间已不可预约，请重新选择可预约时间。':'仅显示已确认排班内的可预约时间；本次服务按 60 分钟预留。';
+    note.innerHTML=summaries.join('')+`<p class="${reselect||!available.length?'schedule-slot-warning':'meta'}">${esc(message)}</p>`;
   }
   const submit=form.querySelector('[type="submit"]');
   if(submit) {
     const firstStep=type==='customer-booking'&&Number(form.dataset.step||1)===1;
-    const blocked=complete&&(![...timeSelect?.options||[]].some(option=>option.value&&!option.disabled)||Boolean(data.time&&people.some(person=>!bookingAvailability(model,{...person,storeId,date,time:data.time,excludeId:old?.id||data.id}).available)));
-    submit.disabled=!firstStep&&(blocked||type==='customer-booking'&&Boolean(storeId)&&!people[0]?.principalId);
+    submit.disabled=!firstStep&&(!complete||!available.length);
   }
 }

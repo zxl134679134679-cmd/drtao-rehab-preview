@@ -1,5 +1,5 @@
-import { hourTimeField } from './hour-picker.js?v=20261009-finance-controls';
-import { receptionStores } from './reception.js?v=20261009-finance-controls';
+import { hourTimeField } from './hour-picker.js?v=20261009-available-times';
+import { receptionStores } from './reception.js?v=20261009-available-times';
 
 const limit = 20;
 function clients(ctx) { return ctx.model.visibleClients(ctx.role); }
