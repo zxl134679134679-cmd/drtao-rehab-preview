@@ -1,3 +1,5 @@
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-manager';
+
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
 
@@ -150,6 +152,10 @@ function seedState() {
       { id: 'f1', name: 'A店前台', storeIds: ['a'], active: true },
       { id: 'f2', name: 'B店前台', storeIds: ['b'], active: true },
     ],
+    storeManagers: [
+      { id: 'm1', name: 'A店店长', storeId: 'a', active: true },
+      { id: 'm2', name: 'B店店长', storeId: 'b', active: true },
+    ],
     clients: [
       seedClient('c1', '陈一诺', 't1', 'a', 'p1', '13800000001'),
       seedClient('c2', '许安然', 't2', 'b', 'p2', '13800000002'),
@@ -205,7 +211,7 @@ export class DemoModel {
     const source = state === undefined ? seedState() : state;
     const collections = ['stores', 'therapists', 'clients', 'packages', 'services', 'appointments', 'tasks', 'reviews', 'audit'];
     if (!source || collections.some(key => !Array.isArray(source[key]))) throw new Error('业务状态缺少有效的数据集合');
-    for (const key of ['receipts', 'refunds', 'frontDesks', 'appointmentBatches']) {
+    for (const key of ['receipts', 'refunds', 'frontDesks', 'appointmentBatches', 'storeManagers']) {
       if (source[key] !== undefined && !Array.isArray(source[key])) throw new Error('业务状态缺少有效的数据集合');
       collections.push(key);
     }
@@ -214,6 +220,7 @@ export class DemoModel {
     this.state.refunds ??= [];
     this.state.frontDesks ??= [];
     this.state.appointmentBatches ??= [];
+    this.state.storeManagers ??= [];
     if (!Number.isSafeInteger(sequence) || sequence < 0) throw new Error('业务序列无效');
     const ids = collections.flatMap(key => this.state[key].map(row => row?.id));
     if (ids.some(id => typeof id !== 'string' || !id.trim())) throw new Error('业务状态包含无效记录标识');
@@ -226,6 +233,13 @@ export class DemoModel {
       this._frontDeskStoreIds(row.storeIds);
       if (typeof row.active !== 'boolean' || frontDeskIds.has(row.id)) throw new Error('前台业务状态包含无效或重复人员记录');
       frontDeskIds.add(row.id);
+    }
+    const managerIds = new Set();
+    for (const row of this.state.storeManagers) {
+      required(row.name, '店长姓名', 80);
+      this._store(row.storeId);
+      if (typeof row.active !== 'boolean' || managerIds.has(row.id)) throw new Error('店长业务状态包含无效或重复人员记录');
+      managerIds.add(row.id);
     }
     this.state.packages.forEach(pack => {
       const minor = amountMinor(pack.amount);
@@ -336,6 +350,17 @@ export class DemoModel {
   }
   _boss(role) {
     if (role?.type !== 'boss' || role.id !== 'boss') throw new Error('仅老板有权限进行此操作');
+  }
+  managerStoreId(role) {
+    if (role?.type !== 'manager') throw new Error('仅店长可读取本店工作权限');
+    const row = this.state.storeManagers.find(item => item.id === role.id && item.active === true);
+    if (!row) throw new Error('请选择在职且有本店权限的店长');
+    this._store(row.storeId);
+    return row.storeId;
+  }
+
+  managerSnapshot(role, filters = {}) {
+    return storeWorkSnapshot(this, role, filters);
   }
   _frontDesk(id) {
     const row = this.state.frontDesks.find(item => item.id === id && item.active);
@@ -526,6 +551,7 @@ export class DemoModel {
     if (role !== undefined) {
       if (role?.type === 'boss') this._boss(role);
       else if (role?.type === 'frontdesk') allowedStores = this.frontDeskStoreIds(role);
+      else if (role?.type === 'manager') allowedStores = [this.managerStoreId(role)];
       else throw new Error('您没有查看营业收支的权限');
     }
     const storeId = optionalText(filters.storeId, '门店', 80);
@@ -636,6 +662,9 @@ export class DemoModel {
     if (!client) return false;
     if (role?.type === 'boss' && role.id === 'boss') return true;
     if (role?.type === 'customer') return role.id === clientId;
+    if (role?.type === 'manager') {
+      try { return managerClientInStore(this, client, this.managerStoreId(role)); } catch { return false; }
+    }
     if (role?.type === 'frontdesk') {
       const frontDesk = this.state.frontDesks.find(row => row.id === role.id && row.active);
       if (!frontDesk) return false;
@@ -654,6 +683,9 @@ export class DemoModel {
     const client = service && this.state.clients.find(item => item.id === service.clientId);
     if (!service || !client) return false;
     if (role?.type === 'boss') return role.id === 'boss';
+    if (role?.type === 'manager') {
+      try { return service.storeId === this.managerStoreId(role); } catch { return false; }
+    }
     if (role?.type === 'customer') return role.id === client.id;
     if (role?.type !== 'therapist' || !this.state.therapists.some(item => item.id === role.id && item.active)) return false;
     // Evidence access follows this service, including revoked records. Taking
@@ -662,6 +694,7 @@ export class DemoModel {
   }
 
   visibleClients(role) {
+    if (role?.type === 'manager') return this.managerSnapshot(role).clients;
     const clients = this.state.clients.filter(item => this.canSeeClient(role, item.id));
     if (role?.type === 'frontdesk') return clients.map(({ id, name, phone, ownerId, storeId, packageId }) => ({ id, name, phone, ownerId, storeId, packageId }));
     return clients;
@@ -700,6 +733,7 @@ export class DemoModel {
     return this.state.appointments.filter(item =>
       pendingAppointment(item.status) && item.date < this.today &&
       (role?.type !== 'frontdesk' || this.state.frontDesks.some(row => row.id === role.id && row.active && row.storeIds.includes(item.storeId))) &&
+      (role?.type !== 'manager' || item.storeId === this.managerStoreId(role)) &&
       this.canSeeClient(role, item.clientId) && (role.type !== 'therapist' || item.principalId === role.id || (item.status === 'pending_reassignment' && this._client(item.clientId).ownerId === role.id)) &&
       (!filters.storeId || item.storeId === filters.storeId) &&
       (!filters.therapistId || item.principalId === filters.therapistId) &&
@@ -1098,6 +1132,25 @@ export class DemoModel {
     const row = { id: this._id('f'), name, storeIds, active: true };
     this.state.frontDesks.push(row);
     this._log('frontdesk_added', { frontDeskId: row.id, after: copy(row) }, role);
+    return row;
+  }
+
+  addStoreManager(data, role) {
+    this._boss(role);
+    const name = required(data.name, '店长姓名', 80);
+    const store = this._store(required(data.storeId, '负责门店', 80));
+    const row = { id: this._id('m'), name, storeId: store.id, active: true };
+    this.state.storeManagers.push(row);
+    this._log('manager_added', { managerId: row.id, storeId: store.id }, role);
+    return row;
+  }
+
+  deactivateStoreManager(id, role) {
+    this._boss(role);
+    this.managerStoreId({ type: 'manager', id });
+    const row = this.state.storeManagers.find(item => item.id === id);
+    row.active = false;
+    this._log('manager_deactivated', { managerId: id, storeId: row.storeId }, role);
     return row;
   }
 

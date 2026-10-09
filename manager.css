@@ -1,0 +1,20 @@
+.manager-dashboard { max-width: 1100px; margin: 0 auto; }
+.manager-dashboard .page-head { align-items: center; }
+.manager-dashboard .cash-channels { margin-top: 20px; }
+.manager-panel { margin-bottom: 20px; }
+.manager-panel-note { color: #637160; font-size: 12px; line-height: 1.8; margin-top: 14px; }
+.manager-dashboard .person-card { display: flex; flex-direction: column; }
+.manager-dashboard .person-card > .text-link { margin-top: auto; min-height: 44px; padding-top: 10px; align-self: flex-start; }
+.manager-detail p, .manager-detail strong, .manager-dashboard .row-main { overflow-wrap: anywhere; }
+.manager-detail > h3 { margin-top: 22px; margin-bottom: 10px; }
+.manager-detail .section { margin-top: 20px; }
+.manager-detail .ease-service-card { margin-top: 10px; }
+.manager-detail .note { margin-top: 14px; }
+@media (max-width: 720px) {
+  .manager-dashboard .page-head { align-items: flex-start; }
+  .manager-dashboard .page-head > .tag { font-size: 10px; margin-top: 7px; white-space: nowrap; }
+  .manager-dashboard .cash-hero-head > span:first-child { font-size: 17px; }
+  .manager-dashboard .boss-person-amount { font-size: 16px; }
+  .manager-dashboard .boss-person-info > span { line-height: 1.7; }
+  .manager-detail .dialog-footer { justify-content: flex-end; }
+}

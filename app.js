@@ -1,5 +1,6 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS } from './core.js?v=20261009-companions';
-import { renderStaff, staffDialog } from './staff.js?v=20261009-companions';
+import { DemoModel, TODAY, EVIDENCE_LIMITS } from './core.js?v=20261009-manager';
+import { renderStaff, staffDialog } from './staff.js?v=20261009-manager';
+import { renderManager, managerDialog } from './manager.js?v=20261009-manager';
 import { hourTimeField } from './hour-picker.js?v=20261009-hourly';
 import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-companions';
 import { cashDialog, updateCashFields } from './cash.js?v=20261009-legacy-import';
@@ -55,6 +56,7 @@ function assertService(id) {
   if(role.type==='frontdesk')throw new Error('前台只查看接待信息，服务明细由客户、康复师和老板查看');
   const s = find('services', id);
   if (!s) throw new Error('服务记录不存在');
+  if(role.type==='manager'&&s.storeId!==model.managerStoreId(role))throw new Error('店长仅能查看本店服务明细');
   // Staff can audit their own historical service without regaining client access.
   const ownHistory = role.type === 'therapist' && (s.principalId === role.id || s.participantIds.includes(role.id));
   if (!model.canSeeClient(role, s.clientId) && !ownHistory) throw new Error('您没有查看本次服务的权限');
@@ -68,37 +70,39 @@ function toast(message) {
 }
 
 function roleOptions() {
-  $('#role-select').innerHTML = `<optgroup label="客户端">${model.state.clients.map(c => `<option value="customer:${c.id}">${esc(c.name)} · 客户</option>`).join('')}</optgroup><optgroup label="康复师端">${model.state.therapists.filter(t => t.active).map(t => `<option value="therapist:${t.id}">${esc(t.name)} · ${esc(name('stores', t.storeId))}</option>`).join('')}</optgroup><optgroup label="前台端">${(model.state.frontDesks||[]).filter(f=>f.active!==false).map(f=>`<option value="frontdesk:${esc(f.id)}">${esc(f.name)} · 前台</option>`).join('')}</optgroup><optgroup label="管理端"><option value="boss:boss">老板 · 所有门店</option></optgroup>`;
+  $('#role-select').innerHTML = `<optgroup label="客户端">${model.state.clients.map(c => `<option value="customer:${c.id}">${esc(c.name)} · 客户</option>`).join('')}</optgroup><optgroup label="康复师端">${model.state.therapists.filter(t => t.active).map(t => `<option value="therapist:${t.id}">${esc(t.name)} · ${esc(name('stores', t.storeId))}</option>`).join('')}</optgroup><optgroup label="前台端">${(model.state.frontDesks||[]).filter(f=>f.active!==false).map(f=>`<option value="frontdesk:${esc(f.id)}">${esc(f.name)} · 前台</option>`).join('')}</optgroup><optgroup label="店长端">${model.state.storeManagers.filter(m=>m.active).map(m=>`<option value="manager:${esc(m.id)}">${esc(m.name)} · ${esc(name('stores',m.storeId))}</option>`).join('')}</optgroup><optgroup label="管理端"><option value="boss:boss">老板 · 所有门店</option></optgroup>`;
   $('#role-select').value = `${role.type}:${role.id}`;
 }
 function switchRole(value, targetView) {
   closeDialog();
   const [type, id] = value.split(':');
   if (customerShare && type !== 'customer') return;
-  if(!['customer','therapist','boss','frontdesk'].includes(type))return;
+  if(!['customer','therapist','boss','frontdesk','manager'].includes(type))return;
   if (type === 'customer' && !find('clients', id)) return;
   if (type === 'therapist' && !find('therapists', id)?.active) return;
   if (type === 'boss' && id !== 'boss') return;
   if(type==='frontdesk'&&!model.state.frontDesks?.some(f=>f.id===id&&f.active!==false))return;
+  if(type==='manager'&&!model.state.storeManagers.some(m=>m.id===id&&m.active))return;
   role = {type, id};
   if (window.matchMedia('(max-width: 760px)').matches) $('.preview-controls').open = false;
-  view = targetView || (type === 'customer' ? 'home' : type === 'boss' ? 'overview' : type==='frontdesk'?'reception':'work');
+  view = targetView || (type === 'customer' ? 'home' : type === 'boss' ? 'overview' : type==='frontdesk'?'reception':type==='manager'?'manager-overview':'work');
   filters = {storeId: '', therapistId: '', from: '', to: '', query: ''};
   if (type === 'boss') { filters.from = TODAY; filters.to = TODAY; }
   if(type==='frontdesk')filters={...filters,storeId:receptionStores(ctx())[0]?.id||'',from:TODAY,to:TODAY};
+  if(type==='manager')filters={...filters,from:TODAY,to:TODAY};
   render(true);
 }
 function navigation() {
-  const items = role.type === 'customer' ? [['home','我的康复','home'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','工作台','home'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['reception-assessments','评估','chart-bar'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','门店与人员','building-store']];
+  const items = role.type === 'customer' ? [['home','我的康复','home'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','工作台','home'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['reception-assessments','评估','chart-bar'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:role.type==='manager'?[['manager-overview','本店概览','home'],['manager-clients','客户','users'],['manager-records','工作记录','clipboard-text'],['manager-team','人员','user']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','门店与人员','building-store']];
   return items.map(([key,label,ico]) => `<button class="nav-item ${view === key ? 'active' : ''}" data-action="nav" data-id="${key}" ${view === key ? 'aria-current="page"' : ''}>${icon(ico === 'home' && view === key ? 'home-filled' : ico,25)}<span class="nav-label">${label}</span></button>`).join('');
 }
 function render(resetScroll = false) {
   roleOptions();
   const customer = role.type === 'customer';
   $('#app-window').className = `app-window ${customer ? 'customer-mode' : 'staff-mode'}`;
-  const label = customer ? name('clients', role.id) : role.type === 'boss' ? '老板管理' : role.type==='frontdesk'?`${name('frontDesks',role.id)} · 前台`:`${name('therapists', role.id)} · 康复师`;
+  const label = customer ? name('clients', role.id) : role.type === 'boss' ? '老板管理' : role.type==='frontdesk'?`${name('frontDesks',role.id)} · 前台`:role.type==='manager'?`${name('storeManagers',role.id)} · 店长`:`${name('therapists', role.id)} · 康复师`;
   $('#app-header').innerHTML = `<div class="app-brand"><img class="brand-logo" src="assets/brand-logo.png" alt="涛博士 Dr.Tao 运动康复" width="146" height="56"></div><div class="customer-head"><span class="header-name">${esc(label)}</span>${customer ? `<button class="capsule" data-action="mini-info" aria-label="小程序预览说明">${icon('dots',20)}<span></span>${icon('circle-dot',20)}</button>` : '<span class="tag tag-green">工作端</span>'}</div>`;
-  main.innerHTML = customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : `${view === 'work' ? assessmentInbox() : ''}${renderStaff(ctx())}`;
+  main.innerHTML = customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : role.type==='manager'?renderManager(ctx()):`${view === 'work' ? assessmentInbox() : ''}${renderStaff(ctx())}`;
   $('#bottom-nav').innerHTML = navigation();
   if (resetScroll) main.scrollTop = 0;
 }
@@ -292,9 +296,9 @@ function reviewDialog(id) {
   const s = assertService(id);
   if (role.type !== 'customer' || role.id !== s.clientId) throw new Error('只有客户本人可以填写评价');
   const r = reviewFor(id);
-  if (r) return {title: '我的服务评价', html: `<div class="notice" role="note"><strong>评价仅老板可见</strong><p>除您本人外，评分和文字反馈仅老板可查看，康复师和前台无法查看。请放心填写真实体验。</p></div><div class="review-score"><strong>${r.score}</strong><span> / 5 分</span></div><p>${esc(r.feedback || '您没有填写文字反馈。')}</p><p class="meta">${date(s.date)} · ${esc(s.project)} · ${esc(name('therapists',s.principalId))}</p>${r.followupStatus === 'pending' ? '<div class="notice">您的反馈已交给老板，等待老板进一步了解情况。</div>' : r.followupStatus === 'closed' ? `<div class="note"><strong>已完成回访</strong><p>${esc(r.resolution)}</p></div>` : '<p class="notice">感谢您的反馈，我们会持续完善每次服务。</p>'}`};
+  if (r) return {title: '我的服务评价', html: `<div class="notice" role="note"><strong>评价仅老板可见</strong><p>除您本人外，评分和文字反馈仅老板可查看，康复师和前台无法查看，店长也无法查看。请放心填写真实体验。</p></div><div class="review-score"><strong>${r.score}</strong><span> / 5 分</span></div><p>${esc(r.feedback || '您没有填写文字反馈。')}</p><p class="meta">${date(s.date)} · ${esc(s.project)} · ${esc(name('therapists',s.principalId))}</p>${r.followupStatus === 'pending' ? '<div class="notice">您的反馈已交给老板，等待老板进一步了解情况。</div>' : r.followupStatus === 'closed' ? `<div class="note"><strong>已完成回访</strong><p>${esc(r.resolution)}</p></div>` : '<p class="notice">感谢您的反馈，我们会持续完善每次服务。</p>'}`};
   if (s.status !== 'valid') throw new Error('已撤销的服务不能评价');
-  return {title: '这次服务体验怎么样？', html: form('review', `${hidden('serviceId',id)}<p class="muted">${date(s.date)} · ${esc(s.project)} · ${esc(name('therapists',s.principalId))}</p><div class="notice" role="note"><strong>评价仅老板可见</strong><p>除您本人外，评分和文字反馈仅老板可查看，康复师和前台无法查看。请放心填写真实体验。</p></div><fieldset class="field"><legend>请为本次服务评分</legend><div class="star-picker">${[1,2,3,4,5].map(n => `<label class="star-option"><input type="radio" name="score" value="${n}" required aria-label="${n} 分">${icon('star',30)}<span>${n} 分</span></label>`).join('')}</div></fieldset>${textarea('您的反馈（可选）','feedback','','maxlength="1000" placeholder="哪里帮助到了您？还有什么需要改进？"')}<label class="check"><input type="checkbox" name="wantContact"><span>希望老板联系我，进一步了解情况</span></label><p class="meta">您的真实反馈会帮助我们改进后续服务。</p>`,'提交评价')};
+  return {title: '这次服务体验怎么样？', html: form('review', `${hidden('serviceId',id)}<p class="muted">${date(s.date)} · ${esc(s.project)} · ${esc(name('therapists',s.principalId))}</p><div class="notice" role="note"><strong>评价仅老板可见</strong><p>除您本人外，评分和文字反馈仅老板可查看，康复师和前台无法查看，店长也无法查看。请放心填写真实体验。</p></div><fieldset class="field"><legend>请为本次服务评分</legend><div class="star-picker">${[1,2,3,4,5].map(n => `<label class="star-option"><input type="radio" name="score" value="${n}" required aria-label="${n} 分">${icon('star',30)}<span>${n} 分</span></label>`).join('')}</div></fieldset>${textarea('您的反馈（可选）','feedback','','maxlength="1000" placeholder="哪里帮助到了您？还有什么需要改进？"')}<label class="check"><input type="checkbox" name="wantContact"><span>希望老板联系我，进一步了解情况</span></label><p class="meta">您的真实反馈会帮助我们改进后续服务。</p>`,'提交评价')};
 }
 function requestDialog(id) {
   const a = find('appointments',id);
@@ -319,6 +323,19 @@ function tourDialog() {
 const evaluationTypes = new Set(['assessment-create','assessment-history','assessment-detail','assessment-confirm','assessment-void','frontdesk-work','frontdesk-evaluate','frontdesk-evaluation-detail','frontdesk-evaluation-void']);
 const staffTypes = new Set(['register','edit-plan','appointment-create','appointment-edit','followup','add-store','add-therapist','add-frontdesk','transfer-client','import-opening','revoke-service','register-appointment','renew-package']);
 function buildDialog(type, id) {
+  if(role.type==='manager') {
+    model.managerStoreId(role);
+    if(type.startsWith('manager-'))return managerDialog(type,id,ctx());
+    if(!['reset','tour','mini-info'].includes(type))throw new Error('店长仅查看和核对本店工作，请由对应工作人员或老板处理操作');
+  } else if(type.startsWith('manager-'))throw new Error('此页面仅店长可查看');
+  if(type==='add-manager') {
+    assertBoss();
+    return {title:'新增店长账号',html:form(type,`<p class="muted">绑定一家门店，查看本店客户、预约、服务、收支及人员工作。私人客户评价仅老板可见。</p><div class="form-grid">${field('姓名','name','','text','required maxlength="80"')}<label class="field"><span>负责门店</span><select name="storeId" required>${model.state.stores.map(s=>`<option value="${esc(s.id)}">${esc(s.name)}</option>`).join('')}</select></label></div>`,'新增店长')};
+  }
+  if(type==='deactivate-manager') {
+    assertBoss();const manager=find('storeManagers',id);if(!manager?.active)throw new Error('请选择在职店长');
+    return {title:'停用店长账号',html:form(type,`${hidden('id',id)}<p>停用 ${esc(manager.name)} 后，该账号无法查看本店工作；历史业务记录保留。</p>`,'确认停用')};
+  }
   if(type==='import-opening-batch') { assertBoss();return {title:'表格批量录入旧客户',html:'<p class="muted" role="status">正在加载本地表格检查工具…</p>'}; }
   if(role.type==='frontdesk'&&!['record-receipt','cash-ledger','receipt-detail','refund-detail','settle-receipt','record-arrival','appointment-batch','appointment-create','appointment-edit','appointment-cancel','appointment-no-show','assessment-create','assessment-history','assessment-detail','frontdesk-work','frontdesk-evaluation-detail','reset','tour','mini-info'].includes(type))throw new Error('此操作由康复师或老板处理');
   if(evaluationTypes.has(type))return evaluationDialog(type,id,ctx());
@@ -374,12 +391,12 @@ function buildDialog(type, id) {
   }
   if (type === 'privacy') {
     assertClient(id);
-    return {title:'我的档案与隐私',html:'<p>客户端查看本人的计划、套餐与服务记录。康复师查看自己负责或实际参与服务的客户，老板统一管理各店记录。</p><p>服务留底照片由客户本人、当前负责康复师、本次主/协作康复师及老板查看。参与该客户其他服务，不会自动获得本次照片权限。</p><p>除客户本人外，服务评分、文字反馈和老板的回访记录仅老板可查看，康复师和前台无法查看。</p><p class="muted">本次预览使用虚构数据，角色切换仅用于体验。正式版本需要真实身份验证和服务器权限校验。</p>'};
+    return {title:'我的档案与隐私',html:'<p>客户端查看本人的计划、套餐与服务记录。康复师查看自己负责或实际参与服务的客户，老板统一管理各店记录。</p><p>服务留底照片由客户本人、当前负责康复师、本次主/协作康复师及老板查看。店长仅查看实际在本店服务的留底照片。参与该客户其他服务，不会自动获得本次照片权限。</p><p>除客户本人外，服务评分、文字反馈和老板的回访记录仅老板可查看，康复师和前台无法查看，店长也无法查看。</p><p class="muted">本次预览使用虚构数据，角色切换仅用于体验。正式版本需要真实身份验证和服务器权限校验。</p>'};
   }
   if (type === 'help') {
     assertClient(id);
     const last = clientServices(id).find(s => s.status === 'valid');
-    return {title:'反馈与帮助',html:`<h3>您的负责康复师：${esc(name('therapists',find('clients',id).ownerId))}</h3><p>调整到店时间，可在下一次服务中申请改约。对已完成服务有建议，可填写评价并勾选“希望老板联系我”。除您本人外，评分与文字反馈仅老板可查看，康复师和前台无法查看。</p><div class="action-row">${role.type === 'customer' ? button('查看预约','appointment',appointments(id)[0]?.id || '','btn-outline') : ''}${last && role.type === 'customer' ? button('反馈最近一次服务','review',last.id,'btn-primary') : ''}</div><p class="muted">正式版本会补充真实客服电话和微信联系入口。</p>`};
+    return {title:'反馈与帮助',html:`<h3>您的负责康复师：${esc(name('therapists',find('clients',id).ownerId))}</h3><p>调整到店时间，可在下一次服务中申请改约。对已完成服务有建议，可填写评价并勾选“希望老板联系我”。除您本人外，评分与文字反馈仅老板可查看，康复师和前台无法查看，店长也无法查看。</p><div class="action-row">${role.type === 'customer' ? button('查看预约','appointment',appointments(id)[0]?.id || '','btn-outline') : ''}${last && role.type === 'customer' ? button('反馈最近一次服务','review',last.id,'btn-primary') : ''}</div><p class="muted">正式版本会补充真实客服电话和微信联系入口。</p>`};
   }
   if (type === 'mini-info') return {title:'涛博士 · 客户体验预览',html:'<p>您可以体验查看康复计划、剩余次数、下一次服务、服务记录与评价。</p><p class="muted">所有姓名与服务安排均为虚构示例。评价和改约仅用于体验，刷新后恢复示例，不会提交给门店。微信登录、真实档案和消息提醒将在正式版本启用。</p>'};
   if (type === 'reset') return {title:'重置示例数据',html:form('reset','<p>将恢复初始的两家门店、五名康复师和虚构客户。本次预览中新增的记录与草稿会清除。</p>','恢复初始示例')};
@@ -529,11 +546,14 @@ document.addEventListener('click', event => {
     }
     if (action === 'close-dialog') return closeDialog();
     if (action === 'nav') {
-      const allowed = role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team'] : role.type==='frontdesk'?['reception','reception-assessments','cash','reception-clients']:['work','clients','performance'];
+      const allowed = role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team'] : role.type==='frontdesk'?['reception','reception-assessments','cash','reception-clients']:role.type==='manager'?['manager-overview','manager-clients','manager-records','manager-team']:['work','clients','performance'];
       if (!allowed.includes(id)) throw new Error('该页面不可访问');
       closeDialog(); view = id; render(true); return;
     }
     if (action === 'reset-filters') { filters = {storeId:'',therapistId:'',from:'',to:'',query:''}; render(); return; }
+    if (action === 'manager-clear-filters') {
+      model.managerStoreId(role);filters={...filters,from:'',to:''};render();return;
+    }
     if (action === 'boss-period' || action === 'boss-reset') {
       assertBoss();
       if (action === 'boss-reset') filters = {storeId:'',therapistId:'',from:TODAY,to:TODAY,query:''};
@@ -647,6 +667,18 @@ document.addEventListener('submit', async event => {
   }
   const fd = new FormData(f);
   const data = Object.fromEntries(fd);
+  if(type==='manager-filters'||type==='manager-search') {
+    try {
+      if(role.type!=='manager')throw new Error('店长页面不可访问');
+      if(type==='manager-filters') {
+        model.managerSnapshot(role,{from:data.from,to:data.to});
+        filters={...filters,from:data.from,to:data.to};
+      } else {model.managerStoreId(role);filters.query=String(data.query||'');}
+      render();
+    } catch(error) {formError(f,error.message);}
+    return;
+  }
+  if(role.type==='manager'&&type!=='reset') {formError(f,'店长仅查看和核对本店工作，业务操作由对应工作人员或老板处理');return;}
   if (type === 'filters') {
     if (data.from && data.to && data.from > data.to) { toast('开始日期不能晚于结束日期'); return; }
     filters = {...filters,...data}; render(); return;
@@ -720,6 +752,8 @@ document.addEventListener('submit', async event => {
     else if (type === 'add-therapist') model.addTherapist(data,role);
     else if(type==='add-frontdesk')model.addFrontDesk({...data,storeIds:fd.getAll('storeIds')},role);
     else if(type==='deactivate-frontdesk')model.deactivateFrontDesk(data.id,role);
+    else if(type==='add-manager')model.addStoreManager(data,role);
+    else if(type==='deactivate-manager')model.deactivateStoreManager(data.id,role);
     else if (type === 'transfer-client') model.transferClient(data.clientId,data.ownerId,data.reason,role);
     else if (type === 'import-opening') model.importOpening(data,role);
     else if (type === 'deactivate-therapist') model.deactivateTherapist(data.id,role);
@@ -752,7 +786,7 @@ function exportPreview() {
   };
   const cleanCash=row=>{const {inputKey,requestId,requestType,...safe}=row;return safe;};
   const frontStoreIds=role.type==='frontdesk'?new Set(receptionStores(ctx()).map(s=>s.id)):null;
-  const data = role.type === 'boss' ? {...state,services:state.services.map(exportService),receipts:state.receipts.map(cleanCash),refunds:state.refunds.map(cleanCash)} : role.type==='frontdesk'?{
+  const data = role.type==='manager'?model.managerSnapshot(role):role.type === 'boss' ? {...state,services:state.services.map(exportService),receipts:state.receipts.map(cleanCash),refunds:state.refunds.map(cleanCash)} : role.type==='frontdesk'?{
     clients:state.clients.filter(c=>ids.has(c.id)).map(c=>({id:c.id,name:c.name,phone:c.phone,storeId:c.storeId,ownerId:c.ownerId,remaining:model.remaining(c.id)})),
     appointments:state.appointments.filter(a=>frontStoreIds.has(a.storeId)).map(a=>({id:a.id,clientId:a.clientId,storeId:a.storeId,date:a.date,time:a.time,principalId:a.principalId,status:a.status,arrivalAt:a.arrivalAt,arrivalBy:a.arrivalBy})),
     receipts:state.receipts.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),refunds:state.refunds.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),
@@ -779,4 +813,5 @@ document.body.classList.toggle('customer-share', customerShare);
 $('#share-preview-note').hidden = !customerShare;
 if(previewEntry==='boss')switchRole('boss:boss');
 else if(previewEntry==='frontdesk'&&model.state.frontDesks?.find(f=>f.active!==false))switchRole(`frontdesk:${model.state.frontDesks.find(f=>f.active!==false).id}`);
+else if(previewEntry==='manager'&&model.state.storeManagers.some(m=>m.active))switchRole(`manager:${model.state.storeManagers.find(m=>m.active&&m.storeId===new URLSearchParams(location.search).get('store'))?.id||model.state.storeManagers.find(m=>m.active).id}`);
 else render();

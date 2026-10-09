@@ -8,6 +8,7 @@
   <title>涛博士运动康复 · 交互预览</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="styles.css?v=20261009-companions">
+  <link rel="stylesheet" href="manager.css?v=20261009-manager">
 </head>
 <body>
   <div id="preview" class="preview-layout">
@@ -18,7 +19,7 @@
           <div class="control-intro"><h1>看得到的服务，<br>清楚的下一步。</h1><p>先试用页面与工作流程。所有姓名、门店及记录均为虚构示例。</p></div>
           <label class="field"><span>预览身份</span><select id="role-select" aria-label="预览身份"></select></label>
           <div class="control-links"><button class="btn btn-outline" data-action="tour">试一遍完整流程</button><button class="btn btn-quiet" data-action="reset">重置示例数据</button></div>
-          <div class="preview-conditions"><h2>预览范围</h2><p>客户计划与评估记录<br>康复师登记与消费业绩<br>前台评估录入与工作记录<br>老板多店管理与考核</p><p class="muted">数据仅保存在此页面，刷新会恢复初始示例。微信登录、消息通知与真实档案将在正式接入时启用。</p></div>
+          <div class="preview-conditions"><h2>预览范围</h2><p>客户计划与评估记录<br>康复师登记与消费业绩<br>前台评估录入与工作记录<br>店长本店工作与收支核对<br>老板多店管理与考核</p><p class="muted">数据仅保存在此页面，刷新会恢复初始示例。微信登录、消息通知与真实档案将在正式接入时启用。</p></div>
           <label class="check preview-toggle"><input id="network-toggle" type="checkbox"><span>模拟一次提交失败</span></label>
           <button class="text-link" data-action="export-preview">导出当前演示记录</button>
         </div>
@@ -40,6 +41,6 @@
     <div class="photo-viewer-body"><img id="photo-image" alt=""><p id="photo-caption" class="meta"></p></div>
   </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script type="module" src="app.js?v=20261009-companions"></script>
+  <script type="module" src="app.js?v=20261009-manager"></script>
 </body>
 </html>
