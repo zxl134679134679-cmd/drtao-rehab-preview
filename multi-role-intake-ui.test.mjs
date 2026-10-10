@@ -45,13 +45,13 @@ test('shared intake respects role stores and makes therapist themselves the expl
   }
 });
 
-test('actual app dispatch refuses manager intake and all appointment, assessment and cash writes',async()=>{
+test('actual app dispatch refuses manager intake, existing appointment edits, assessments and cash writes',async()=>{
   const m=fixture(),role=roles.manager,source=await readFile(new URL('./app.js',import.meta.url),'utf8');
   const start=source.indexOf('function buildDialog('),end=source.indexOf('\nfunction draftKey(',start);
   assert.ok(start>=0&&end>start);
   const scope={workflowTypes,workflowDialog,role,model:m,customerBookingTypes:new Set(),receptionIntakeDialog:reception.receptionIntakeDialog,managerDialog,scheduleDialog, personnelDialog,ctx:()=>ctx(m,role)};
   vm.runInNewContext(source.slice(start,end)+'\nglobalThis.open=buildDialog;',scope);
-  for(const type of ['reception-create-client','paper-intake-create','appointment-create','assessment-create','record-receipt','reset'])assert.throws(()=>scope.open(type,'c1'));
+  for(const type of ['reception-create-client','paper-intake-create','appointment-edit','appointment-cancel','assessment-create','record-receipt','reset'])assert.throws(()=>scope.open(type,'c1'),/店长|权限/);
 });
 
 test('manager can inspect frontdesk-created local clients without receiving intake or booking actions',()=>{

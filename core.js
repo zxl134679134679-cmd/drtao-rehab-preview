@@ -598,6 +598,16 @@ export class DemoModel {
     if (clientId && !this.canSeeClient(role, clientId)) throw new Error('您没有该客户的前台操作权限');
     return frontDesk;
   }
+  _managerBookingActor(role, clientId, storeId, principalId) {
+    const boundStoreId = this.managerStoreId(role);
+    if (storeId !== boundStoreId) throw new Error('店长仅有本店客户的新建预约和待预约确认权限');
+    if (this._store(boundStoreId).active === false) throw new Error('本店已停用，不能安排预约');
+    if (!this.canSeeClient(role, clientId)) throw new Error('您没有该客户的本店预约权限');
+    const person = this._therapist(principalId);
+    if (person.storeId !== boundStoreId) throw new Error('店长仅有安排本店在职康复师的预约权限');
+    if (!this._therapistClientWorkAllowed(person.id, clientId, boundStoreId)) throw new Error('此康复师没有该客户的本店服务权限，请由老板先安排执行权限');
+    return this._client(clientId);
+  }
   _bookingActor(role, clientId, storeId) {
     if (role?.type !== 'frontdesk') return this._staff(role, clientId, storeId);
     const frontDesk = this._frontDesk(role.id);
@@ -1476,7 +1486,8 @@ export class DemoModel {
   }
 
   saveAppointment(data, role) {
-    const client = this._bookingActor(role, data.clientId, data.storeId);
+    if (role?.type === 'manager' && Object.hasOwn(data, 'id')) throw new Error('店长仅能新建本店预约，已有预约请由前台或负责康复师调整');
+    const client = role?.type === 'manager' ? this._managerBookingActor(role, data.clientId, data.storeId, data.principalId) : this._bookingActor(role, data.clientId, data.storeId);
     const input = {
       clientId: client.id, date: validDate(data.date), time: validTime(data.time),
       storeId: required(data.storeId, '服务门店'), principalId: required(data.principalId, '服务康复师'),

@@ -41,6 +41,14 @@ export function updateAppointmentAvailability(form,ctx) {
     select.innerHTML=`<option value="">${people.length?'选择服务康复师':'请联系门店安排康复师'}</option>${people.map(row=>`<option value="${esc(row.id)}"${row.id===selected?' selected':''}>${esc(row.name)}</option>`).join('')}`;
     data.principalId=selected;
   }
+  if (ctx.role.type==='manager' && type==='appointment-create') {
+    const boundStore=model.managerStoreId(ctx.role);
+    if(storeId!==boundStore || !model.canSeeClient(ctx.role,data.clientId)) throw new Error('您没有此客户或门店的本店预约权限');
+    const select=form.elements.principalId, eligible=customerBookingTherapists(model,data.clientId,boundStore,date).filter(person=>person.storeId===boundStore), previous=select.value;
+    const selected=eligible.find(person=>person.id===previous)?.id || eligible.find(person=>person.id===model._client(data.clientId).ownerId)?.id || eligible[0]?.id || '';
+    select.innerHTML=`<option value="">${eligible.length?'选择本店服务康复师':'当天暂无合资格本店康复师'}</option>${eligible.map(person=>`<option value="${esc(person.id)}"${person.id===selected?' selected':''}>${esc(person.name)}</option>`).join('')}`;
+    select.value=selected;data.principalId=selected;
+  }
   const people=type==='appointment-batch'?[...form.querySelectorAll('[data-booking-member]')].map(row=>({principalId:row.querySelector('[data-booking-principal]').value,clientId:row.querySelector('[data-booking-client]').value})):
     [{principalId:old?.principalId||data.principalId,clientId:type==='customer-booking'?ctx.role.id:old?.clientId||data.clientId||''}];
   let note=form.querySelector('[data-booking-availability]');

@@ -112,7 +112,7 @@ test('intake authorization resolves actual role records and excludes stopped sto
   assert.deepEqual(stores({ type: 'therapist', id: 't1' }), []);
 });
 
-test('both store managers supervise local files created by the boss without gaining intake, booking or financial writes', () => {
+test('both store managers can book local files created by the boss without gaining intake, edit or financial writes', () => {
   for (const [id, storeId, ownerId, otherStore, otherOwner] of [['m1', 'a', 't1', 'b', 't2'], ['m2', 'b', 't2', 'a', 't1']]) {
     const model = newModel(), role = { type: 'manager', id }, beforeWork = cashAndWork(model);
     rejectsUnchanged(model, () => model.createReceptionClient(input({ storeId, ownerId }), role), /权限|监管|查看/);
@@ -125,7 +125,9 @@ test('both store managers supervise local files created by the boss without gain
     assert.equal(model.state.audit[0].actorId, 'boss'); assert.equal(model.state.audit[0].actorType, 'boss');
     assert.equal(model.state.audit[0].storeId, storeId); assert.equal(model.state.audit[0].type, 'reception_client_created');
     rejectsUnchanged(model, () => model.createReceptionClient(input({ phone: '13912345679', storeId: otherStore, ownerId: otherOwner, requestId: 'manager-other-store' }), role), /门店|权限/);
-    rejectsUnchanged(model, () => model.saveAppointment({ clientId: client.id, storeId, date: '2026-10-10', time: '09:30', principalId: ownerId, project: '首次评估' }, role), /权限|康复师|老板/);
+    const booking = model.saveAppointment({ clientId: client.id, storeId, date: '2026-10-10', time: '12:30', principalId: ownerId, project: '首次评估' }, role);
+    assert.equal(booking.storeId, storeId); assert.equal(model.state.audit[0].actorType, 'manager');
+    rejectsUnchanged(model, () => model.saveAppointment({ ...booking, time: '10:30' }, role), /店长|预约|权限/);
     rejectsUnchanged(model, () => model.createStorePackage({ clientId: client.id, storeId, name: '测试套餐', amount: '3000', total: '10', requestId: 'manager-card' }, role), /权限|老板/);
     rejectsUnchanged(model, () => model.recordReceipt({ clientId: client.id, storeId, date: '2026-10-09', time: '09:00', purpose: 'single', method: 'wechat', amount: '300', requestId: 'manager-receipt' }, role), /权限|老板|前台/);
   }

@@ -1,20 +1,20 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261009-daily-permissions-2';
-import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261009-daily-permissions-2';
-import { renderManager, managerDialog } from './manager.js?v=20261009-daily-permissions-2';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261010-staff-mobile-booking-1';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261010-staff-mobile-booking-1';
+import { renderManager, managerDialog } from './manager.js?v=20261010-staff-mobile-booking-1';
 import { hourTimeField } from './hour-picker.js?v=20261009-daily-permissions-2';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261009-daily-permissions-2';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261010-staff-mobile-booking-1';
 import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261009-daily-permissions-2';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261009-daily-permissions-2';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261010-staff-mobile-booking-1';
 import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-daily-permissions-2';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261009-daily-permissions-2';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261009-daily-permissions-2';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261010-staff-mobile-booking-1';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261010-staff-mobile-booking-1';
 
 import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-daily-permissions-2';
 
 import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-daily-permissions-2';
 import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-daily-permissions-2';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261009-daily-permissions-2';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261010-staff-mobile-booking-1';
 import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261009-daily-permissions-2';
 
 // Keep operations on the displayed example day. Real systems use server time.
@@ -113,8 +113,8 @@ function switchRole(value, targetView) {
   render(true);
 }
 function navigation() {
-  const items = role.type === 'customer' ? [['home','预约','calendar'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','工作台','home'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['reception-assessments','评估','chart-bar'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:role.type==='manager'?[['manager-overview','本店概览','home'],['manager-clients','客户','users'],['manager-records','工作记录','clipboard-text'],['manager-team','人员','user']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','人员管理','users']];
-  if(role.type!=='customer')items.push(['schedules',role.type==='therapist'?'我的排班':'排班','calendar']);
+  const items = role.type === 'customer' ? [['home','预约','calendar'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','今日','home'],['therapist-appointments','预约','calendar'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['reception-assessments','评估','chart-bar'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:role.type==='manager'?[['manager-overview','今日','home'],['manager-appointments','预约','calendar'],['manager-clients','客户','users'],['manager-records','经营','chart-bar']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','人员管理','users']];
+  if(['boss','frontdesk'].includes(role.type))items.push(['schedules',role.type==='therapist'?'我的排班':'排班','calendar']);
   return items.map(([key,label,ico]) => `<button class="nav-item ${view === key ? 'active' : ''}" data-action="nav" data-id="${key}" ${view === key ? 'aria-current="page"' : ''}>${icon(ico === 'home' && view === key ? 'home-filled' : ico,25)}<span class="nav-label">${label}</span></button>`).join('');
 }
 function render(resetScroll = false) {
@@ -126,7 +126,9 @@ function render(resetScroll = false) {
   const label = customer ? name('clients', role.id) : role.type === 'boss' ? '老板管理' : role.type==='frontdesk'?`${name('frontDesks',role.id)} · 前台`:role.type==='manager'?`${name('storeManagers',role.id)} · 店长`:`${name('therapists', role.id)} · 康复师`;
   $('#app-header').innerHTML = `<div class="app-brand"><img class="brand-logo" src="assets/brand-logo.png" alt="涛博士 Dr.Tao 运动康复" width="146" height="56"></div><div class="customer-head"><span class="header-name">${esc(label)}</span>${customer ? `<button class="capsule" data-action="mini-info" aria-label="小程序预览说明">${icon('dots',20)}<span></span>${icon('circle-dot',20)}</button>` : '<span class="tag tag-green">工作端</span>'}</div>`;
   const staffHome=['work','overview','reception','manager-overview'].includes(view);
-  main.innerHTML = customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : view==='schedules'?renderSchedulePage(ctx()):`${role.type==='manager'?renderManager(ctx()):`${view==='work'?assessmentInbox():''}${renderStaff(ctx())}`}${staffHome?renderScheduleInbox(ctx())+renderScheduleSummary(ctx()):''}${renderBookingInbox(customerCtx())}`;
+  main.innerHTML = customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : view==='schedules'?renderSchedulePage(ctx()):`${role.type==='manager'?renderManager(ctx()):`${view==='work'?assessmentInbox():''}${renderStaff(ctx())}`}${staffHome?renderScheduleInbox(ctx())+(role.type==='therapist'&&view==='work'?'':renderScheduleSummary(ctx())):''}${role.type==='manager'?'':renderBookingInbox(customerCtx())}`;
+  const supervision=main.querySelector('.manager-supervision');
+  if(supervision)supervision.open=!window.matchMedia('(max-width: 760px)').matches;
   $('#bottom-nav').innerHTML = navigation();
   if (resetScroll) main.scrollTop = 0;
 }
@@ -361,7 +363,7 @@ function buildDialog(type, id) {
   if(role.type==='manager') {
     model.managerStoreId(role);
     if(type.startsWith('manager-'))return managerDialog(type,id,ctx());
-    if(!['tour','mini-info','reception-client','paper-intake-detail','paper-intake-list'].includes(type))throw new Error('店长仅监管查看本店工作，不可录入和修改，请由前台或老板处理');
+    if(!['appointment-create','tour','mini-info','reception-client','paper-intake-detail','paper-intake-list'].includes(type))throw new Error('店长仅有本店新建预约和待预约确认权限，其他资料监管查看，请由对应工作人员处理');
   } else if(type.startsWith('manager-'))throw new Error('此页面仅店长可查看');
   if(['paper-intake-create','paper-intake-detail','paper-intake-review','paper-intake-list'].includes(type))return paperIntakeDialog(type,id,ctx());
   if(['reception-create-client','reception-client'].includes(type))return receptionIntakeDialog(type,id,ctx());
@@ -386,7 +388,7 @@ function buildDialog(type, id) {
     return cashDialog(type,id,ctx());
   }
   if (staffTypes.has(type)) {
-    if(role.type==='frontdesk'&&['appointment-create','appointment-edit'].includes(type)) {
+    if((role.type==='manager'&&type==='appointment-create') || (role.type==='frontdesk'&&['appointment-create','appointment-edit'].includes(type))) {
       if(type==='appointment-edit')assertReceptionAppointment(ctx(),id);
     } else assertStaff();
     if (['followup','add-store','add-therapist','add-frontdesk','transfer-client','import-opening','revoke-service','renew-package'].includes(type)) assertBoss();
@@ -612,7 +614,7 @@ document.addEventListener('click', event => {
     if(action==='reception-check-phone')return checkReceptionIntakePhone($('#sheet-body form'),true);
     if (action === 'close-dialog') return closeDialog();
     if (action === 'nav') {
-      const allowed = role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team','schedules'] : role.type==='frontdesk'?['reception','reception-assessments','cash','reception-clients','schedules']:role.type==='manager'?['manager-overview','manager-clients','manager-records','manager-team','schedules']:['work','clients','performance','schedules'];
+      const allowed = role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team','schedules'] : role.type==='frontdesk'?['reception','reception-assessments','cash','reception-clients','schedules']:role.type==='manager'?['manager-overview','manager-appointments','manager-clients','manager-records','manager-team','schedules']:['work','therapist-appointments','clients','performance','schedules'];
       if (!allowed.includes(id)) throw new Error('该页面不可访问');
       closeDialog(); view = id; render(true); return;
     }
@@ -742,12 +744,13 @@ function constrainStaffChoices(type,id) {
   const select = f.querySelector(`[name="${key}"]`);
   if (!select) return;
   const previous = select.value;
-  const allowed = model.state.therapists.filter(t => t.active && model.canSeeClient({type:'therapist',id:t.id},clientId));
+  const storeId = f.elements.storeId?.value;
+  const allowed = model.state.therapists.filter(t => t.active && (role.type==='manager' ? t.storeId===model.managerStoreId(role)&&model._therapistClientWorkAllowed(t.id,clientId,storeId) : model.canSeeClient({type:'therapist',id:t.id},clientId)));
   select.innerHTML = allowed.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
   select.value = allowed.some(t => t.id === previous) ? previous : find('clients',clientId)?.ownerId || allowed[0]?.id;
   if (!f.querySelector('.assignment-note')) {
     const note = document.createElement('p'); note.className='meta assignment-note';
-    note.textContent='安排给负责或已实际参与服务的康复师；新人员接手时，请先由老板转交负责人。';
+    note.textContent='安排给有本店客户服务权限且当天在本店排班的康复师；新人员执行权限请由老板安排。';
     f.querySelector('.dialog-footer').before(note);
   }
 }
@@ -792,7 +795,7 @@ document.addEventListener('submit', async event => {
   }
   if(type==='paper-intake-select'){openDialog('paper-intake-create',data.clientId);return;}
   if(type==='cash-closing-select'){try{model.cashClosingSummary(role,{storeId:data.storeId,date:data.date});openDialog('cash-closing',JSON.stringify({storeId:data.storeId,date:data.date}));}catch(error){formError(f,error.message);}return;}
-  if(role.type==='manager') {formError(f,'店长仅监管查看本店工作，不可录入和修改，请由前台或老板处理');return;}
+  if(role.type==='manager' && !['appointment-create','customer-booking-confirm'].includes(type)) {formError(f,'店长仅有本店新建预约和待预约确认权限，其他操作请由对应工作人员处理');return;}
   if (type === 'filters') {
     if (data.from && data.to && data.from > data.to) { toast('开始日期不能晚于结束日期'); return; }
     filters = {...filters,...data}; render(); return;
@@ -1000,10 +1003,11 @@ function exportPreview() {
 // A manual toggle stays in place while the viewport remains on the same side.
 const compactPreview = window.matchMedia('(max-width: 760px)');
 $('.preview-controls').open = !compactPreview.matches;
-compactPreview.addEventListener('change', event => { $('.preview-controls').open = !event.matches; });
+compactPreview.addEventListener('change', event => { $('.preview-controls').open = !event.matches; const supervision=main.querySelector('.manager-supervision');if(supervision)supervision.open=!event.matches; });
 document.body.classList.toggle('customer-share', customerShare);
 $('#share-preview-note').hidden = !customerShare;
 if(previewEntry==='boss')switchRole('boss:boss');
 else if(previewEntry==='frontdesk'&&model.state.frontDesks?.find(f=>f.active!==false))switchRole(`frontdesk:${model.state.frontDesks.find(f=>f.active!==false).id}`);
+else if(previewEntry==='therapist'&&model.state.therapists.some(t=>t.active))switchRole(`therapist:${model.state.therapists.find(t=>t.active&&t.id===new URLSearchParams(location.search).get('staff'))?.id||model.state.therapists.find(t=>t.active).id}`);
 else if(previewEntry==='manager'&&model.state.storeManagers.some(m=>m.active))switchRole(`manager:${model.state.storeManagers.find(m=>m.active&&m.storeId===new URLSearchParams(location.search).get('store'))?.id||model.state.storeManagers.find(m=>m.active).id}`);
 else render();

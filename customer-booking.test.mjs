@@ -85,9 +85,9 @@ test('the owner confirms through the real appointment model and records the actu
   const final = snapshot(m); assert.deepEqual(api('confirmCustomerBooking')(m, row.id, owner), confirmed); assert.equal(snapshot(m), final);
 });
 
-test('an authorized front desk confirms using its own identity while managers and participants have no confirmation write right', () => {
+test('an authorized front desk confirms using its own identity while foreign managers and participants have no confirmation write right', () => {
   const m = ready(), row = submit(m);
-  for (const role of [customer, frontB, managerA, managerB, { type: 'therapist', id: 't2' }, { type: 'therapist', id: 't5' }, { type: 'boss', id: 'wrong' }]) rejectUnchanged(m, () => api('confirmCustomerBooking')(m, row.id, role), /权限|负责|本人|门店|老板|只读/);
+  for (const role of [customer, frontB, managerB, { type: 'therapist', id: 't2' }, { type: 'therapist', id: 't5' }, { type: 'boss', id: 'wrong' }]) rejectUnchanged(m, () => api('confirmCustomerBooking')(m, row.id, role), /权限|负责|本人|门店|老板|只读/);
   const confirmed = api('confirmCustomerBooking')(m, row.id, frontA);
   assert.equal(confirmed.confirmedBy, 'f1'); assert.equal(confirmed.confirmedRole, 'frontdesk');
   assert.equal(m.state.audit.find(a => a.type === 'appointment_saved').actorId, 'f1');

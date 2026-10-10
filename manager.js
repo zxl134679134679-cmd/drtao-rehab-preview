@@ -1,7 +1,7 @@
 import { renderCashClosingSummary } from './cash.js?v=20261009-daily-permissions-2';
-/* Store managers view validated local records and may create basic customer files. */
+/* Store managers supervise local work; only single new bookings and pending confirmations are writable. */
 import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261009-daily-permissions-2';
-import { clientIntakeButton } from './reception.js?v=20261009-daily-permissions-2';
+import { renderBookingInbox } from './customer-ui.js?v=20261010-staff-mobile-booking-1';
 import { renderDailyOperations } from './daily-operations-ui.js?v=20261009-daily-permissions-2';
 const CHANNELS = {direct:'门店收款',douyin:'抖音',meituan:'美团',other_platform:'其他平台'};
 const METHODS = {wechat:'微信',alipay:'支付宝',cash:'现金',bank:'银行转账'};
@@ -53,7 +53,7 @@ function businessDate(stamp) {
 function between(value,from,to) { return Boolean(value) && (!from || value >= from) && (!to || value <= to); }
 
 function heading(x,title,description) {
-  return `<div class="page-head"><div><span class="eyebrow">${x.esc(x.all.store.name)} · 店长工作台</span><h1>${x.esc(title)}</h1><p class="muted">${x.esc(description)}</p><p class="meta">监管查看 · 不可录入和修改；业务记录由前台录入，调整由老板处理。</p></div><div class="action-row">${clientIntakeButton(x.ctx)}${x.tag(`${x.all.manager.name} · 监管查看`,'green')}</div></div>`;
+  return `<div class="page-head"><div><span class="eyebrow">${x.esc(x.all.store.name)} · 店长工作台</span><h1>${x.esc(title)}</h1><p class="muted">${x.esc(description)}</p><p class="meta">可代客户新建本店预约、确认待预约；其他资料监管查看，调整由对应工作人员处理。</p></div><div class="action-row">${x.button('代客户预约','appointment-create','','btn-primary')}${x.tag(`${x.all.manager.name} · 监管查看`,'green')}</div></div>`;
 }
 function periodFilter(x) {
   return `<form class="filters" data-form="manager-filters"><label class="field"><span>开始日期</span><input type="date" name="from" value="${x.esc(x.snapshot.from || '')}"></label><label class="field"><span>结束日期</span><input type="date" name="to" value="${x.esc(x.snapshot.to || '')}"></label><button class="btn btn-primary" type="submit">查看</button>${x.button('全部时间','manager-clear-filters','','btn-quiet')}</form>`;
@@ -72,6 +72,13 @@ function cashHero(x,cash,label,showChannels = true) {
   return `<section class="cash-hero" aria-label="本店营业收入"><div class="cash-hero-head"><span>${x.esc(label)}</span><span>${x.esc(x.all.store.name)}</span></div><strong class="cash-total">${x.money(cash.net)}</strong><p class="cash-formula">收款 ${x.money(cash.received)} <span>−</span> 退款 ${x.money(cash.refunded)}</p>${showChannels ? `<div class="cash-channels">${(cash.channels || []).map(row => `<div><span>${x.esc(CHANNELS[row.channel] || '其他渠道')}</span><strong>${x.money(row.net)}</strong></div>`).join('')}</div>` : ''}<p class="cash-hero-note">按实际到账日期统计，已扣除退款。消费业绩来自已完成服务，单独统计。</p></section>`;
 }
 
+function bookingInbox(ctx,x) {
+  return renderBookingInbox({...ctx,fmt:{money:x.money,date:value=>`${Number(value.slice(5,7))}月${Number(value.slice(8,10))}日`},ui:{button:x.button,name:x.name}});
+}
+function appointmentsPage(ctx) {
+  const x=helpers(ctx),rows=scheduled(x.all.appointments.filter(row=>row.date>=x.today&&PENDING_APPOINTMENTS.has(row.status)));
+  return `<div class="manager-dashboard">${heading(x,'本店预约','核对客户申请与已确认的本店安排。')}${bookingInbox(ctx,x)}<section class="ease-work-main"><div class="section-head"><h2>今天及之后的预约</h2>${x.tag(`${rows.length} 次`)}</div><div class="ease-service-list">${rows.length?rows.map(row=>appointmentCard(x,row)).join(''):x.empty('本店暂无今天或之后的待服务预约。')}</div></section><p class="meta">新建预约与确认申请不扣次数、不记收款；已有安排需调整时，请联系前台或负责康复师。</p></div>`;
+}
 function overview(ctx) {
   const x = helpers(ctx);
   const today = ctx.model.managerSnapshot(ctx.role,{from:x.today,to:x.today});
@@ -85,7 +92,7 @@ function overview(ctx) {
   const assessments = latest((x.all.assessments || []).filter(row => row.status === 'pending'));
   const pendingReceipts = latest((x.all.receipts || []).filter(row => row.status === 'pending_settlement'));
   const assessmentItem = row => `<div class="row"><div class="row-main"><strong>${x.esc(x.clientName(row.clientId))} · ${x.esc(row.project)}</strong><div class="meta">${x.esc(row.date)} · 待 ${x.esc(x.name('therapists',row.therapistId))} 确认</div></div>${x.link('查看记录','manager-assessment',row.id)}</div>`;
-  return `<div class="boss-dashboard manager-dashboard">${heading(x,'本店今天','收入、服务和待办，一眼看清。')}${cashHero(x,today.cash,'本店今日实收')}${renderCashClosingSummary(ctx)}<div class="ease-work-stats"><div class="ease-work-stat"><span>今日待服务</span><strong>${todayAppointments.length}<small> 次</small></strong><small>其中已到店 ${todayAppointments.filter(row => row.arrivalAt).length} 次</small></div><div class="ease-work-stat"><span>今日完成服务</span><strong>${validServices.length}<small> 次</small></strong><small>按本店实际服务记录</small></div><div class="ease-work-stat"><span>今日消费业绩</span><strong>${x.money(serviceAmount(validServices))}</strong><small>主服务计一次，协作不重复计</small></div></div>${renderDailyOperations({...ctx,filters:{...ctx.filters,from:ctx.model.today,to:ctx.model.today}},{compact:true})}<section class="boss-panel manager-panel"><div class="section-head"><h2>先处理这些事</h2><span class="muted">当前全部待办</span></div>${renderPaperIntakeInbox(ctx)}${fold(x,'已到店待登记',unrecorded,row => appointmentCard(x,row),'服务记录均已补齐。',true)}${fold(x,'预约需要确认',attention,row => appointmentCard(x,row),'暂无改约、人员调整或逾期预约。')}${fold(x,'工作待办',tasks,row => taskRow(x,row),'暂无未完成工作。')}${fold(x,'评估待确认',assessments,assessmentItem,'本店评估均已处理。')}${fold(x,'平台待结算',pendingReceipts,row => cashRow(x,row,'receipt'),'本店没有平台待结算款项。')}<p class="manager-panel-note">待办由对应工作人员处理；退款、更正和权限调整由老板处理。</p></section><section class="ease-work-main manager-panel"><div class="section-head"><h2>今天的安排</h2>${x.tag(`${todayAppointments.length} 次`)}</div><div class="ease-service-list">${todayAppointments.length ? todayAppointments.map(row => appointmentCard(x,row)).join('') : x.empty('今天暂无待服务预约。')}</div></section>${fold(x,'之后的预约',future,row => appointmentCard(x,row),'暂无已确认的后续预约。')}<div class="boss-footer">${x.button('查看本店记录','nav','manager-records')}${x.button('查看人员工作','nav','manager-team')}</div></div>`;
+  return `<div class="boss-dashboard manager-dashboard">${heading(x,'本店今天','先看今天安排，再确认客户预约。')}<section class="ease-work-main manager-panel manager-today"><div class="section-head"><h2>今天的安排</h2>${x.tag(`${todayAppointments.length} 次`)}</div><div class="ease-service-list">${todayAppointments.length ? todayAppointments.map(row => appointmentCard(x,row)).join('') : x.empty('今天暂无待服务预约。')}</div></section>${bookingInbox(ctx,x)}<details class="manager-supervision" open><summary><strong>本店收支与员工工作</strong><span>展开监管记录</span></summary><div class="manager-supervision-body">${cashHero(x,today.cash,'本店今日实收')}${renderCashClosingSummary(ctx)}<div class="ease-work-stats"><div class="ease-work-stat"><span>今日待服务</span><strong>${todayAppointments.length}<small> 次</small></strong><small>其中已到店 ${todayAppointments.filter(row => row.arrivalAt).length} 次</small></div><div class="ease-work-stat"><span>今日完成服务</span><strong>${validServices.length}<small> 次</small></strong><small>按本店实际服务记录</small></div><div class="ease-work-stat"><span>今日消费业绩</span><strong>${x.money(serviceAmount(validServices))}</strong><small>主服务计一次，协作不重复计</small></div></div>${renderDailyOperations({...ctx,filters:{...ctx.filters,from:ctx.model.today,to:ctx.model.today}},{compact:true})}</div></details><section class="boss-panel manager-panel"><div class="section-head"><h2>先处理这些事</h2><span class="muted">当前全部待办</span></div>${renderPaperIntakeInbox(ctx)}${fold(x,'已到店待登记',unrecorded,row => appointmentCard(x,row),'服务记录均已补齐。',true)}${fold(x,'预约需要确认',attention,row => appointmentCard(x,row),'暂无改约、人员调整或逾期预约。')}${fold(x,'工作待办',tasks,row => taskRow(x,row),'暂无未完成工作。')}${fold(x,'评估待确认',assessments,assessmentItem,'本店评估均已处理。')}${fold(x,'平台待结算',pendingReceipts,row => cashRow(x,row,'receipt'),'本店没有平台待结算款项。')}<p class="manager-panel-note">待办由对应工作人员处理；退款、更正和权限调整由老板处理。</p></section>${fold(x,'之后的预约',future,row => appointmentCard(x,row),'暂无已确认的后续预约。')}<div class="boss-footer">${x.button('查看本店记录','nav','manager-records')}${x.button('查看人员工作','nav','manager-team')}</div></div>`;
 }
 
 function clientList(ctx) {
@@ -94,9 +101,9 @@ function clientList(ctx) {
   const clients = (x.all.clients || []).filter(row => !query || `${row.name} ${row.phone || ''}`.toLowerCase().includes(query));
   const cards = clients.map(client => {
     const next = scheduled((x.all.appointments || []).filter(row => row.clientId === client.id && row.date >= x.today && PENDING_APPOINTMENTS.has(row.status)))[0];
-    return `<article class="card person-card"><div class="section-head"><h2>${x.esc(client.name)}</h2>${x.tag(client.total?`剩余 ${client.remaining} 次`:'尚未办理本店套餐',client.total&&client.remaining <= 2 ? 'warn' : 'green')}</div><p class="meta">${x.esc(client.phone || '手机号待补充')} · 负责人 ${x.esc(x.name('therapists',client.ownerId))}</p><p class="client-goal">${x.esc(client.goal || client.planName || '计划待完善')}</p><p class="meta">本店下次服务：${next ? `${x.esc(next.date)} ${x.esc(next.time)}` : '待安排'}</p><p class="meta">${x.esc(client.nextStep || '下一步待康复师更新')}</p><div class="action-row">${x.link('查看档案与本店记录','manager-client',client.id)}${x.button('接待记录','paper-intake-list',client.id)}</div></article>`;
+    return `<article class="card person-card"><div class="section-head"><h2>${x.esc(client.name)}</h2>${x.tag(client.total?`剩余 ${client.remaining} 次`:'尚未办理本店套餐',client.total&&client.remaining <= 2 ? 'warn' : 'green')}</div><p class="meta">${x.esc(client.phone || '手机号待补充')} · 负责人 ${x.esc(x.name('therapists',client.ownerId))}</p><p class="client-goal">${x.esc(client.goal || client.planName || '计划待完善')}</p><p class="meta">本店下次服务：${next ? `${x.esc(next.date)} ${x.esc(next.time)}` : '待安排'}</p><p class="meta">${x.esc(client.nextStep || '下一步待康复师更新')}</p><div class="action-row">${x.link('查看档案与本店记录','manager-client',client.id)}${x.button('代客户预约','appointment-create',client.id,'btn-primary')}${x.button('接待记录','paper-intake-list',client.id)}</div></article>`;
   }).join('');
-  return `<div class="manager-dashboard">${heading(x,'本店客户','新客户先建档，各门店套餐和工作记录分别查看。')}<form class="toolbar" data-form="manager-search"><label class="field search-field"><span>查找客户</span><input name="query" type="search" value="${x.esc(ctx.filters?.query || '')}" placeholder="输入姓名或手机号" maxlength="80"></label><button type="submit" class="btn btn-primary">查找</button></form><div class="section-head"><h2>客户档案</h2><span class="muted">${clients.length} 位</span></div><div class="client-grid">${cards || x.empty('未找到本店客户，请更换搜索内容。')}</div></div>`;
+  return `<div class="manager-dashboard">${heading(x,'本店客户','查找本店客户，代约时间或查看本店工作记录。')}<form class="toolbar" data-form="manager-search"><label class="field search-field"><span>查找客户</span><input name="query" type="search" value="${x.esc(ctx.filters?.query || '')}" placeholder="输入姓名或手机号" maxlength="80"></label><button type="submit" class="btn btn-primary">查找</button></form><div class="section-head"><h2>客户档案</h2><span class="muted">${clients.length} 位</span></div><div class="client-grid">${cards || x.empty('未找到本店客户，请更换搜索内容。')}</div></div>`;
 }
 
 function serviceLedger(x,rows,title = '本店服务记录') {
@@ -114,7 +121,7 @@ function records(ctx) {
   const x = helpers(ctx,true);
   const cashRows = latest([...(x.snapshot.receipts || []).map(row => ({...row,kind:'receipt'})),...(x.snapshot.refunds || []).map(row => ({...row,kind:'refund'}))]);
   const evaluations = x.snapshot.frontDeskEvaluations || [];
-  return `<div class="manager-dashboard">${heading(x,'本店工作记录','按日期核对服务、收支、预约和评估。')}${periodFilter(x)}<p class="boss-scope">${x.esc(x.all.store.name)} · ${x.esc(x.periodLabel)}</p>${cashHero(x,x.snapshot.cash,'所选日期实收',false)}${serviceLedger(x,x.snapshot.services || [])}<section class="section card"><div class="section-head"><h2>收支明细</h2><span class="muted">${cashRows.length} 笔</span></div>${cashRows.map(row => cashRow(x,row,row.kind)).join('') || x.empty('当前日期没有本店收支记录。')}<p class="meta">待结算、已结算原单和已撤销记录保留备查，不重复计入实收。</p></section>${fold(x,'预约记录',scheduled(x.snapshot.appointments || []),row => appointmentCard(x,row),'当前日期没有本店预约记录。')}${fold(x,'评估记录',x.snapshot.assessments || [],row => assessmentList(x,[row]),'当前日期没有本店评估记录。')}${fold(x,'前台考核记录',evaluations,row => `<div class="row"><div><strong>${x.esc(x.name('frontDesks',row.frontDeskId))}</strong><p class="meta">${x.esc(row.from)} 至 ${x.esc(row.to)} · ${row.status === 'voided' ? '已撤销' : '已记录'}</p></div>${x.link('考核明细','manager-frontdesk-evaluation',row.id)}</div>`,'当前日期没有本店前台考核记录。')}</div>`;
+  return `<div class="manager-dashboard">${heading(x,'本店经营','按日期核对服务、收支、预约和评估。')}<div class="action-row manager-operations-links">${x.button('人员工作','nav','manager-team')}${x.button('本店排班','nav','schedules')}</div>${periodFilter(x)}<p class="boss-scope">${x.esc(x.all.store.name)} · ${x.esc(x.periodLabel)}</p>${cashHero(x,x.snapshot.cash,'所选日期实收',false)}${serviceLedger(x,x.snapshot.services || [])}<section class="section card"><div class="section-head"><h2>收支明细</h2><span class="muted">${cashRows.length} 笔</span></div>${cashRows.map(row => cashRow(x,row,row.kind)).join('') || x.empty('当前日期没有本店收支记录。')}<p class="meta">待结算、已结算原单和已撤销记录保留备查，不重复计入实收。</p></section>${fold(x,'预约记录',scheduled(x.snapshot.appointments || []),row => appointmentCard(x,row),'当前日期没有本店预约记录。')}${fold(x,'评估记录',x.snapshot.assessments || [],row => assessmentList(x,[row]),'当前日期没有本店评估记录。')}${fold(x,'前台考核记录',evaluations,row => `<div class="row"><div><strong>${x.esc(x.name('frontDesks',row.frontDeskId))}</strong><p class="meta">${x.esc(row.from)} 至 ${x.esc(row.to)} · ${row.status === 'voided' ? '已撤销' : '已记录'}</p></div>${x.link('考核明细','manager-frontdesk-evaluation',row.id)}</div>`,'当前日期没有本店前台考核记录。')}</div>`;
 }
 
 function therapistWork(x,person) {
@@ -137,6 +144,7 @@ function team(ctx) {
 }
 
 export function renderManager(ctx) {
+  if (ctx.view === 'manager-appointments') return appointmentsPage(ctx);
   if (ctx.view === 'manager-clients') return clientList(ctx);
   if (ctx.view === 'manager-records') return records(ctx);
   if (ctx.view === 'manager-team') return team(ctx);

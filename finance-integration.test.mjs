@@ -33,10 +33,10 @@ test('offsetting method differences still ask the operator to investigate before
  r.scope.model.saveCashClosing=()=>({id:'closing-test',storeId:'a',date:'2026-10-08',status:'submitted',differenceTotal:0,difference:{wechat:-1,alipay:0,cash:1,bank:0}});
  await r.run();assert.match(r.scope.successHtml,/差额.*核对|逐项.*核对/);
 });
-test('manager submit refuses every business write while boss confirms daily reconciliation',async()=>{
+test('manager submit refuses non-booking business writes while boss confirms daily reconciliation',async()=>{
  for(const type of ['cash-closing-confirm','cash-closing','reception-create-client','paper-intake-create','schedule-save','schedule-decision','reset']){
   const denied=runtime(manager,type,{id:'closing-test',version:'1',storeId:'a',date:'2026-10-08'});await denied.run();
-  assert.equal(denied.calls.length,0);assert.match(denied.scope.error,/店长.*不可录入和修改/);assert.notEqual(denied.form.dataset.succeeded,'true');
+  assert.equal(denied.calls.length,0);assert.match(denied.scope.error,/店长.*权限/);assert.notEqual(denied.form.dataset.succeeded,'true');
  }
  const boss={type:'boss',id:'boss'},r=runtime(boss,'cash-closing-confirm',{id:'closing-test',version:'1'});await r.run();
  assert.equal(r.calls.length,1);assert.equal(r.calls[0].method,'confirmCashClosing');assert.equal(r.calls[0].args[0],'closing-test');assert.equal(r.calls[0].args[1].requestId,'finance-integration-key');assert.deepEqual(r.calls[0].args[2],boss);

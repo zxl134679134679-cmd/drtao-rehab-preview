@@ -245,7 +245,7 @@ test('team includes own employees and staff actually working locally without cop
   assert.equal(snap.clients.find(row => row.id === 'c1').remaining, 8);
 });
 
-test('view-only manager is denied all existing writes without changing business state or IDs', () => {
+test('manager booking exception preserves denial of all unrelated writes without changing business state or IDs', () => {
   const m = model(); api(m);
   const receipt = m.recordReceipt({ clientId: 'c1', storeId: 'a', date: '2026-10-08', time: '09:00', purpose: 'package', method: 'wechat', amount: '3000', requestId: 'write-denial-receipt' }, boss);
   const refund = m.refundReceipt({ receiptId: receipt.id, date: '2026-10-08', time: '10:00', amount: '100', reason: '多收款', requestId: 'write-denial-refund' }, boss);
@@ -257,7 +257,7 @@ test('view-only manager is denied all existing writes without changing business 
     ['registerService', () => m.registerService({ clientId: 'c1', storeId: 'a', date: '2026-10-08', time: '09:00', project: '训练', principalId: 't1', participantIds: [], notes: '记录', evidencePhotos: [photo()], requestId: 'denied-service' }, managerA)],
     ['revokeService', () => m.revokeService('s1', '更正', managerA)],
     ['publishPlan', () => m.publishPlan('c1', { goal: '目标', phase: '阶段', nextStep: '训练', planNotes: '安排', homeAdvice: '练习' }, managerA)],
-    ['saveAppointment', () => m.saveAppointment({ clientId: 'c1', storeId: 'a', date: '2026-10-12', time: '10:00', principalId: 't1', project: '基础训练' }, managerA)],
+    ['saveAppointment-edit', () => m.saveAppointment({ id: 'a3', clientId: 'c3', storeId: 'a', date: '2026-10-12', time: '10:00', principalId: 't1', project: '基础训练' }, managerA)],
     ['saveAppointmentBatch', () => m.saveAppointmentBatch({ storeId: 'a', date: '2026-10-12', time: '10:00', project: '基础训练', items: [{ clientId: 'c1', principalId: 't1' }, { clientId: 'c5', principalId: 't5' }], requestId: 'denied-group' }, managerA)],
     ['cancelAppointment', () => m.cancelAppointment('a3', '更正', managerA)],
     ['markNoShow', () => m.markNoShow('a3', '未到店', managerA)],
@@ -389,7 +389,7 @@ test('actual app export follows the manager snapshot instead of shared-client br
 test('actual app denies legacy manager dialog routes and checks each requested service store', () => {
   const m = model(); api(m);
   const app = appReaders(m, managerA);
-  for (const type of ['reset', 'reception-create-client', 'paper-intake-create', 'paper-intake-review', 'appointment-batch', 'register', 'edit-plan', 'appointment-create', 'appointment-edit', 'record-arrival', 'appointment-cancel', 'appointment-no-show', 'record-receipt', 'refund-receipt', 'settle-receipt', 'void-receipt', 'void-refund', 'transfer-client', 'revoke-service', 'renew-package', 'activate-package', 'import-opening', 'import-opening-batch', 'add-store', 'add-therapist', 'add-frontdesk', 'add-manager', 'deactivate-manager', 'assessment-create', 'assessment-confirm', 'frontdesk-evaluate', 'followup', 'review', 'plan-history', 'client-audit', 'service-detail', 'client-detail']) {
+  for (const type of ['reset', 'reception-create-client', 'paper-intake-create', 'paper-intake-review', 'appointment-batch', 'register', 'edit-plan', 'appointment-edit', 'record-arrival', 'appointment-cancel', 'appointment-no-show', 'record-receipt', 'refund-receipt', 'settle-receipt', 'void-receipt', 'void-refund', 'transfer-client', 'revoke-service', 'renew-package', 'activate-package', 'import-opening', 'import-opening-batch', 'add-store', 'add-therapist', 'add-frontdesk', 'add-manager', 'deactivate-manager', 'assessment-create', 'assessment-confirm', 'frontdesk-evaluate', 'followup', 'review', 'plan-history', 'client-audit', 'service-detail', 'client-detail']) {
     assert.throws(() => app.dialog(type, 'c1'), /店长|只读|仅|权限|查看/, type);
   }
   assert.throws(() => app.service('s1'), /权限|本店|门店/);
@@ -459,4 +459,13 @@ test('all actual manager detail types display local data and deny foreign or unk
     assert.throws(() => renderManager(ctx(m, role)), /权限|店长|账号/);
     assert.throws(() => managerDialog('manager-client', 'c1', ctx(m, role)), /权限|店长|账号/);
   }
+});
+
+ test('actual app permits manager local new-booking route while still rejecting a foreign client',()=>{const m=model(),app=appReaders(m,managerA);assert.match(app.dialog('appointment-create','c1').html,/data-form=\"appointment-create\"/);assert.throws(()=>app.dialog('appointment-create','c2'),/权限|本店|查看/);});
+
+test('manager and therapist primary navigation each provide direct daily, booking, customer and business destinations',()=>{
+ for(const [role,view,booking] of [[managerA,'manager-overview','manager-appointments'],[{type:'therapist',id:'t1'},'work','therapist-appointments']]){
+  const scope={role,view,icon:()=>''};vm.runInNewContext(sourceFunction('navigation','\nfunction render')+'\nglobalThis.navigationHtml=navigation();',scope);
+  const html=scope.navigationHtml;assert.equal((html.match(/data-action="nav"/g)||[]).length,4);assert.match(html,new RegExp(`data-id="${booking}"`));assert.doesNotMatch(html,/data-id="schedules"|data-id="manager-team"/);
+ }
 });

@@ -1,7 +1,7 @@
 // Desired times are requests, not live availability or confirmed appointments.
 // The preview's existing appointment model remains the confirmation authority.
 import { assertScheduleAvailability } from './schedules.js?v=20261009-daily-permissions-2';
-import { bookingAvailability } from './booking-availability.js?v=20261009-daily-permissions-2';
+import { bookingAvailability } from './booking-availability.js?v=20261010-staff-mobile-booking-1';
 const clone = value => JSON.parse(JSON.stringify(value));
 const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt', 'resolutionReason', 'resolvedBy', 'resolvedRole', 'resolvedAt', 'suggestedDate', 'suggestedTime', 'acceptedRequestId', 'acceptedBy', 'acceptedAt', 'sourceRequestId'];
 const publicRow = row => clone(Object.fromEntries(fields.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
@@ -33,11 +33,12 @@ function reader(model, role) {
   if (role?.type === 'therapist') return model._therapist(role.id);
   throw new Error('您没有查看预约申请的权限');
 }
-function confirmActor(model, row, role) {
+function confirmActor(model, row, role, allowManager = false) {
+  if (allowManager && role?.type === 'manager') return model._managerBookingActor(role, row.clientId, row.storeId, row.principalId);
   if (isBoss(role)) return model._boss(role);
   if (role?.type === 'frontdesk') return model._bookingActor(role, row.clientId, row.storeId);
   if (role?.type === 'therapist' && (model._client(row.clientId).ownerId === role.id || row.principalId === role.id && model.clientStoreTherapist?.(row.clientId,row.storeId) === role.id)) return model._staff(role, row.clientId, row.storeId);
-  throw new Error('仅老板、授权门店前台或该客户的负责康复师、本店执行康复师有处理权限；店长只读');
+  throw new Error('仅老板、授权门店前台或该客户的负责康复师、本店执行康复师有处理权限；店长仅能确认本店待预约');
 }
 function assignment(model, row) {
   if (row.date < model.today) throw new Error('不能申请或确认过去的预约日期');
@@ -158,9 +159,11 @@ export function customerBookingRows(model, role) {
 export function confirmCustomerBooking(model, id, role) {
   reader(model, role);
   const current = request(model, id);
-  confirmActor(model, current, role);
+  confirmActor(model, current, role, true);
   if (current.status === 'confirmed') {
-    if (!model.state.appointments.some(row => row.id === current.appointmentId && row.clientId === current.clientId)) throw new Error('已确认申请的预约记录不完整，请由老板核对');
+    const live = model.state.appointments.find(row => row.id === current.appointmentId && row.clientId === current.clientId);
+    if (!live) throw new Error('已确认申请的预约记录不完整，请由老板核对');
+    if (role.type === 'manager') model._managerBookingActor(role, live.clientId, live.storeId, live.principalId);
     return publicRow(current);
   }
   if (current.status !== 'pending') throw new Error('此申请已处理或取消，不能确认；建议时间须由客户接受后重新确认');
@@ -177,7 +180,7 @@ export function customerBookingConfirmation(model, id, role) {
   if (!visible) throw new Error('您没有查看该预约申请的权限');
   const row = request(model, id);
   if (row.status !== 'pending') return { canConfirm: false, reason: row.status === 'confirmed' ? '已安排预约，请查看预约记录' : row.status === 'reschedule_suggested' ? '等待客户接受建议时间' : '申请已处理或取消' };
-  try { confirmActor(model, row, role); }
+  try { confirmActor(model, row, role, true); }
   catch(error) { return { canConfirm:false, reason:`需客户负责人或老板确认：${error.message}` }; }
   try {
     assignment(model, row);

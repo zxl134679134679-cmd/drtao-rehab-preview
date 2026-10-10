@@ -1,5 +1,5 @@
 import { hourTimeField } from './hour-picker.js?v=20261009-daily-permissions-2';
-import { receptionStores } from './reception.js?v=20261009-daily-permissions-2';
+import { receptionStores } from './reception.js?v=20261010-staff-mobile-booking-1';
 
 const limit = 20;
 function clients(ctx) { return ctx.model.visibleClients(ctx.role); }

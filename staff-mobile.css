@@ -1,0 +1,74 @@
+/* Staff daily work follows the same deep-green brand and native controls. */
+.manager-supervision { margin-bottom: 20px; }
+.manager-supervision > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); color: var(--forest); cursor: pointer; }
+.manager-supervision > summary span { color: #52665a; font-size: 12px; }
+.manager-supervision-body { padding-top: 14px; }
+.manager-dashboard > .booking-inbox { margin: 0 0 20px; }
+.ease-work > .schedule-summary { margin: 0 0 18px; }
+@media (max-width: 760px) {
+  .staff-mode { min-width: 0; }
+  .staff-mode .app-main { padding: 18px 14px !important; }
+  .staff-mode .app-header { gap: 8px; min-width: 0; }
+  .staff-mode .customer-head { min-width: 0; max-width: 54%; gap: 6px; }
+  .staff-mode .header-name { white-space: normal; overflow-wrap: anywhere; font-size: 12px; }
+  .staff-mode .customer-head > .tag { display: none; }
+  .staff-mode .app-main > *, .staff-mode .page-head > *, .staff-mode .section-head > *, .staff-mode .row > *, .staff-mode .ease-service-head > *, .staff-mode .booking-inbox-row > * { min-width: 0; }
+  .staff-mode .btn, .staff-mode .text-link, .staff-mode summary, .sheet .btn, .sheet .text-link, .sheet summary, .sheet .icon-button { min-height: 44px; }
+  .staff-mode .btn, .staff-mode .text-link, .sheet .btn, .sheet .text-link { font-size: 16px; }
+  .staff-mode .nav-label { font-size: 16px; }
+  .staff-mode .btn, .sheet .btn { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
+  .staff-mode input, .staff-mode select, .staff-mode textarea, .sheet input, .sheet select, .sheet textarea, #role-select { font-size: 16px; min-height: 44px; min-width: 0; max-width: 100%; }
+  .staff-mode .nav-item { min-height: 52px; min-width: 44px; padding-left: 1px; padding-right: 1px; }
+  .staff-mode .bottom-nav { gap: 0; padding-left: 4px; padding-right: 4px; }
+  .staff-mode .meta, .staff-mode .muted { overflow-wrap: anywhere; }
+  .staff-mode .page-head, .staff-mode .section-head { flex-wrap: wrap; }
+  .staff-mode .page-head .action-row { width: 100%; }
+  .staff-mode .page-head .action-row > .btn-primary { width: 100%; }
+  .manager-dashboard.boss-dashboard { display: flex; flex-direction: column; }
+  .manager-dashboard.boss-dashboard > .page-head { order: 0; }
+  .manager-dashboard > .manager-today { order: 1; }
+  .manager-dashboard > .booking-inbox { order: 2; padding: 15px; }
+  .manager-dashboard > .manager-supervision { order: 3; }
+  .manager-dashboard.boss-dashboard > .boss-panel { order: 4; }
+  .manager-dashboard.boss-dashboard > .ease-work-notice { order: 5; }
+  .manager-dashboard.boss-dashboard > .boss-footer { order: 6; }
+  .manager-dashboard .ease-service-time { font-size: 18px; }
+  .manager-dashboard .cash-channels { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .manager-dashboard .cash-channels > div { min-width: 0; }
+  .manager-dashboard .boss-person-amount { white-space: normal; }
+  .manager-dashboard .data-table, .manager-detail .data-table { display: block; width: 100%; min-width: 0; }
+  .manager-dashboard .data-table thead, .manager-detail .data-table thead { display: none; }
+  .manager-dashboard .data-table tbody, .manager-detail .data-table tbody { display: grid; gap: 12px; }
+  .manager-dashboard .data-table tr, .manager-detail .data-table tr { display: grid; grid-template-columns: minmax(0,1fr); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .manager-dashboard .data-table td, .manager-detail .data-table td { display: block; padding: 6px 0; border: 0; white-space: normal; overflow-wrap: anywhere; }
+  .manager-dashboard .data-table td::before, .manager-detail .data-table td::before { content: attr(data-label); display: block; font-size: 12px; color: #52665a; }
+  .staff-mode .booking-inbox-row { display: block; padding: 14px 0; }
+  .staff-mode .booking-inbox-row .action-row { display: grid; grid-template-columns: minmax(0,1fr); gap: 8px; margin-top: 10px; }
+  .ease-work-head-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+  .ease-work-head-actions > .btn:first-child { grid-column: 1 / -1; }
+  .ease-work-head-actions > .btn { width: 100%; padding-left: 10px; padding-right: 10px; }
+  .ease-work .schedule-summary { padding: 14px; }
+  .ease-work .schedule-summary .section-head { display: block; }
+  .ease-work .schedule-summary .section-head > .btn { width: 100%; margin-top: 10px; }
+  .ease-service-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  .ease-service-actions > .btn-primary { flex-basis: 100%; }
+  .staff-mode .row { flex-wrap: wrap; }
+  .staff-mode .row .action-row { margin-left: 0; }
+  .staff-mode .ease-work-stat-amount { grid-column: 1 / -1; }
+  .staff-mode .ease-work-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .staff-mode .reception-head-actions { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .staff-mode .reception-head-actions > .btn:first-child { grid-column: 1 / -1; }
+  .sheet-body { padding: 16px; }
+  .sheet .form-grid { grid-template-columns: minmax(0,1fr); }
+  .sheet .dialog-footer { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sheet .dialog-footer > .btn { flex: 1 1 120px; }
+  .sheet .field, .sheet .field > * { min-width: 0; }
+}
+@media (max-width: 340px) {
+  .staff-mode .app-main { padding: 16px 10px !important; }
+  .staff-mode .ease-service-card { padding: 12px; }
+  .staff-mode .ease-service-head { flex-wrap: wrap; gap: 8px; }
+  .staff-mode .ease-work-head-actions, .staff-mode .reception-head-actions { grid-template-columns: minmax(0,1fr); }
+  .staff-mode .ease-work-head-actions > .btn:first-child, .staff-mode .reception-head-actions > .btn:first-child { grid-column: auto; }
+  .manager-supervision > summary { flex-wrap: wrap; }
+}

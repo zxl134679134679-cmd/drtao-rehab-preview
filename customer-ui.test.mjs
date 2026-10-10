@@ -138,17 +138,17 @@ test('the actual customer review dialog explains boss-only privacy and starts wi
   assert.match(reviewed,/真实体验/); assert.ok(!hasAction(reviewed,'customer-booking-confirm'));
 });
 
-test('a manager sees only its store request details and the real dispatch never opens a confirmation form', () => {
+test('a manager sees only its store request details and can open local pending confirmation only', () => {
   const m = fixture(), local = request(m,'c3'), foreign = request(m,'c2');
   const app = appReader(m,managerA,'manager-overview');
   const localHtml = app.open('customer-booking-detail',local.id).html;
-  assert.ok(!hasAction(localHtml,'customer-booking-confirm'));
+  assert.ok(hasAction(localHtml,'customer-booking-confirm'));
   assert.ok(!hasAction(localHtml,'customer-booking-cancel'));
   assert.throws(()=>app.open('customer-booking-detail',foreign.id),/权限/);
-  assert.throws(()=>app.open('customer-booking-confirm',local.id),/店长|权限|确认/);
+  assert.match(app.open('customer-booking-confirm',local.id).html,/data-form="customer-booking-confirm"/);
   const inbox = renderBookingInbox(app.customerContext());
   assert.ok(inbox.includes(local.id)); assert.ok(!inbox.includes(foreign.id));
-  assert.ok(!hasAction(inbox,'customer-booking-confirm'));
+  assert.ok(hasAction(inbox,'customer-booking-confirm'));
   assert.throws(()=>appReader(m,managerB,'manager-overview').open('customer-booking-detail',local.id),/权限/);
 });
 
