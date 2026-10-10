@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { DemoModel, TODAY } from './core.js';
+import { DemoModel, TODAY } from './legacy-test-fixture.mjs';
 import { confirmedTestSchedules, confirmTestShift } from './scheduling-test-fixture.mjs';
 import { scheduleDialog } from './schedules-ui.js';
 import { hourTimeField } from './hour-picker.js';
@@ -138,17 +138,17 @@ test('the actual customer review dialog explains boss-only privacy and starts wi
   assert.match(reviewed,/真实体验/); assert.ok(!hasAction(reviewed,'customer-booking-confirm'));
 });
 
-test('a manager sees only its store request details and can open local pending confirmation only', () => {
+test('a manager sees only its store request details and can read local requests without confirmation controls', () => {
   const m = fixture(), local = request(m,'c3'), foreign = request(m,'c2');
   const app = appReader(m,managerA,'manager-overview');
   const localHtml = app.open('customer-booking-detail',local.id).html;
-  assert.ok(hasAction(localHtml,'customer-booking-confirm'));
+  assert.ok(!hasAction(localHtml,'customer-booking-confirm'));
   assert.ok(!hasAction(localHtml,'customer-booking-cancel'));
   assert.throws(()=>app.open('customer-booking-detail',foreign.id),/权限/);
-  assert.match(app.open('customer-booking-confirm',local.id).html,/data-form="customer-booking-confirm"/);
+  assert.throws(()=>app.open('customer-booking-confirm',local.id),/权限|老板|确认/);
   const inbox = renderBookingInbox(app.customerContext());
   assert.ok(inbox.includes(local.id)); assert.ok(!inbox.includes(foreign.id));
-  assert.ok(hasAction(inbox,'customer-booking-confirm'));
+  assert.ok(!hasAction(inbox,'customer-booking-confirm'));
   assert.throws(()=>appReader(m,managerB,'manager-overview').open('customer-booking-detail',local.id),/权限/);
 });
 

@@ -1,12 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { confirmedTestSchedules } from './scheduling-test-fixture.mjs';
 
 const boss = { type: 'boss', id: 'boss' };
 const frontdesk = { type: 'frontdesk', id: 'f1' };
 const newModel = () => confirmedTestSchedules(new DemoModel({ today: '2026-10-09', now: () => '2026-10-09T04:00:00.000Z' }));
-const input = (changes = {}) => ({ name: '新客户', phone: '13912345678', age: '32', problem: '跑步后膝部不适，希望先做评估', storeId: 'a', ownerId: 't1', requestId: 'intake-request-1', ...changes });
+const input = (changes = {}) => ({ name: '新客户', phone: '13912345678', age: '32', problem: '跑步后膝部不适，希望先做评估', storeId: 'a', requestId: 'intake-request-1', ...changes });
 const snapshot = model => JSON.stringify({ state: model.state, sequence: model.sequence });
 function rejectsUnchanged(model, run, pattern) {
   const before = snapshot(model); assert.throws(run, pattern); assert.equal(snapshot(model), before, '失败不能新增档案、套餐、收款、评估、审计或序列');
@@ -14,18 +14,34 @@ function rejectsUnchanged(model, run, pattern) {
 function api(model, name) { assert.equal(typeof model[name], 'function', `缺少接待 API ${name}`); return model[name].bind(model); }
 const cashAndWork = model => structuredClone({ packages: model.state.packages, receipts: model.state.receipts, refunds: model.state.refunds, services: model.state.services, appointments: model.state.appointments, tasks: model.state.tasks, assessments: model.state.assessments });
 
+test('basic new-client intake accepts an omitted or blank problem without creating charges or professional assessment', () => {
+  for (const problem of [undefined, null, '', '   ']) {
+    const model = newModel(), beforeWork = cashAndWork(model);
+    const payload = input({ problem });
+    if (problem === undefined) delete payload.problem;
+    const client = model.createReceptionClient(payload, frontdesk);
+    assert.equal(client.problem, '');
+    assert.equal(client.name, '新客户'); assert.equal(client.age, 32); assert.equal(client.phone, '13912345678');
+    assert.equal(client.storeId, 'a'); assert.equal(client.ownerId, '');
+    assert.deepEqual(cashAndWork(model), beforeWork);
+    assert.equal(model.visibleClients(frontdesk).find(row => row.id === client.id).problem, '');
+    assert.equal(model.createReceptionClient({ ...payload, problem: '' }, frontdesk).id, client.id, 'repeated basic intake is still idempotent');
+  }
+});
+
 test('front desk creates a basic unbilled client and an assigned therapist can book the first assessment', () => {
   const model = newModel(), beforeWork = cashAndWork(model), create = api(model, 'createReceptionClient');
   const client = create(input(), frontdesk);
   assert.equal(model.state.clients.length, 7); assert.equal(client.name, '新客户'); assert.equal(client.age, 32);
   assert.equal(client.problem, '跑步后膝部不适，希望先做评估'); assert.equal(client.phone, '13912345678');
-  assert.equal(client.storeId, 'a'); assert.equal(client.ownerId, 't1'); assert.equal(client.packageId, null);
+  assert.equal(client.storeId, 'a'); assert.equal(client.ownerId, ''); assert.equal(client.packageId, null);
   assert.equal(client.createdBy, 'f1'); assert.equal(client.createdRole, 'frontdesk'); assert.equal(client.createdAt, '2026-10-09T04:00:00.000Z');
   assert.equal(client.progress.status, 'pending'); assert.match(client.phase, /待.*评估/); assert.match(client.nextStep, /评估/);
   assert.deepEqual(cashAndWork(model), beforeWork, '接待登记不应办理套餐、收款、消课或生成评估结果');
   assert.equal(model.remaining(client.id), 0); assert.equal(model.remainingInStore(client.id, 'a'), 0); assert.deepEqual(model.availablePackages(client.id), []);
-  assert.equal(model.canSeeClient(frontdesk, client.id), true); assert.equal(model.canSeeClient({ type: 'therapist', id: 't1' }, client.id), true);
+  assert.equal(model.canSeeClient(frontdesk, client.id), true); assert.equal(model.canSeeClient({ type: 'therapist', id: 't1' }, client.id), false);
   assert.equal(model.canSeeClient({ type: 'frontdesk', id: 'f2' }, client.id), false); assert.equal(model.canSeeClient({ type: 'therapist', id: 't3' }, client.id), false);
+  model.transferClient(client.id,'t1','独立分配客户负责人',boss);
   const appointment = model.saveAppointment({ clientId: client.id, storeId: 'a', date: '2026-10-09', time: '10:30', principalId: 't1', project: '首次评估' }, frontdesk);
   assert.equal(appointment.status, 'confirmed'); assert.equal(appointment.clientId, client.id); assert.equal(model.remaining(client.id), 0);
 });
@@ -51,8 +67,8 @@ test('replayed reception submissions are identical and a changed payload cannot 
   const model = newModel(), create = api(model, 'createReceptionClient');
   const client = create(input({ name: ' 新客户 ', phone: '139 1234 5678', age: '032', problem: ' 跑步后膝部不适，希望先做评估 ' }), frontdesk), before = snapshot(model);
   assert.equal(create(input(), frontdesk).id, client.id); assert.equal(snapshot(model), before);
-  for (const change of [{ name: '另一个客户' }, { phone: '13912345679' }, { age: 33 }, { problem: '不同问题' }, { ownerId: 't3' }]) {
-    rejectsUnchanged(model, () => create(input(change), frontdesk), /提交|内容|变化/);
+  for (const change of [{ name: '另一个客户' }, { phone: '13912345679' }, { age: 33 }, { problem: '不同问题' }, { assessorId: 'other' }]) {
+    rejectsUnchanged(model, () => create(input(change), frontdesk), /提交|内容|变化|评估/);
   }
 });
 
@@ -60,7 +76,7 @@ test('same phone cannot create a second file in the same or another store with a
   const model = newModel(), create = api(model, 'createReceptionClient');
   create(input(), frontdesk);
   rejectsUnchanged(model, () => create(input({ requestId: 'intake-request-2' }), frontdesk), /手机号|已存在|重复/);
-  rejectsUnchanged(model, () => create(input({ storeId: 'b', ownerId: 't2', requestId: 'intake-request-3' }), { type: 'frontdesk', id: 'f2' }), /手机号|已存在|重复/);
+  rejectsUnchanged(model, () => create(input({ storeId: 'b', requestId: 'intake-request-3' }), { type: 'frontdesk', id: 'f2' }), /手机号|已存在|重复/);
   rejectsUnchanged(model, () => create(input({ phone: '13800000002', requestId: 'intake-existing-client' }), frontdesk), /手机号|已存在|重复/);
 });
 
@@ -112,42 +128,24 @@ test('intake authorization resolves actual role records and excludes stopped sto
   assert.deepEqual(stores({ type: 'therapist', id: 't1' }), []);
 });
 
-test('both store managers can book local files created by the boss without gaining intake, edit or financial writes', () => {
-  for (const [id, storeId, ownerId, otherStore, otherOwner] of [['m1', 'a', 't1', 'b', 't2'], ['m2', 'b', 't2', 'a', 't1']]) {
-    const model = newModel(), role = { type: 'manager', id }, beforeWork = cashAndWork(model);
-    rejectsUnchanged(model, () => model.createReceptionClient(input({ storeId, ownerId }), role), /权限|监管|查看/);
-    const client = api(model, 'createReceptionClient')(input({ storeId, ownerId }), boss);
-    assert.equal(client.storeId, storeId); assert.equal(client.ownerId, ownerId); assert.equal(client.packageId, null);
-    assert.equal(client.createdBy, 'boss'); assert.equal(client.createdRole, 'boss');
-    assert.deepEqual(cashAndWork(model), beforeWork);
-    assert.equal(model.canSeeClient(role, client.id), true); assert.equal(model.canSeeClient({ type: 'manager', id: id === 'm1' ? 'm2' : 'm1' }, client.id), false);
-    assert.ok(model.managerSnapshot(role).clients.some(row => row.id === client.id));
-    assert.equal(model.state.audit[0].actorId, 'boss'); assert.equal(model.state.audit[0].actorType, 'boss');
-    assert.equal(model.state.audit[0].storeId, storeId); assert.equal(model.state.audit[0].type, 'reception_client_created');
-    rejectsUnchanged(model, () => model.createReceptionClient(input({ phone: '13912345679', storeId: otherStore, ownerId: otherOwner, requestId: 'manager-other-store' }), role), /门店|权限/);
-    const booking = model.saveAppointment({ clientId: client.id, storeId, date: '2026-10-10', time: '12:30', principalId: ownerId, project: '首次评估' }, role);
-    assert.equal(booking.storeId, storeId); assert.equal(model.state.audit[0].actorType, 'manager');
-    rejectsUnchanged(model, () => model.saveAppointment({ ...booking, time: '10:30' }, role), /店长|预约|权限/);
-    rejectsUnchanged(model, () => model.createStorePackage({ clientId: client.id, storeId, name: '测试套餐', amount: '3000', total: '10', requestId: 'manager-card' }, role), /权限|老板/);
-    rejectsUnchanged(model, () => model.recordReceipt({ clientId: client.id, storeId, date: '2026-10-09', time: '09:00', purpose: 'single', method: 'wechat', amount: '300', requestId: 'manager-receipt' }, role), /权限|老板|前台/);
-  }
+test('both store managers inspect boss-created local files but all booking and financial writes remain read-only',()=>{
+ for(const [id,storeId] of [['m1','a'],['m2','b']]){
+ const model=newModel(),role={type:'manager',id},beforeWork=cashAndWork(model);
+ rejectsUnchanged(model,()=>model.createReceptionClient(input({storeId}),role),/监管|查看/);
+ const client=model.createReceptionClient(input({storeId}),boss);assert.equal(client.ownerId,'');assert.equal(client.assessorId,'tao');assert.deepEqual(cashAndWork(model),beforeWork);
+ assert.equal(model.canSeeClient(role,client.id),true);assert.ok(model.managerSnapshot(role).clients.some(c=>c.id===client.id));
+ rejectsUnchanged(model,()=>model.saveAppointment({clientId:client.id,storeId,date:'2026-10-10',time:'12:30',principalId:'t1',project:'预约'},role),/只读|监管/);
+ rejectsUnchanged(model,()=>model.createStorePackage({clientId:client.id,storeId,name:'套餐',amount:'3000',total:10,requestId:'card'},role),/权限|老板/);
+ }
 });
 
-test('therapists create only their own-store files assigned to themselves and can book the first assessment', () => {
-  for (const [id, storeId, localOther, otherStore, otherOwner] of [['t1', 'a', 't3', 'b', 't2'], ['t2', 'b', 't4', 'a', 't1']]) {
-    const model = newModel(), role = { type: 'therapist', id }, beforeWork = cashAndWork(model);
-    const oldVisibleIds = model.visibleClients(role).map(row => row.id);
-    const client = api(model, 'createReceptionClient')(input({ storeId, ownerId: id }), role);
-    assert.equal(client.storeId, storeId); assert.equal(client.ownerId, id); assert.equal(client.packageId, null);
-    assert.equal(client.createdBy, id); assert.equal(client.createdRole, 'therapist'); assert.deepEqual(cashAndWork(model), beforeWork);
-    assert.deepEqual(model.visibleClients(role).filter(row => row.id !== client.id).map(row => row.id), oldVisibleIds, '建档不能扩大此前无关客户的可见范围');
-    assert.equal(model.canSeeClient(role, client.id), true); assert.equal(model.canSeeClient({ type: 'therapist', id: localOther }, client.id), false);
-    assert.equal(model.state.audit[0].actorId, id); assert.equal(model.state.audit[0].actorType, 'therapist');
-    rejectsUnchanged(model, () => model.createReceptionClient(input({ phone: '13912345679', storeId, ownerId: localOther, requestId: 'therapist-other-owner' }), role), /本人|自己|负责人|权限/);
-    rejectsUnchanged(model, () => model.createReceptionClient(input({ phone: '13912345679', storeId: otherStore, ownerId: otherOwner, requestId: 'therapist-other-store' }), role), /门店|权限/);
-    const appointment = model.saveAppointment({ clientId: client.id, storeId, date: '2026-10-10', time: '14:30', principalId: id, project: '首次评估' }, role);
-    assert.equal(appointment.clientId, client.id); assert.equal(appointment.principalId, id); assert.equal(appointment.status, 'confirmed'); assert.equal(model.remaining(client.id), 0);
-  }
+test('therapist intake is store-bound and unassigned; customer responsibility requires a separate boss assignment',()=>{
+ for(const [id,storeId,otherStore] of [['t1','a','b'],['t2','b','a']]){
+ const model=newModel(),role={type:'therapist',id},client=model.createReceptionClient(input({storeId}),role);
+ assert.equal(client.ownerId,'');assert.equal(client.assessorId,'tao');assert.equal(model.canSeeClient(role,client.id),false);
+ rejectsUnchanged(model,()=>model.createReceptionClient(input({phone:'13912345679',storeId:otherStore,requestId:'foreign'}),role),/门店|权限/);
+ model.transferClient(client.id,id,'独立客户负责人分配',boss);assert.equal(model.canSeeClient(role,client.id),true);assert.equal(model._client(client.id).assessorId,'tao');
+ }
 });
 
 test('new intake roles keep duplicate identity scoped to canSeeClient and expose basic fields only', () => {
@@ -181,25 +179,19 @@ test('authorized front desk and therapist submissions retain replay guarantees',
   for (const role of [frontdesk, { type: 'therapist', id: 't1' }]) {
     const model = newModel(), create = api(model, 'createReceptionClient'), client = create(input(), role), before = snapshot(model);
     assert.equal(create(input(), role).id, client.id); assert.equal(snapshot(model), before);
-    rejectsUnchanged(model, () => create(input({ age: '33' }), role), /提交|内容|变化/);
+    rejectsUnchanged(model, () => create(input({ age: '33' }), role), /提交|内容|变化|评估/);
   }
 });
 
-test('create rejects unauthorized stores, inactive stores and owners from a different store', () => {
-  const model = newModel(), create = api(model, 'createReceptionClient');
-  rejectsUnchanged(model, () => create(input({ storeId: 'b', ownerId: 't2' }), frontdesk), /门店|权限/);
-  rejectsUnchanged(model, () => create(input({ ownerId: 't2' }), frontdesk), /本店|门店/);
-  rejectsUnchanged(model, () => create(input({ ownerId: 'missing' }), frontdesk), /康复师|负责人/);
-  model.state.therapists.find(row => row.id === 't1').active = false;
-  rejectsUnchanged(model, () => create(input(), frontdesk), /在职|康复师/);
-  model.state.therapists.find(row => row.id === 't1').active = true; model.state.stores.find(row => row.id === 'a').active = false;
-  rejectsUnchanged(model, () => create(input(), frontdesk), /门店|停用/);
-  rejectsUnchanged(model, () => create(input(), boss), /门店|停用/);
+test('create rejects unauthorized or stopped stores and forged responsibility or assessment selection',()=>{
+ const model=newModel();rejectsUnchanged(model,()=>model.createReceptionClient(input({storeId:'b'}),frontdesk),/门店|权限/);
+ for(const change of [{ownerId:'t1'},{ownerId:'t2'},{ownerId:'missing'},{assessorId:'t1'}])rejectsUnchanged(model,()=>model.createReceptionClient(input(change),frontdesk),/预约|评估|人员/);
+ model.state.stores.find(s=>s.id==='a').active=false;rejectsUnchanged(model,()=>model.createReceptionClient(input(),boss),/门店|停用/);
 });
 
 test('reception validates required basic fields and integer ages before any state is changed', () => {
   const model = newModel(), create = api(model, 'createReceptionClient'), check = api(model, 'findReceptionDuplicates');
-  for (const change of [{ name: '' }, { name: '长'.repeat(81) }, { phone: '' }, { phone: '1234' }, { phone: 13912345678 }, { phone: '23912345678' }, { age: '' }, { age: '-1' }, { age: '32.5' }, { age: 121 }, { age: null }, { problem: '' }, { problem: '长'.repeat(1001) }, { ownerId: '' }, { storeId: 'missing' }, { requestId: '' }]) {
+  for (const change of [{ name: '' }, { name: '长'.repeat(81) }, { phone: '' }, { phone: '1234' }, { phone: 13912345678 }, { phone: '23912345678' }, { age: '' }, { age: '-1' }, { age: '32.5' }, { age: 121 }, { age: null }, { problem: 123 }, { problem: '长'.repeat(1001) }, { storeId: '' }, { storeId: 'missing' }, { requestId: '' }]) {
     rejectsUnchanged(model, () => create(input(change), frontdesk));
   }
   for (const phone of ['', '123', 13912345678, null]) rejectsUnchanged(model, () => check(phone, frontdesk), /手机号/);
@@ -209,9 +201,9 @@ test('reception validates required basic fields and integer ages before any stat
 
 test('boss can create a client in either active store and multi-store front desk remains restricted to its authorized stores', () => {
   const model = newModel(), create = api(model, 'createReceptionClient');
-  const client = create(input({ storeId: 'b', ownerId: 't2' }), boss); assert.equal(client.storeId, 'b'); assert.equal(client.createdBy, 'boss');
+  const client = create(input({ storeId: 'b' }), boss); assert.equal(client.storeId, 'b'); assert.equal(client.createdBy, 'boss');
   model.state.frontDesks.find(row => row.id === 'f1').storeIds.push('b');
-  const other = create(input({ phone: '13912345679', storeId: 'b', ownerId: 't4', requestId: 'multi-store-intake' }), frontdesk); assert.equal(other.ownerId, 't4');
+  const other = create(input({ phone: '13912345679', storeId: 'b', requestId: 'multi-store-intake' }), frontdesk); assert.equal(other.ownerId, '');
 });
 
 test('invalid server clock makes a reception write fail atomically and the same request can then be retried', () => {

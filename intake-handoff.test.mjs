@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { PAPER_SAFETY_QUESTIONS, savePaperIntake, reviewPaperIntake, paperIntakeDialog } from './paper-intake.js';
 
 const front={type:'frontdesk',id:'f1'},owner={type:'therapist',id:'t1'},boss={type:'boss',id:'boss'};

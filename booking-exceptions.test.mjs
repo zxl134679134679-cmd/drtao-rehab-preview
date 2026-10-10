@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { confirmedTestSchedules } from './scheduling-test-fixture.mjs';
 import * as booking from './customer-booking.js';
 import { customerBookingTherapists } from './booking-availability.js';

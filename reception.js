@@ -1,6 +1,6 @@
-import { renderPaperIntakeList } from './paper-intake.js?v=20261009-daily-permissions-2';
-import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261009-daily-permissions-2';
-import { renderReceptionAssessments } from './evaluations.js?v=20261009-daily-permissions-2';
+import { renderPaperIntakeList } from './paper-intake.js?v=20261010-assessor-personnel-1';
+import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261010-assessor-personnel-1';
+import { renderReceptionAssessments } from './evaluations.js?v=20261010-assessor-personnel-1';
 
 export function receptionStores(ctx) {
   const account=ctx.model.state.frontDesks.find(r=>r.id===ctx.role.id&&r.active!==false);
@@ -14,7 +14,7 @@ export function assertReceptionAppointment(ctx,id) {
 }
 function receptionAppointmentCard(a,ctx) {
   const {model,esc,icon}=ctx;
-  const name=(kind,id)=>model.state[kind].find(r=>r.id===id)?.name||'待安排';
+  const name=(kind,id)=>model.state[kind].find(r=>r.id===id)?.name||(kind==='therapists'&&!id?'预约时选择':'待安排');
   const packageLabel=(id,storeId)=>model.state.packages.some(p=>p.clientId===id&&(p.storeId===storeId||(!p.storeId&&p.id===model.state.clients.find(c=>c.id===id)?.packageId)))?'本店剩余 '+model.remainingInStore(id,storeId)+' 次':'尚未办理本店套餐';
   const action=(label,type,id='',style='btn-outline')=>`<button type="button" class="btn ${style}" data-action="${type}" data-id="${esc(id)}">${label}</button>`;
   return `<article class="ease-service-card"><div class="ease-service-head"><div><span class="ease-service-time">${esc(a.time)}</span><h3>${esc(name('clients',a.clientId))}</h3></div><span class="tag ${a.status==='completed'?'tag-green':''}">${a.status==='completed'?'服务已登记':a.status==='pending_reassignment'?'人员待安排':a.status==='reschedule_requested'?'申请改约':a.arrivalAt?'已到店':'待到店'}</span></div><p class="meta">${esc(a.project)} · ${esc(packageLabel(a.clientId,a.storeId))}</p><p class="meta">服务康复师 ${esc(name('therapists',a.principalId))}</p>${a.groupId?'<p class="meta">同行预约 · 每人独立安排</p>':''}<p class="meta">客户手机 ${esc(model.state.clients.find(c=>c.id===a.clientId)?.phone||'待补充')}</p>${a.arrivalAt&&a.status!=='completed'?'<p class="reception-warning">已到店，服务结束后请提醒康复师登记。</p>':''}<div class="action-row">${a.date===model.today&&!a.arrivalAt&&['confirmed','reschedule_requested'].includes(a.status)?action('确认到店','record-arrival',a.id,'btn-primary'):''}${a.status==='reschedule_requested'||a.status==='pending_reassignment'?action(a.status==='reschedule_requested'?'处理改约':'重新安排','appointment-edit',a.id,'btn-primary'):''}${action('记收款','record-receipt','appointment:'+a.id,'btn-outline')}</div>${['confirmed','reschedule_requested','pending_reassignment'].includes(a.status)?`<details class="ease-service-options"><summary>预约操作 ${icon('chevron-right',15)}</summary><div class="action-row">${action('调整预约','appointment-edit',a.id,'btn-small btn-outline')}${a.date<=model.today&&!a.arrivalAt&&a.status!=='pending_reassignment'?action('记录未到店','appointment-no-show',a.id,'btn-small btn-outline'):''}${action('取消预约','appointment-cancel',a.id,'btn-small btn-quiet')}</div></details>`:''}</article>`;
@@ -68,9 +68,6 @@ function intakeStores(ctx) {
   const ids=ctx.model.receptionStoreIds(ctx.role);
   return ctx.model.state.stores.filter(s=>ids.includes(s.id)&&s.active!==false);
 }
-function intakeOwners(ctx,storeId) {
-  return ctx.model.state.therapists.filter(t=>t.active!==false&&t.storeId===storeId&&(ctx.role.type!=='therapist'||t.id===ctx.role.id));
-}
 export function clientIntakeButton(ctx) {
   const stores=intakeStores(ctx);
   if(ctx.role.type==='manager')return '';
@@ -86,59 +83,41 @@ function intakeNextActions(client,ctx) {
 }
 export function receptionIntakeSuccess(client,ctx) {
   const {model,esc}=ctx;
-  const name=(kind,id)=>model.state[kind].find(row=>row.id===id)?.name||'待安排';
+  const name=(kind,id)=>model.state[kind].find(row=>row.id===id)?.name||(kind==='therapists'&&!id?'预约时选择':'待安排');
   if(ctx.role.type==='manager'){model.managerStoreId(ctx.role);return `<p class="notice">接待档案由前台或负责康复师录入；店长可从本店工作台代客户预约。</p>${intakeNextActions(client,ctx)}`;}
-  return `<h3>${esc(client.name)} · ${esc(client.age)} 岁</h3><p>${esc(name('stores',client.storeId))} · 负责康复师 ${esc(name('therapists',client.ownerId))}</p><p class="reception-problem">客户自述：${esc(client.problem)}</p><p class="notice">尚未办理套餐。建档未收款、未扣次数，康复师会在后续评估时制定计划。</p><div class="action-row"><button type="button" class="btn btn-primary" data-action="paper-intake-create" data-id="${esc(client.id)}">填写初访接待表</button>${intakeNextActions(client,ctx)}<button type="button" class="btn btn-quiet" data-action="reception-create-client" data-id="${esc(client.storeId)}">继续接待新客户</button></div>`;
+  return `<h3>${esc(client.name)} · ${esc(client.age)} 岁</h3><p>${esc(name('stores',client.storeId))} · 评估师 ${esc(model.state.assessors.find(row=>row.id===client.assessorId)?.name||'涛博士')} · 治疗师 预约时选择</p>${client.problem?`<p class="reception-problem">客户自述：${esc(client.problem)}</p>`:''}<p class="notice">尚未办理套餐。建档未收款、未扣次数，涛博士会在后续评估时制定计划。</p><div class="action-row"><button type="button" class="btn btn-primary" data-action="paper-intake-create" data-id="${esc(client.id)}">填写初访接待表</button>${intakeNextActions(client,ctx)}<button type="button" class="btn btn-quiet" data-action="reception-create-client" data-id="${esc(client.storeId)}">继续接待新客户</button></div>`;
 }
 export function receptionIntakeDialog(type,id,ctx) {
   const stores=intakeStores(ctx),{model,esc,role}=ctx;
   if(!stores.length)throw new Error('暂无可接待的启用门店，请联系老板分配门店');
-  const name=(kind,key)=>model.state[kind].find(row=>row.id===key)?.name||'待安排';
+  const name=(kind,key)=>model.state[kind].find(row=>row.id===key)?.name||(kind==='therapists'&&!key?'预约时选择':'待安排');
   const action=(label,kind,key='',style='btn-outline')=>`<button type="button" class="btn ${style}" data-action="${kind}" data-id="${esc(key)}">${label}</button>`;
   if(type==='reception-client') {
     if(!model.canSeeClient(role,id))throw new Error('您没有该客户的接待档案权限');
     const client=model._client(id),storeId=stores.some(s=>s.id===ctx.filters.storeId)?ctx.filters.storeId:stores.find(s=>s.id===client.storeId)?.id||stores[0]?.id;
     const packages=model.availablePackages(id,storeId),remaining=model.remainingInStore(id,storeId);
-    return {title:`${client.name}的接待档案`,html:`<div class="detail-grid"><div class="detail-pair"><span class="muted">客户姓名</span><strong>${esc(client.name)}</strong></div><div class="detail-pair"><span class="muted">年龄</span><strong>${client.age!=null?esc(client.age)+' 岁':'未填写'}</strong></div><div class="detail-pair"><span class="muted">联系电话</span><strong>${esc(client.phone||'待补充')}</strong></div><div class="detail-pair"><span class="muted">负责康复师</span><strong>${esc(name('therapists',client.ownerId))}</strong></div></div><h3>主要问题（客户自述）</h3><p class="reception-problem">${esc(client.problem||'尚未填写接待问题')}</p><p class="notice">${esc(name('stores',storeId))} · ${packages.length?'套餐剩余 '+remaining+' 次':'尚未办理本店套餐'}。预约不扣次、不收款。</p><div class="action-row">${role.type==='manager'?'':action('填写初访接待表','paper-intake-create',id,'btn-primary')}${intakeNextActions(client,ctx)}${role.type==='manager'?'':action('登记评估','assessment-create',id)+action('评估记录','assessment-history',id)}</div>`};
+    return {title:`${client.name}的接待档案`,html:`<div class="detail-grid"><div class="detail-pair"><span class="muted">客户姓名</span><strong>${esc(client.name)}</strong></div><div class="detail-pair"><span class="muted">年龄</span><strong>${client.age!=null?esc(client.age)+' 岁':'未填写'}</strong></div><div class="detail-pair"><span class="muted">联系电话</span><strong>${esc(client.phone||'待补充')}</strong></div><div class="detail-pair"><span class="muted">评估师</span><strong>${esc(model.state.assessors.find(row=>row.id===client.assessorId)?.name||'历史评估人员')}</strong></div><div class="detail-pair"><span class="muted">治疗师</span><strong>预约时选择</strong></div></div>${client.problem?`<h3>主要问题（客户自述）</h3><p class="reception-problem">${esc(client.problem)}</p>`:''}<p class="notice">${esc(name('stores',storeId))} · ${packages.length?'套餐剩余 '+remaining+' 次':'尚未办理本店套餐'}。预约不扣次、不收款。</p><div class="action-row">${role.type==='manager'?'':action('填写初访接待表','paper-intake-create',id,'btn-primary')}${intakeNextActions(client,ctx)}${role.type==='manager'?'':action('登记评估','assessment-create',id)+action('评估记录','assessment-history',id)}</div>`};
   }
   if(type!=='reception-create-client')return null;
   if(role.type==='manager')throw new Error('店长仅监管查看，不能新客户建档，请由前台或老板录入');
   const selected=id||(stores.some(s=>s.id===ctx.filters.storeId)?ctx.filters.storeId:stores[0]?.id);
   if(!stores.some(s=>s.id===selected))throw new Error('请选择在职且授权的接待门店');
-  const owners=intakeOwners(ctx,selected);
   const field=(label,key,kind='text',attrs='')=>`<label class="field"><span>${label}</span><input name="${key}" type="${kind}" ${attrs}></label>`;
-  return {title:role.type==='frontdesk'?'接待新客户':'新客户建档',html:`<form data-form="reception-create-client"><p class="notice">先查手机号，再填写基本资料。只建立客户档案。${role.type==='manager'?'保存后请前台或负责康复师安排首次评估。':'保存后即可预约。'}</p><div class="reception-phone-check">${field('联系电话','phone','tel','required inputmode="tel" autocomplete="tel" pattern="1[0-9]{10}" maxlength="11" placeholder="11位手机号，用于查重和联系"')}<button type="button" class="btn btn-outline" data-action="reception-check-phone">检查已有档案</button></div><div data-intake-duplicates role="status" aria-live="polite"></div><div class="form-grid">${field('客户姓名','name','text','required autocomplete="name" maxlength="80" placeholder="输入客户姓名"')}${field('年龄','age','number','required min="0" max="120" step="1" inputmode="numeric" placeholder="例如 35"')}<label class="field span-all"><span>主要问题（客户自述）</span><textarea name="problem" required maxlength="500" rows="3" placeholder="直接记录客户的话，例如：跑步后膝盖不舒服，想恢复运动"></textarea></label><label class="field"><span>接待门店</span><select name="storeId" required>${stores.map(s=>`<option value="${esc(s.id)}"${s.id===selected?' selected':''}>${esc(s.name)}</option>`).join('')}</select></label><label class="field"><span>负责康复师</span><select name="ownerId" required>${role.type==='therapist'?'':'<option value="">请选择本店康复师</option>'}${owners.map(t=>`<option value="${esc(t.id)}"${role.type==='therapist'?' selected':''}>${esc(t.name)}</option>`).join('')}</select></label></div><p class="meta" data-intake-owner-help>${role.type==='therapist'?'新档案由您负责，后续可直接安排评估和预约。':'选择本店康复师，接收后续预约和评估。'}</p><p class="meta">套餐、收款和康复评估分别记录，建档不会自动产生费用或扣次数。预览请填写虚构资料，刷新后恢复示例。</p><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="close-dialog">返回</button><button type="submit" class="btn btn-primary"${owners.length?'':' disabled'}>${role.type==='manager'?'保存客户档案':'保存档案，下一步预约'}</button></div></form>`};
+  return {title:role.type==='frontdesk'?'接待新客户':'新客户建档',html:`<form data-form="reception-create-client"><p class="notice">先查手机号，再填写基本资料。只建立客户档案。${role.type==='manager'?'保存后请前台或负责康复师安排首次评估。':'保存后即可预约。'}</p><div class="reception-phone-check">${field('联系电话','phone','tel','required inputmode="tel" autocomplete="tel" pattern="1[0-9]{10}" maxlength="11" placeholder="11位手机号，用于查重和联系"')}<button type="button" class="btn btn-outline" data-action="reception-check-phone">检查已有档案</button></div><div data-intake-duplicates role="status" aria-live="polite"></div><div class="form-grid">${field('客户姓名','name','text','required autocomplete="name" maxlength="80" placeholder="输入客户姓名"')}${field('年龄','age','number','required min="0" max="120" step="1" inputmode="numeric" placeholder="例如 35"')}<label class="field"><span>接待门店</span><select name="storeId" required>${stores.map(s=>`<option value="${esc(s.id)}"${s.id===selected?' selected':''}>${esc(s.name)}</option>`).join('')}</select></label><div class="field"><span>评估师</span><strong>涛博士</strong></div><div class="field"><span>治疗师</span><strong>预约时选择</strong></div></div><p class="meta" data-intake-owner-help>基本资料由前台登记；涛博士负责评估与计划，每次预约分别选择治疗师。</p><p class="meta">套餐、收款和康复评估分别记录，建档不会自动产生费用或扣次数。预览请填写虚构资料，刷新后恢复示例。</p><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="close-dialog">返回</button><button type="submit" class="btn btn-primary">${role.type==='manager'?'保存客户档案':'保存档案，下一步预约'}</button></div></form>`};
 }
 export function updateReceptionIntakeChoices(form,ctx) {
-  if(form?.dataset.form!=='reception-create-client'||!form.elements.ownerId)return;
-  const stores=intakeStores(ctx),storeId=form.elements.storeId.value;
-  const owners=stores.some(s=>s.id===storeId)?intakeOwners(ctx,storeId):[];
-  const owner=form.elements.ownerId,previous=owner.value;
-  owner.innerHTML=(ctx.role.type==='therapist'?'':'<option value="">请选择本店康复师</option>')+owners.map(t=>`<option value="${ctx.esc(t.id)}">${ctx.esc(t.name)}</option>`).join('');
-  owner.value=ctx.role.type==='therapist'?(owners[0]?.id||''):owners.some(t=>t.id===previous)?previous:'';
-  owner.disabled=!owners.length;
+  if(form?.dataset.form!=='reception-create-client')return;
+  const valid=intakeStores(ctx).some(store=>store.id===form.elements.storeId?.value);
   const submit=form.querySelector('[type="submit"]');
-  if(submit)submit.disabled=!owner.value||form.dataset.busy==='true'||form.dataset.duplicate==='true';
+  if(submit)submit.disabled=!valid||form.dataset.busy==='true'||form.dataset.duplicate==='true';
   const hint=form.querySelector('[data-intake-owner-help]');
-  if(hint)hint.textContent=owners.length?(ctx.role.type==='therapist'?'新档案由您负责，后续可直接安排评估和预约。':'选择本店康复师，接收后续预约和评估。'):'本店暂无在职康复师，请由老板先安排人员后建档。';
+  if(hint)hint.textContent=valid?'评估师：涛博士；治疗师在每次预约时选择。':'接待门店已停用或不在授权范围，请重新选择门店。';
 }
 export function restoreReceptionIntakeDraft(form,saved,ctx) {
-  if(form?.dataset.form!=='reception-create-client'||!form.elements.storeId||!form.elements.ownerId||!Array.isArray(saved?.entries))return;
-  const stores=intakeStores(ctx);
-  const savedValue=key=>saved.entries.find(entry=>Array.isArray(entry)&&entry[0]===key)?.[1];
-  const storeValue=savedValue('storeId')??form.elements.storeId.value;
-  const ownerValue=savedValue('ownerId')??form.elements.ownerId.value;
-  // Generic restoration can lose an owner value while its store's options have
-  // not been built yet. Recover from the saved entry only after checking scope.
-  form.elements.storeId.value=stores.some(store=>store.id===storeValue)?storeValue:'';
+  if(form?.dataset.form!=='reception-create-client'||!form.elements.storeId||!Array.isArray(saved?.entries))return;
+  const stored=saved.entries.find(entry=>Array.isArray(entry)&&entry[0]==='storeId')?.[1]??form.elements.storeId.value;
+  form.elements.storeId.value=intakeStores(ctx).some(store=>store.id===stored)?stored:'';
   updateReceptionIntakeChoices(form,ctx);
-  const storeId=form.elements.storeId.value;
-  form.elements.ownerId.value=intakeOwners(ctx,storeId).some(person=>person.id===ownerValue)?ownerValue:'';
-  updateReceptionIntakeChoices(form,ctx);
-  if(!storeId) {
-    const hint=form.querySelector('[data-intake-owner-help]');
-    if(hint)hint.textContent='原接待门店已停用或不在授权范围，请重新选择门店和负责康复师。';
-  }
 }
 export function receptionDuplicateMarkup(result,ctx) {
   const {esc,model}=ctx;

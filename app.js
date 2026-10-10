@@ -1,24 +1,24 @@
-import { bossDecisionDialog } from './boss-decision.js?v=20261010-boss-decision-1';
-import {saveMultiDayBooking} from './multi-day-booking.js?v=20261010-boss-decision-1';
-import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261010-boss-decision-1';
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261010-boss-decision-1';
-import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261010-boss-decision-1';
-import { renderManager, managerDialog } from './manager.js?v=20261010-boss-decision-1';
-import { hourTimeField } from './hour-picker.js?v=20261010-boss-decision-1';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261010-boss-decision-1';
-import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261010-boss-decision-1';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261010-boss-decision-1';
-import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261010-boss-decision-1';
+import { bossDecisionDialog } from './boss-decision.js?v=20261010-assessor-personnel-1';
+import {saveMultiDayBooking} from './multi-day-booking.js?v=20261010-assessor-personnel-1';
+import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261010-assessor-personnel-1';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261010-assessor-personnel-1';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261010-assessor-personnel-1';
+import { renderManager, managerDialog } from './manager.js?v=20261010-assessor-personnel-1';
+import { hourTimeField } from './hour-picker.js?v=20261010-assessor-personnel-1';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261010-assessor-personnel-1';
+import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261010-assessor-personnel-1';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261010-assessor-personnel-1';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261010-assessor-personnel-1';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261010-boss-decision-1';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261010-boss-decision-1';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261010-assessor-personnel-1';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261010-assessor-personnel-1';
 
-import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261010-boss-decision-1';
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261010-assessor-personnel-1';
 
-import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261010-boss-decision-1';
-import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261010-boss-decision-1';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261010-boss-decision-1';
-import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261010-boss-decision-1';
+import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261010-assessor-personnel-1';
+import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261010-assessor-personnel-1';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261010-assessor-personnel-1';
+import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261010-assessor-personnel-1';
 
 // Keep operations on the displayed example day. Real systems use server time.
 function previewTimestamp() {
@@ -50,7 +50,7 @@ const sheet = $('#sheet');
 const photoViewer = $('#photo-viewer');
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
 const find = (kind, id) => model.state[kind].find(row => row.id === id);
-const name = (kind, id) => id === 'boss' ? '老板' : find(kind, id)?.name || '待安排';
+const name = (kind, id) => id === 'boss' ? '老板' : find(kind, id)?.name || (kind==='therapists'&&!id?'预约时选择':'待安排');
 const icon = (name, size = 20, extra = '') => `<img class="icon ${extra}" src="assets/icons/${name}.svg" width="${size}" height="${size}" alt="" aria-hidden="true">`;
 const money = amount => `¥${Number(amount || 0).toLocaleString('zh-CN', {maximumFractionDigits: 2})}`;
 const date = value => value ? `${Number(value.slice(5, 7))}月${Number(value.slice(8, 10))}日` : '待安排';
@@ -64,11 +64,11 @@ const form = (type, html, submit) => `<form data-form="${type}">${html}<p class=
 const pair = (label, value) => `<div class="detail-pair"><span class="muted">${label}</span><strong class="detail-value">${esc(value)}</strong></div>`;
 const ctx = () => ({model, role, view, filters, esc, icon, fmt: {money, date}, ui: {}});
 const customerCtx = () => ({...ctx(),ui:{button,link,name,pair,field,hourTimeField,form,hidden,clientServices,appointments,reviewFor,selectedStoreId:role.type==='customer'?(preferences.get('store:'+role.id)||find('clients',role.id)?.storeId):''}});
-const clientServices = id => model.serviceRows({clientId: id});
+const clientServices = id => model.serviceRows({clientId: id}).filter(s=>role.type!=='therapist'||find('therapists',role.id)?.legacy||s.principalId===role.id||(s.participantIds||[]).includes(role.id));
 const appointments = id => model.state.appointments.filter(a => a.clientId === id && a.date >= TODAY && ['confirmed','reschedule_requested'].includes(a.status)).sort((a,b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
 const reviewFor = id => model.reviewRows(role).find(r => r.serviceId === id);
 const currentClient = () => find('clients', role.id);
-const canEditPlan = client => role.type === 'boss' || (role.type === 'therapist' && client.ownerId === role.id);
+const canEditPlan = client => role.type === 'boss' || (role.type === 'therapist' && find('therapists',role.id)?.legacy && !client.assessorId && client.ownerId === role.id);
 function assertClient(id) {
   if (!model.canSeeClient(role, id)) throw new Error('您没有查看该客户档案的权限');
   return find('clients', id);
@@ -82,6 +82,7 @@ function assertService(id) {
   if(role.type==='manager'&&s.storeId!==model.managerStoreId(role))throw new Error('店长仅能查看本店服务明细');
   // Staff can audit their own historical service without regaining client access.
   const ownHistory = role.type === 'therapist' && (s.principalId === role.id || s.participantIds.includes(role.id));
+  if(role.type==='therapist'&&!find('therapists',role.id)?.legacy&&!ownHistory)throw new Error('治疗师仅能查看本人主服务或协作服务');
   if (!model.canSeeClient(role, s.clientId) && !ownHistory) throw new Error('您没有查看本次服务的权限');
   return s;
 }
@@ -93,7 +94,7 @@ function toast(message) {
 }
 
 function roleOptions() {
-  $('#role-select').innerHTML = `<optgroup label="客户端">${model.state.clients.map(c => `<option value="customer:${c.id}">${esc(c.name)} · 客户 · ${esc(name('stores', c.storeId))}</option>`).join('')}</optgroup><optgroup label="康复师端">${model.state.therapists.filter(t => t.active).map(t => `<option value="therapist:${t.id}">${esc(t.name)} · ${esc(name('stores', t.storeId))}</option>`).join('')}</optgroup><optgroup label="前台端">${(model.state.frontDesks||[]).filter(f=>f.active!==false).map(f=>`<option value="frontdesk:${esc(f.id)}">${esc(f.name)} · 前台</option>`).join('')}</optgroup><optgroup label="店长端">${model.state.storeManagers.filter(m=>m.active).map(m=>`<option value="manager:${esc(m.id)}">${esc(m.name)} · ${esc(name('stores',m.storeId))}</option>`).join('')}</optgroup><optgroup label="管理端"><option value="boss:boss">老板 · 所有门店</option></optgroup>`;
+  $('#role-select').innerHTML = `<optgroup label="客户端">${model.state.clients.map(c => `<option value="customer:${c.id}">${esc(c.name)} · 客户 · ${esc(name('stores', c.storeId))}</option>`).join('')}</optgroup><optgroup label="治疗师端">${model.state.therapists.filter(t => t.active).map(t => `<option value="therapist:${t.id}">${esc(t.name)} · ${esc(name('stores', t.storeId))}</option>`).join('')}</optgroup><optgroup label="前台端">${(model.state.frontDesks||[]).filter(f=>f.active!==false).map(f=>`<option value="frontdesk:${esc(f.id)}">${esc(f.name)} · 前台</option>`).join('')}</optgroup><optgroup label="店长端">${model.state.storeManagers.filter(m=>m.active).map(m=>`<option value="manager:${esc(m.id)}">${esc(m.name)} · ${esc(name('stores',m.storeId))}</option>`).join('')}</optgroup><optgroup label="管理端"><option value="boss:boss">涛博士 · 评估师 / 老板 · 所有门店</option></optgroup>`;
   $('#role-select').value = `${role.type}:${role.id}`;
 }
 function switchRole(value, targetView) {
@@ -152,7 +153,7 @@ function customerRecords() {
 function customerProfile() {
   const c = currentClient(), pref = preferences.get(c.id) || false;
   const menu = (label,action,ico) => `<button class="ease-menu-item" data-action="${action}" data-id="${c.id}">${icon(ico,21)}<span>${label}</span>${icon('chevron-right',18)}</button>`;
-  return `<div class="customer-page ease-customer-page"><div class="profile-card"><div class="profile-avatar">${icon('user',30)}</div><div><h1>${esc(c.name)}</h1><p class="muted">${c.phone?esc(String(c.phone).slice(0,3))+'****'+esc(String(c.phone).slice(-4)):'手机号待补充'}</p></div></div><section class="ease-team"><h2>我的服务团队</h2><div class="ease-team-info"><span>负责康复师 <strong>${esc(name('therapists',c.ownerId))}</strong></span><span>所属门店 <strong>${esc(name('stores',c.storeId))}</strong></span></div>${link('查看门店信息','stores',c.id)}</section><div class="ease-profile-menu">${menu('我的评估记录','assessment-history','chart-bar')}${menu('我的套餐与剩余次数','package','stack')}${menu('我的预约记录','appointment-history','calendar')}<details class="ease-home-advice"><summary>${icon('clipboard-text',21)}<span>居家指导</span>${icon('chevron-right',18)}</summary><div><p>${esc(c.homeAdvice)}</p>${link('查看完整计划','plan',c.id)}</div></details>${menu('反馈与帮助','help','bell')}${menu('我的档案与隐私','privacy','shield-check')}</div><details class="ease-reminder"><summary>服务提醒设置</summary><label class="check"><input type="checkbox" data-preference="reminder" ${pref ? 'checked' : ''}><span>希望收到服务提醒</span></label><p class="meta">预览中只保存此页面的偏好。正式提醒需您授权后启用。</p></details><p class="ease-brand-caption">涛博士 · 让每一次康复都有清晰的安排</p></div>`;
+  return `<div class="customer-page ease-customer-page"><div class="profile-card"><div class="profile-avatar">${icon('user',30)}</div><div><h1>${esc(c.name)}</h1><p class="muted">${c.phone?esc(String(c.phone).slice(0,3))+'****'+esc(String(c.phone).slice(-4)):'手机号待补充'}</p></div></div><section class="ease-team"><h2>我的服务团队</h2><div class="ease-team-info">${c.ownerId?`<span>客户负责人 <strong>${esc(name('therapists',c.ownerId))}</strong></span>`:''}<span>评估师 <strong>涛博士</strong></span><span>治疗师 <strong>预约时选择</strong></span><span>所属门店 <strong>${esc(name('stores',c.storeId))}</strong></span></div>${link('查看门店信息','stores',c.id)}</section><div class="ease-profile-menu">${menu('我的评估记录','assessment-history','chart-bar')}${menu('我的套餐与剩余次数','package','stack')}${menu('我的预约记录','appointment-history','calendar')}<details class="ease-home-advice"><summary>${icon('clipboard-text',21)}<span>居家指导</span>${icon('chevron-right',18)}</summary><div><p>${esc(c.homeAdvice)}</p>${link('查看完整计划','plan',c.id)}</div></details>${menu('反馈与帮助','help','bell')}${menu('我的档案与隐私','privacy','shield-check')}</div><details class="ease-reminder"><summary>服务提醒设置</summary><label class="check"><input type="checkbox" data-preference="reminder" ${pref ? 'checked' : ''}><span>希望收到服务提醒</span></label><p class="meta">预览中只保存此页面的偏好。正式提醒需您授权后启用。</p></details><p class="ease-brand-caption">涛博士 · 让每一次康复都有清晰的安排</p></div>`;
 }
 
 function planDialog(id) {
@@ -190,7 +191,7 @@ function packageHistoryDialog(id) {
 }
 function appointmentHistoryDialog(id) {
   const client = assertClient(id);
-  const rows = model.state.appointments.filter(a => a.clientId === id).sort((a,b)=>`${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
+  const rows = model.state.appointments.filter(a => a.clientId === id && (role.type!=='therapist'||find('therapists',role.id)?.legacy||a.principalId===role.id||(a.participantIds||[]).includes(role.id))).sort((a,b)=>`${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
   const labels = {confirmed:'已确认',reschedule_requested:'改约待确认',pending_reassignment:'服务人员待确认',completed:'已服务',cancelled:'已取消',no_show:'未到店'};
   return {title:role.type==='therapist'?`${client.name}的预约记录`:'预约记录',html:`${renderRequestHistory(customerCtx(),id)}<p class="muted">预约与实际服务分别记录；完成服务并登记后，才更新套餐次数和消费业绩。</p>${rows.map(a=>{
     const pending = ['confirmed','reschedule_requested','pending_reassignment'].includes(a.status);
@@ -313,6 +314,7 @@ function appointmentDialog(id) {
   if (role.type === 'therapist' && !a) throw new Error('客户预约不存在');
   if (!a) return {title: '下一次服务', html: `<p>暂无预约安排。</p><p class="muted">下次服务的时间、康复师与门店确认后会显示在首页。</p>${button('查看门店信息','stores',c.id)}`};
   assertClient(a.clientId);
+  model.assertTherapistAppointment(role,a);
   const store = find('stores',a.storeId);
   if (role.type === 'therapist') {
     const labels = {confirmed:'已确认',reschedule_requested:'改约待确认',pending_reassignment:'服务人员待确认',completed:'已服务',cancelled:'已取消',no_show:'未到店'};
@@ -368,7 +370,7 @@ function buildDialog(type, id) {
   if(role.type==='manager') {
     model.managerStoreId(role);
     if(type.startsWith('manager-'))return managerDialog(type,id,ctx());
-    if(!['appointment-create','tour','mini-info','reception-client','paper-intake-detail','paper-intake-list'].includes(type))throw new Error('店长仅有本店新建预约和待预约确认权限，其他资料监管查看，请由对应工作人员处理');
+    if(!['tour','mini-info','reception-client','paper-intake-detail','paper-intake-list'].includes(type))throw new Error('店长仅有本店监管只读权限，其他资料监管查看，请由对应工作人员处理');
   } else if(type.startsWith('manager-'))throw new Error('此页面仅店长可查看');
   if(['paper-intake-create','paper-intake-detail','paper-intake-review','paper-intake-list'].includes(type))return paperIntakeDialog(type,id,ctx());
   if(['reception-create-client','reception-client'].includes(type))return receptionIntakeDialog(type,id,ctx());
@@ -418,7 +420,7 @@ function buildDialog(type, id) {
     return {title:'切换当前使用套餐',html:form('activate-package',`${hidden('packageId',id)}<div class="note"><strong>${esc(p.name)} · 剩余 ${model.packageRemaining(id)} 次</strong><p>此套餐将作为当前使用套餐。其他套餐的余额和历史消费记录各自保留。</p></div>${textarea('切换原因','reason','','required maxlength="500" placeholder="例如：旧服务撤销后，确认先使用原套餐恢复的次数"')}`,'确认切换使用套餐')};
   }
   if (type === 'appointment-no-show') {
-    if(role.type==='frontdesk')assertReceptionAppointment(ctx(),id);else assertStaff(); const a = find('appointments',id); if (!a) throw new Error('预约不存在'); assertClient(a.clientId);
+    if(role.type==='frontdesk')assertReceptionAppointment(ctx(),id);else assertStaff(); const a = find('appointments',id); if (!a) throw new Error('预约不存在'); model.assertTherapistAppointment(role,a); assertClient(a.clientId);
     return {title:'记录未到店',html:form('appointment-no-show',`${hidden('id',id)}<div class="note"><strong>${esc(name('clients',a.clientId))} · ${date(a.date)} ${a.time}</strong><p>${esc(a.project)} · ${esc(name('stores',a.storeId))}</p><p>请确认客户确实未到店。此操作不扣套餐次数、不产生消费业绩。</p></div>${textarea('未到店说明','reason','','required maxlength="500" placeholder="记录已核实的情况及后续联系安排"')}`,'确认未到店')};
   }
   if (type === 'service-detail') return serviceDialog(id);
@@ -532,7 +534,7 @@ function openDialog(type,id = '') {
 async function loadLegacyDialog(context) {
   const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
   try {
-    const legacy=await import('./legacy.js?v=20261010-boss-decision-1');
+    const legacy=await import('./legacy.js?v=20261010-assessor-personnel-1');
     if(!active())return;
     $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
     context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,
@@ -735,15 +737,7 @@ function updateParticipants() {
 }
 function constrainEvaluationChoices() {
   const f = $('#sheet-body form');
-  if (f?.dataset.form === 'assessment-create') {
-    const clientId=f.elements.clientId?.value;
-    const select=f.elements.therapistId;
-    if (!select || !clientId) return;
-    const previous=select.value;
-    const eligible=model.state.therapists.filter(t=>t.active&&model.canSeeClient({type:'therapist',id:t.id},clientId));
-    select.innerHTML=eligible.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
-    select.value=eligible.some(t=>t.id===previous)?previous:find('clients',clientId)?.ownerId || eligible[0]?.id || '';
-  }
+  if (f?.dataset.form === 'assessment-create' && f.elements.assessorId) f.elements.assessorId.value='tao';
   if (f?.dataset.form === 'frontdesk-evaluate') {
     const account=find('frontDesks',f.elements.frontDeskId?.value);
     const select=f.elements.storeId;
@@ -762,12 +756,13 @@ function constrainStaffChoices(type,id) {
   if (!select) return;
   const previous = select.value;
   const storeId = f.elements.storeId?.value;
-  const allowed = model.state.therapists.filter(t => t.active && (role.type==='manager' ? t.storeId===model.managerStoreId(role)&&model._therapistClientWorkAllowed(t.id,clientId,storeId) : model.canSeeClient({type:'therapist',id:t.id},clientId)));
-  select.innerHTML = allowed.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
-  select.value = allowed.some(t => t.id === previous) ? previous : find('clients',clientId)?.ownerId || allowed[0]?.id;
+  const allowed = model.state.therapists.filter(t => t.active && (type==='edit-plan'?model.canSeeClient({type:'therapist',id:t.id},clientId):model.bookingTherapistAllowed(t.id,clientId,storeId)) && (role.type!=='therapist'||find('therapists',role.id)?.legacy||t.id===role.id));
+  if(type==='edit-plan')allowed.unshift({id:'boss',name:'涛博士'});
+  select.innerHTML = `<option value="">${type==='edit-plan'?'请选择下一步负责人':'预约时选择服务治疗师'}</option>`+allowed.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+  select.value = allowed.some(t => t.id === previous) ? previous : (type==='edit-plan'?'boss':'') || '';
   if (!f.querySelector('.assignment-note')) {
     const note = document.createElement('p'); note.className='meta assignment-note';
-    note.textContent='安排给有本店客户服务权限且当天在本店排班的康复师；新人员执行权限请由老板安排。';
+    note.textContent=type==='edit-plan'?'涛博士发布专业计划；下一步事项可以交给已授权人员。':'每次预约分别选择本店在职治疗师；系统核对当天排班与已有预约。';
     f.querySelector('.dialog-footer').before(note);
   }
 }
@@ -779,6 +774,7 @@ document.addEventListener('submit', async event => {
   if (!f.dataset.form) return;
   event.preventDefault();
   if (f.dataset.busy === 'true' || f.dataset.succeeded === 'true') return;
+  if(role.type==='manager'&&!['manager-filters','manager-search','schedule-filters','cash-closing-select'].includes(f.dataset.form)){formError(f,'店长仅有本店监管只读权限，业务录入请由前台或老板处理');return;}
   if(f.dataset.form==='import-opening-batch'){void dialogContext?.legacyController?.submit();return;}
   if(f.dataset.form==='customer-booking' && !advanceCustomerBookingForm(f,customerCtx())) {saveDraft();return;}
   if(f.dataset.form==='multi-day-booking'&&!advanceMultiDayBookingForm(f,ctx())){saveDraft();return;}
@@ -813,7 +809,7 @@ document.addEventListener('submit', async event => {
   }
   if(type==='paper-intake-select'){openDialog('paper-intake-create',data.clientId);return;}
   if(type==='cash-closing-select'){try{model.cashClosingSummary(role,{storeId:data.storeId,date:data.date});openDialog('cash-closing',JSON.stringify({storeId:data.storeId,date:data.date}));}catch(error){formError(f,error.message);}return;}
-  if(role.type==='manager' && !['appointment-create','customer-booking-confirm','multi-day-booking'].includes(type)) {formError(f,'店长仅有本店新建预约和待预约确认权限，其他操作请由对应工作人员处理');return;}
+  if(role.type==='manager') {formError(f,'店长仅有本店监管只读权限，其他操作请由对应工作人员处理');return;}
   if (type === 'filters') {
     if (data.from && data.to && data.from > data.to) { toast('开始日期不能晚于结束日期'); return; }
     filters = {...filters,...data}; render(); return;
@@ -998,15 +994,15 @@ function exportPreview() {
   const frontStores=role.type==='frontdesk'?receptionStores(ctx()):[];
   const frontStoreIds=role.type==='frontdesk'?new Set(frontStores.map(s=>s.id)):null;
   const data = role.type==='manager'?model.managerSnapshot(role):role.type === 'boss' ? {...state,audit:state.audit.map(cleanAudit),services:state.services.map(exportService),receipts:state.receipts.map(cleanCash),refunds:state.refunds.map(cleanCash)} : role.type==='frontdesk'?{
-    clients:state.clients.filter(c=>ids.has(c.id)).map(c=>({id:c.id,name:c.name,phone:c.phone,age:c.age,problem:c.problem,storeId:c.storeId,ownerId:c.ownerId,storeSessions:frontStores.map(store=>({storeId:store.id,storeName:store.name,remainingSessions:model.remainingInStore(c.id,store.id)}))})),
+    clients:state.clients.filter(c=>ids.has(c.id)).map(c=>({id:c.id,name:c.name,phone:c.phone,age:c.age,problem:c.problem,storeId:c.storeId,ownerId:c.ownerId,assessorId:c.assessorId,storeSessions:frontStores.map(store=>({storeId:store.id,storeName:store.name,remainingSessions:model.remainingInStore(c.id,store.id)}))})),
     appointments:state.appointments.filter(a=>frontStoreIds.has(a.storeId)).map(a=>({id:a.id,clientId:a.clientId,storeId:a.storeId,date:a.date,time:a.time,principalId:a.principalId,status:a.status,arrivalAt:a.arrivalAt,arrivalBy:a.arrivalBy})),
     receipts:state.receipts.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),refunds:state.refunds.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),
     assessments:assessmentRows(model,role),frontDeskEvaluations:frontDeskEvaluationRows(model,role,role.id)
   } : {
     clients:state.clients.filter(c => ids.has(c.id)),
     packages:state.packages.filter(p => ids.has(p.clientId)).map(p=>role.type==='customer'?{id:p.id,clientId:p.clientId,name:p.name,total:p.total,openingUsed:p.openingUsed,status:p.status,storeId:p.storeId,closed:p.closed===true,remaining:model.packageRemaining(p.id)}:p),
-    services:state.services.filter(s => ids.has(s.clientId) || (role.type === 'therapist' && (s.principalId === role.id || s.participantIds.includes(role.id)))).map(exportService),
-    appointments:state.appointments.filter(a => ids.has(a.clientId)),
+    services:state.services.filter(s => role.type==='therapist'&&!state.therapists.find(t=>t.id===role.id)?.legacy ? s.principalId===role.id || s.participantIds.includes(role.id) : ids.has(s.clientId) || (role.type === 'therapist' && (s.principalId === role.id || s.participantIds.includes(role.id)))).map(exportService),
+    appointments:state.appointments.filter(a => ids.has(a.clientId)&&(role.type!=='therapist'||state.therapists.find(t=>t.id===role.id)?.legacy||a.principalId===role.id||(a.participantIds||[]).includes(role.id))),
     tasks:state.tasks.filter(t => ids.has(t.clientId) && (role.type === 'customer' ? ['plan','assessment','review','reschedule'].includes(t.type) : t.type !== 'review_followup' && t.assigneeId === role.id)),
     reviews:model.reviewRows(role),
     assessments:assessmentRows(model,role)

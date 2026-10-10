@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 
 let api = {};
 try { api = await import('./schedules.js'); } catch (error) { if (error.code !== 'ERR_MODULE_NOT_FOUND') throw error; }

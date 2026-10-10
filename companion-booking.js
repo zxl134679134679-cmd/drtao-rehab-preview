@@ -1,12 +1,13 @@
-import { hourTimeField } from './hour-picker.js?v=20261009-daily-permissions-2';
-import { receptionStores } from './reception.js?v=20261010-multi-day-booking-1';
+import { hourTimeField } from './hour-picker.js?v=20261010-assessor-personnel-1';
+import { receptionStores } from './reception.js?v=20261010-assessor-personnel-1';
 
 const limit = 20;
 function clients(ctx) { return ctx.model.visibleClients(ctx.role); }
 function memberRow(index, member, ctx) {
   const { esc, model } = ctx;
   const customer = clients(ctx).find(c => c.id === member.clientId);
-  const eligible = model.state.therapists.filter(t => t.active && model.canSeeClient({ type:'therapist', id:t.id }, member.clientId));
+  const storeId=ctx.bookingStoreId||ctx.filters?.storeId||customer?.storeId;
+  const eligible = model.state.therapists.filter(t => t.active && model.bookingTherapistAllowed(t.id,member.clientId,storeId)&&(ctx.role.type!=='therapist'||model._therapist(ctx.role.id).legacy||t.id===ctx.role.id));
   const principal = member.principalId || customer?.ownerId || '';
   return `<section class="booking-member" data-booking-member><div class="section-head"><h3>客户 ${index + 1}</h3><button type="button" class="text-link" data-action="booking-remove">移除</button></div><div class="form-grid"><label class="field"><span>客户 / 同行朋友</span><select name="memberClient_${index}" required data-booking-client aria-label="客户 ${index + 1}"><option value="">选择已建档客户</option>${clients(ctx).map(c => `<option value="${esc(c.id)}" ${c.id === member.clientId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label><label class="field"><span>服务康复师</span><select name="memberPrincipal_${index}" required data-booking-principal aria-label="客户 ${index + 1} 的康复师"><option value="">${customer ? '选择康复师' : '先选择客户'}</option>${eligible.map(t => `<option value="${esc(t.id)}" ${t.id === principal ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label></div></section>`;
 }
@@ -14,12 +15,12 @@ function memberRow(index, member, ctx) {
 export function appointmentBatchDialog(id, ctx) {
   if (!['boss','frontdesk','therapist'].includes(ctx.role.type)) throw new Error('一起预约由前台、康复师或老板安排');
   const available = clients(ctx);
-  if (available.length < 2) return { title:'一起预约', html:'<p class="notice">当前可安排的客户不足两位，请先由老板建好同行朋友的档案并指定负责康复师。</p>' };
+  if (available.length < 2) return { title:'一起预约', html:'<p class="notice">当前可安排的客户不足两位，请先由前台建好同行朋友的档案。</p>' };
   const first = available.find(c => c.id === id) || available[0];
   const stores = ctx.role.type === 'frontdesk' ? receptionStores(ctx) : ctx.model.state.stores;
   const selectedStore = stores.find(s => s.id === ctx.filters?.storeId) || stores.find(s => s.id === first.storeId) || stores[0];
   const { esc } = ctx;
-  return { title:'客户与朋友一起预约', html:`<form data-form="appointment-batch"><p class="muted">同一时间到店，每人分别安排康复师。预约不扣套餐次数。</p><div class="form-grid"><label class="field"><span>服务门店</span><select name="storeId" required>${stores.map(s => `<option value="${esc(s.id)}" ${s.id === selectedStore?.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label><label class="field"><span>日期</span><input type="date" name="date" value="${esc(ctx.model.today)}" min="${esc(ctx.model.today)}" required></label>${hourTimeField('10:00',esc)}<label class="field"><span>服务项目</span><input name="project" value="康复评估与训练" required maxlength="120"></label></div><div class="booking-member-list" data-booking-members>${memberRow(0,{clientId:first.id},ctx)}${memberRow(1,{},ctx)}</div><button type="button" class="btn btn-outline booking-add" data-action="booking-add">再加一位同行客户</button><p class="meta">每位客户选择不同康复师。系统会统一检查时间冲突，有一人未通过，整组都不会保存。</p><p class="meta">朋友还没有档案？请先由老板建档并指定负责康复师，再一起预约。</p><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="close-dialog">稍后再填写</button><button type="submit" class="btn btn-primary">确认 2 人预约</button></div></form>` };
+  return { title:'客户与朋友一起预约', html:`<form data-form="appointment-batch"><p class="muted">同一时间到店，每人分别安排康复师。预约不扣套餐次数。</p><div class="form-grid"><label class="field"><span>服务门店</span><select name="storeId" required>${stores.map(s => `<option value="${esc(s.id)}" ${s.id === selectedStore?.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label><label class="field"><span>日期</span><input type="date" name="date" value="${esc(ctx.model.today)}" min="${esc(ctx.model.today)}" required></label>${hourTimeField('10:00',esc)}<label class="field"><span>服务项目</span><input name="project" value="康复训练" required maxlength="120"></label></div><div class="booking-member-list" data-booking-members>${memberRow(0,{clientId:first.id},{...ctx,bookingStoreId:selectedStore?.id})}${memberRow(1,{},{...ctx,bookingStoreId:selectedStore?.id})}</div><button type="button" class="btn btn-outline booking-add" data-action="booking-add">再加一位同行客户</button><p class="meta">每位客户选择不同康复师。系统会统一检查时间冲突，有一人未通过，整组都不会保存。</p><p class="meta">朋友还没有档案？请先由前台建档，再为每人分别选择预约治疗师。</p><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="close-dialog">稍后再填写</button><button type="submit" class="btn btn-primary">确认 2 人预约</button></div></form>` };
 }
 
 export function restoreBookingDraft(form, saved, ctx) {
@@ -44,7 +45,7 @@ export function updateBookingMembers(form, ctx) {
     principal.name = `memberPrincipal_${index}`;
     principal.setAttribute('aria-label',`客户 ${index + 1} 的康复师`);
     for (const option of client.options) option.disabled = Boolean(option.value && option.value !== client.value && clientValues.includes(option.value));
-    const eligible = ctx.model.state.therapists.filter(t => t.active && ctx.model.canSeeClient({type:'therapist',id:t.id},client.value));
+    const eligible = ctx.model.state.therapists.filter(t => t.active && ctx.model.bookingTherapistAllowed(t.id,client.value,form.elements.storeId?.value||ctx.filters?.storeId||ctx.model.state.clients.find(c=>c.id===client.value)?.storeId)&&(ctx.role.type!=='therapist'||ctx.model._therapist(ctx.role.id).legacy||t.id===ctx.role.id));
     const previous = principal.value;
     const occupied = principalValues.filter((_,i) => i !== index);
     const ownerId = ctx.model.state.clients.find(c => c.id === client.value)?.ownerId;

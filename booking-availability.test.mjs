@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { ensureSchedules } from './schedules.js';
 import { bookingAvailability,customerBookingTherapists } from './booking-availability.js';
 const fresh=()=>{const m=new DemoModel();ensureSchedules(m);return m;};

@@ -1,5 +1,5 @@
-import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261010-multi-day-booking-1';
-import {bookingAvailability} from './booking-availability.js?v=20261010-multi-day-booking-1';
+import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261010-assessor-personnel-1';
+import {bookingAvailability} from './booking-availability.js?v=20261010-assessor-personnel-1';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const appointmentFields=['id','clientId','storeId','date','time','principalId','project','status'];
 const safeAppointment=row=>clone(Object.fromEntries(appointmentFields.map(key=>[key,row[key]])));
@@ -12,7 +12,7 @@ function authorize(model,input,row,role){
  else model._bookingActor(role,input.clientId,input.storeId);
  const store=model._store(input.storeId);if(store.active===false)throw new Error('该门店已停用');
  const person=model._therapist(row.principalId);
- if(!model._therapistClientWorkAllowed(person.id,input.clientId,input.storeId))throw new Error('此康复师没有客户在本店的服务权限，请联系门店安排');
+ if(!model.bookingTherapistAllowed(person.id,input.clientId,input.storeId))throw new Error('此康复师没有客户在本店的服务权限，请联系门店安排');
 }
 function originalRecord(row,input,index){const expected={clientId:input.clientId,storeId:input.storeId,project:input.project,...input.items[index]};if(!row||Object.keys(expected).some(key=>row[key]!==expected[key]))throw new Error(`原批第 ${index+1} 天关联或安排已变化，请查看最新单次记录，不能重放原批提交`);}
 function results(model,ids,role,mode,input){

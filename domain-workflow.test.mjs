@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './legacy-test-fixture.mjs';
 import { ensureSchedules } from './schedules.js';
 
 const boss = { type: 'boss', id: 'boss' }, t1 = { type: 'therapist', id: 't1' }, t4 = { type: 'therapist', id: 't4' };
@@ -27,7 +27,8 @@ test('single payment completion generates actual performance, completes appointm
 });
 
 test('new client without any package can fulfill a paid single service with evidence', () => {
-  const m = fresh(); const client = m.createReceptionClient({ name: '单次体验客户', phone: '13810000999', age: '35', problem: '希望做运动评估', storeId: 'a', ownerId: 't1', requestId: 'new-client' }, boss);
+  const m = fresh(); const client = m.createReceptionClient({ name: '单次体验客户', phone: '13810000999', age: '35', problem: '希望做运动评估', storeId: 'a', requestId: 'new-client' }, boss);
+  m.transferClient(client.id,'t1','单次服务前明确客户负责人',boss);
   const cash = receipt(m, { clientId: client.id });
   const row = m.registerService(serviceInput(m, cash, { time: '15:00', project: '首次评估' }), t1);
   assert.equal(row.amount, 420.15); assert.equal(m.remaining(client.id), 0); assert.equal(m.state.packages.some(x => x.clientId === client.id), false);

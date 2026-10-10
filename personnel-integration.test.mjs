@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import * as staff from './staff.js';
 const source=await readFile(new URL('./app.js',import.meta.url),'utf8');
 const boss={type:'boss',id:'boss'};

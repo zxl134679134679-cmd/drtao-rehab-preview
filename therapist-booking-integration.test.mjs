@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { customerBookingTypes, customerRequestDialog, renderRequestHistory } from './customer-ui.js';
 import { ensureCustomerBooking } from './customer-booking.js';
 import { hourTimeField } from './hour-picker.js';

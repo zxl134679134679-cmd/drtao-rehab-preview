@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { ensureSchedules, scheduleStatus, scheduleRows, scheduleRequestRows, requestScheduleChange, saveSchedule, decideScheduleChange, bossScheduleNotifications } from './schedules.js';
 import { renderSchedulePage, renderScheduleInbox, scheduleDialog } from './schedules-ui.js';
 import { cashDialog, renderCashClosingSummary } from './cash.js';

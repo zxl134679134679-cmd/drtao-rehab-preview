@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './legacy-test-fixture.mjs';
 import { ensureEvaluations } from './evaluations.js';
 import { ensurePaperIntakes, paperIntakeDialog } from './paper-intake.js';
 import { renderReception, receptionIntakeSuccess } from './reception.js';
@@ -33,7 +33,7 @@ test('boss, manager and responsible therapist see concise paper review inbox on 
 });
 
 test('successful basic intake offers the next paper form with the actual new client',()=>{
-  const m=fixture(),role={type:'frontdesk',id:'f1'},client=m.createReceptionClient({name:'初访表入口示例',age:35,problem:'客户自述',phone:'13899094411',storeId:'a',ownerId:'t1',requestId:'paper-entry-test'},role);
+  const m=fixture(),role={type:'frontdesk',id:'f1'},client=m.createReceptionClient({name:'初访表入口示例',age:35,problem:'客户自述',phone:'13899094411',storeId:'a',requestId:'paper-entry-test'},role);
   const html=receptionIntakeSuccess(client,ctx(m,role,'reception'));
   assert.match(html,new RegExp(`data-action="paper-intake-create" data-id="${client.id}"`));
 });

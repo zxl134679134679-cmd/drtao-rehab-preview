@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './legacy-test-fixture.mjs';
 import { confirmedTestSchedules } from './scheduling-test-fixture.mjs';
 
 const daily = await import('./daily-operations.js').catch(error => {
@@ -22,7 +22,7 @@ const photo = () => ({ id: 'daily-photo', name: '服务留底.png', width: 1, he
 const receipt = (m, extra = {}, role = boss) => m.recordReceipt({ clientId: 'c1', storeId: 'a', date: m.today, time: '09:00', purpose: 'package', method: 'wechat', amount: '1000', requestId: 'daily-receipt', ...extra }, role);
 const book = (m, extra = {}) => m.saveAppointment({ clientId: 'c5', storeId: 'a', date: m.today, time: '10:00', principalId: 't5', project: '基础训练', ...extra }, boss);
 const arrive = (m, id, stamp, role) => { m.now = () => stamp; return m.recordArrival(id, { requestId: `arrival-${id}`, notes: '实际到店' }, role); };
-const intake = (m, extra = {}, role = frontA) => m.createReceptionClient({ name: '新建档客户', phone: '13910000101', age: '35', problem: '首次到店登记', storeId: 'a', ownerId: 't1', requestId: 'daily-new-client', ...extra }, role);
+const intake = (m, extra = {}, role = frontA) => m.createReceptionClient({ name: '新建档客户', phone: '13910000101', age: '35', problem: '首次到店登记', storeId: 'a', requestId: 'daily-new-client', ...extra }, role);
 
 test('daily operations defaults to today and keeps seeded service performance separate from actual cash', () => {
   const m = model(), before = serial(m), view = summary(m);
@@ -127,7 +127,7 @@ test('a same-day customer received by both stores counts once in each store with
 test('new client files have separate per-front-desk counts and old archive migration never inflates new clients or arrivals', () => {
   const m = model(); m.now = () => '2026-10-08T01:00:00.000Z';
   const first = intake(m); assert.equal(intake(m).id, first.id);
-  const other = intake(m, { phone: '13910000102', storeId: 'b', ownerId: 't2', requestId: 'boss-new-client' }, boss);
+  const other = intake(m, { phone: '13910000102', storeId: 'b', requestId: 'boss-new-client' }, boss);
   const imported = m.importOpening({ name: '历史客户', phone: '13910000103', ownerId: 't1', storeId: 'a', amount: '3000', total: '10', remaining: '8', notes: '核对纸质期初档案' }, boss);
   m.now = () => '2026-10-08T16:01:00.000Z';
   const next = intake(m, { phone: '13910000104', requestId: 'tomorrow-new-client' });

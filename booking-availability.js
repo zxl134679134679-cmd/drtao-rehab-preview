@@ -1,4 +1,4 @@
-import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261009-daily-permissions-2';
+import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261010-assessor-personnel-1';
 
 const minutes = time => Number(time.slice(0,2))*60+Number(time.slice(3));
 const pending = row => ['confirmed','reschedule_requested','pending_reassignment'].includes(row.status);
@@ -15,7 +15,7 @@ export function bookingAvailability(model,input) {
 }
 
 export function customerBookingTherapists(model,clientId,storeId,date='') {
-  return model.state.therapists.filter(person=>person.active&&(model._therapistClientWorkAllowed?.(person.id,clientId,storeId) ?? (model.canSeeClient({type:'therapist',id:person.id},clientId)||model.clientStoreTherapist?.(clientId,storeId)===person.id))&&
+  return model.state.therapists.filter(person=>person.active&&(model.bookingTherapistAllowed?.(person.id,clientId,storeId) ?? (model.canSeeClient({type:'therapist',id:person.id},clientId)||model.clientStoreTherapist?.(clientId,storeId)===person.id))&&
     (date ? (scheduleStatus(model,person.id,date).storeId||person.storeId)===storeId : person.storeId===storeId));
 }
 

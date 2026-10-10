@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './legacy-test-fixture.mjs';
 import * as cash from './cash.js';
 const boss={type:'boss',id:'boss'},front={type:'frontdesk',id:'f1'},manager={type:'manager',id:'m1'};
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

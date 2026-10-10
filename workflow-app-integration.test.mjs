@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
-import {DemoModel} from './core.js';
+import {DemoModel} from './legacy-test-fixture.mjs';
 import {serviceResultSummary} from './workflow-ui.js';
 import {confirmedTestSchedules} from './scheduling-test-fixture.mjs';
 import {requestCustomerBooking,confirmCustomerBooking,resolveCustomerBooking,acceptCustomerBookingSuggestion} from './customer-booking.js';
@@ -31,17 +31,11 @@ test('actual customer cancellation form keeps the original appointment slot pend
 });
 
 
-test('actual manager single-booking form saves once with the real manager identity',async()=>{
- const r=runtime({type:'manager',id:'m1'},'appointment-create',{clientId:'c1',storeId:'a',date:'2026-10-12',time:'11:30',principalId:'t1',project:'阶段复评'});confirmedTestSchedules(r.model);
- const before=r.model.state.appointments.length;await r.run();await r.run();
- assert.equal(r.model.state.appointments.length,before+1);assert.equal(r.f.dataset.succeeded,'true');assert.equal(r.model.state.audit[0].actorType,'manager');assert.equal(r.scope.error,undefined);
+test('actual manager single-booking form rejects without changing appointments or audit',async()=>{
+ const r=runtime({type:'manager',id:'m1'},'appointment-create',{clientId:'c1',storeId:'a',date:'2026-10-12',time:'11:30',principalId:'t1',project:'阶段复评'});confirmedTestSchedules(r.model);const before=JSON.stringify([r.model.state,r.model.sequence]);await r.run();await r.run();assert.equal(JSON.stringify([r.model.state,r.model.sequence]),before);assert.match(r.scope.error,/监管|只读/);assert.equal(r.scope.success,undefined);
 });
 
-test('actual manager pending-confirmation form confirms once and keeps unrelated submit types refused',async()=>{
- const r=runtime({type:'manager',id:'m1'},'customer-booking-confirm',{});confirmedTestSchedules(r.model);
- const req=requestCustomerBooking(r.model,{clientId:'c1',storeId:'a',date:'2026-10-12',time:'11:30',principalId:'t1',project:'阶段复评',requestId:'real-form-request'},{type:'customer',id:'c1'});r.f.data.id=req.id;
- const before=r.model.state.appointments.length;await r.run();await r.run();assert.equal(r.model.state.appointments.length,before+1);assert.equal(r.model.state.bookingRequests[0].confirmedRole,'manager');assert.equal(r.scope.error,undefined);
- for(const [type,data] of [['appointment-edit',{id:'a3'}],['appointment-cancel',{id:'a3',reason:'取消'}],['record-receipt',{}],['customer-booking-resolve',{id:req.id,outcome:'rejected',reason:'不能安排'}]]){
-  const denied=runtime({type:'manager',id:'m1'},type,data),snapshot=JSON.stringify([denied.model.state,denied.model.sequence]);await denied.run();assert.match(denied.scope.error,/店长|权限/);assert.equal(JSON.stringify([denied.model.state,denied.model.sequence]),snapshot);
- }
+test('actual manager pending-confirmation form and every other write remain refused',async()=>{
+ const r=runtime({type:'manager',id:'m1'},'customer-booking-confirm',{});confirmedTestSchedules(r.model);const req=requestCustomerBooking(r.model,{clientId:'c1',storeId:'a',date:'2026-10-12',time:'11:30',principalId:'t1',project:'阶段复评',requestId:'real-form-request'},{type:'customer',id:'c1'});r.f.data.id=req.id;const before=JSON.stringify([r.model.state,r.model.sequence]);await r.run();assert.equal(JSON.stringify([r.model.state,r.model.sequence]),before);assert.match(r.scope.error,/监管|只读/);
+ for(const type of ['appointment-edit','appointment-cancel','record-receipt','customer-booking-resolve','multi-day-booking']){const d=runtime({type:'manager',id:'m1'},type,{}),snapshot=JSON.stringify([d.model.state,d.model.sequence]);await d.run();assert.match(d.scope.error,/店长|权限/);assert.equal(JSON.stringify([d.model.state,d.model.sequence]),snapshot);}
 });

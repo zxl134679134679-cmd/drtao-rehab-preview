@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './legacy-test-fixture.mjs';
 import { confirmedTestSchedules } from './scheduling-test-fixture.mjs';
 import * as reception from './reception.js';
 import { workSummary, renderStaff, staffDialog } from './staff.js';
@@ -24,14 +24,32 @@ test('front desk home leads with new customer intake before scheduling and cash,
   }
 });
 
-test('new intake window asks plain basic information and an eligible store owner, without package or assessment fields',()=>{
+test('new intake window asks only basic information with fixed assessor and treatment chosen during booking',()=>{
   const html=dialog(fixture(),'reception-create-client','a').html;
-  for(const key of ['name','age','problem','phone','storeId','ownerId'])assert.match(html,new RegExp(`name="${key}"`));
-  assert.match(html,/客户姓名/);assert.match(html,/年龄/);assert.match(html,/主要问题/);
+  for(const key of ['name','age','phone','storeId'])assert.match(html,new RegExp(`name="${key}"`));
+  assert.doesNotMatch(html,/name="ownerId"|name="therapistId"/);assert.match(html,/涛博士/);assert.match(html,/预约时选择/);
+  assert.match(html,/客户姓名/);assert.match(html,/年龄/);
+  assert.doesNotMatch(html,/name="problem"|主要问题（客户自述）/);
   assert.match(html,/检查已有档案/);assert.match(html,/保存档案，下一步预约/);
   assert.ok(!/name="(?:amount|total|remaining|score|metricName)"/.test(html));
   assert.ok(!/value="b"/.test(html),'麦岛前台不应选择未授权崂山店');
   assert.ok(!/value="t2"|value="t4"/.test(html),'首任负责人仅本店在职康复师');
+});
+
+test('saving basic intake without a stated problem keeps the next steps clear without blank problem displays',()=>{
+  const m=fixture();
+  const c=m.createReceptionClient({name:'快捷建档客户',age:'35',phone:'13899091115',storeId:'a',requestId:'new-basic-only'},front);
+  const success=reception.receptionIntakeSuccess(c,context(m));
+  assert.match(success,/快捷建档客户/);
+  assert.match(success,/填写初访接待表/);
+  assert.match(success,new RegExp(`data-action="appointment-create" data-id="${c.id}"`));
+  assert.doesNotMatch(success,/客户自述：/);
+  const details=dialog(m,'reception-client',c.id).html;
+  assert.match(details,/填写初访接待表/);
+  assert.doesNotMatch(details,/主要问题（客户自述）|尚未填写接待问题/);
+  const list=reception.renderReception(context(m,front,'reception-clients'));
+  assert.match(list,/快捷建档客户/);
+  assert.doesNotMatch(list,/客户自述：<\/p>/);
 });
 
 test('intake window fails closed for unauthorized or inactive actors and stores',()=>{
@@ -45,7 +63,7 @@ test('intake window fails closed for unauthorized or inactive actors and stores'
 test('a freshly created client can be reopened with age and original problem, with next step booking and no fake package',()=>{
   const m=fixture();
   assert.equal(typeof m.createReceptionClient,'function');
-  const c=m.createReceptionClient({name:'测试接待客户',age:'35',problem:'客户自述运动后肩部不适',phone:'13899091111',storeId:'a',ownerId:'t1',requestId:'new-ui'},front);
+  const c=m.createReceptionClient({name:'测试接待客户',age:'35',problem:'客户自述运动后肩部不适',phone:'13899091111',storeId:'a',requestId:'new-ui'},front);
   const html=dialog(m,'reception-client',c.id).html;
   assert.match(html,/测试接待客户/);assert.match(html,/35/);assert.match(html,/客户自述运动后肩部不适/);
   assert.match(html,/尚未办理本店套餐/);assert.match(html,new RegExp(`data-action="appointment-create" data-id="${c.id}"`));
@@ -53,21 +71,15 @@ test('a freshly created client can be reopened with age and original problem, wi
   assert.throws(()=>dialog(m,'reception-client','c2'),'不能打开未授权外店客户接待档案');
 });
 
-test('owner choices follow selected authorized store, clear stale choice and prevent creation when no owner is available',()=>{
-  const m=fixture();m.state.frontDesks.find(f=>f.id==='f1').storeIds=['a','b'];
-  assert.equal(typeof reception.updateReceptionIntakeChoices,'function');
-  const owner={value:'t1',innerHTML:'',disabled:false},submit={disabled:false},hint={textContent:''};
-  const form={dataset:{form:'reception-create-client'},elements:{storeId:{value:'b'},ownerId:owner},querySelector:s=>s==='[type="submit"]'?submit:s==='[data-intake-owner-help]'?hint:null};
-  reception.updateReceptionIntakeChoices(form,context(m));
-  assert.equal(owner.value,'');assert.match(owner.innerHTML,/value="t2"/);assert.ok(!owner.innerHTML.includes('value="t1"'));
-  assert.equal(submit.disabled,true);
-  owner.value='t2';reception.updateReceptionIntakeChoices(form,context(m));assert.equal(submit.disabled,false);
-  m.state.therapists.filter(t=>t.storeId==='b').forEach(t=>{t.active=false;});
-  reception.updateReceptionIntakeChoices(form,context(m));assert.equal(owner.value,'');assert.equal(submit.disabled,true);assert.match(hint.textContent,/老板/);
+test('store choice controls intake availability independently from therapy staffing',()=>{
+ const m=fixture(),submit={},hint={},form={dataset:{form:'reception-create-client'},elements:{storeId:{value:'a'}},querySelector:s=>s==='[type="submit"]'?submit:hint};
+ m.state.therapists.forEach(t=>t.active=false);reception.updateReceptionIntakeChoices(form,context(m));assert.equal(submit.disabled,false);assert.match(hint.textContent,/涛博士/);
+ form.elements.storeId.value='b';reception.updateReceptionIntakeChoices(form,context(m));assert.equal(submit.disabled,true);
 });
 
 test('an unplanned new customer is followed up as not yet enrolled instead of an exhausted package',()=>{
-  const m=fixture(),c=m.createReceptionClient({name:'新接待未办卡',age:'29',problem:'希望了解运动康复',phone:'13899091112',storeId:'a',ownerId:'t1',requestId:'new-unenrolled'},front);
+  const m=fixture(),c=m.createReceptionClient({name:'新接待未办卡',age:'29',problem:'希望了解运动康复',phone:'13899091112',storeId:'a',requestId:'new-unenrolled'},front);
+  m.transferClient(c.id,'t1','独立客户负责人分配',{type:'boss',id:'boss'});
   const therapist={type:'therapist',id:'t1'},row=workSummary(m,therapist).followups.find(r=>r.client.id===c.id);
   assert.ok(row);assert.equal(row.low,false,'无套餐不能归为低次数/已耗尽');
   const html=renderStaff(context(m,therapist,'work'));
@@ -75,17 +87,19 @@ test('an unplanned new customer is followed up as not yet enrolled instead of an
 });
 
 test('a first evaluation appointment for a customer without a package explains enrollment without allowing deduction',()=>{
-  const m=fixture(),c=m.createReceptionClient({name:'首次评估未办卡',age:'29',problem:'客户自述想恢复运动',phone:'13899091113',storeId:'a',ownerId:'t1',requestId:'new-unenrolled-appointment'},front);
+  const m=fixture(),c=m.createReceptionClient({name:'首次评估未办卡',age:'29',problem:'客户自述想恢复运动',phone:'13899091113',storeId:'a',requestId:'new-unenrolled-appointment'},front);
+  m.transferClient(c.id,'t1','独立客户负责人分配',{type:'boss',id:'boss'});
   m.saveAppointment({clientId:c.id,storeId:'a',principalId:'t1',date:m.today,time:'17:30',project:'首次评估'},front);
   const html=renderStaff(context(m,{type:'therapist',id:'t1'},'work'));
   assert.match(html,/尚未办理本店套餐，服务费用请先与门店核对/);
 });
 
-test('booking directly from new intake keeps the client and store and defaults to the first assessment',()=>{
-  const m=fixture(),c=m.createReceptionClient({name:'第一次接待',age:32,problem:'希望先评估',phone:'13899091114',storeId:'a',ownerId:'t1',requestId:'new-appointment-form'},front);
+test('booking directly from new intake keeps the client and store and defaults to therapy while Tao assessment remains independent',()=>{
+  const m=fixture(),c=m.createReceptionClient({name:'第一次接待',age:32,problem:'希望先评估',phone:'13899091114',storeId:'a',requestId:'new-appointment-form'},front);
   const html=staffDialog('appointment-create',c.id,context(m)).html;
   assert.match(html,new RegExp(`value="${c.id}" selected`));
-  assert.match(html,/name="project"[^>]*value="首次评估"/);
+  assert.match(html,/name="project"[^>]*value="康复训练"/);
+  m.transferClient(c.id,'t1','独立客户负责人分配',{type:'boss',id:'boss'});
   const saved=m.saveAppointment({clientId:c.id,storeId:'a',principalId:'t1',date:m.today,time:'17:30',project:'用户自选项目'},front);
   const edited=staffDialog('appointment-edit',saved.id,context(m)).html;
   assert.match(edited,/name="project"[^>]*value="用户自选项目"/,'编辑已有预约不能覆盖原项目');
@@ -127,29 +141,14 @@ function genericIntakeRestore(form,saved) {
   for(const [key,value] of saved.entries)form.elements[key].value=value;
 }
 
-test('an intake draft restores a second-store owner after native select restoration has dropped the saved value',()=>{
-  const m=fixture();m.state.frontDesks.find(f=>f.id==='f1').storeIds=['a','b'];
-  const form=intakeDraftForm(m),saved=intakeSavedDraft();genericIntakeRestore(form,saved);
-  assert.equal(form.elements.storeId.value,'b');assert.equal(form.elements.ownerId.value,'','generic restore loses the B-store owner while only A-store options exist');
-  assert.equal(typeof reception.restoreReceptionIntakeDraft,'function');
-  reception.restoreReceptionIntakeDraft(form,saved,context(m));
-  assert.equal(form.elements.storeId.value,'b');assert.equal(form.elements.ownerId.value,'t2');
-  assert.equal(form.querySelector('[type="submit"]').disabled,false);
-  for(const [key,value] of saved.entries.filter(([key])=>!['storeId','ownerId'].includes(key)))assert.equal(form.elements[key].value,value,'basic intake values remain intact');
+test('intake draft restores its authorized second store without restoring any therapist choice',()=>{
+ const m=fixture();m.state.frontDesks[0].storeIds=['a','b'];const form=intakeDraftForm(m),saved=intakeSavedDraft();genericIntakeRestore(form,saved);reception.restoreReceptionIntakeDraft(form,saved,context(m));
+ assert.equal(form.elements.storeId.value,'b');assert.equal(form.querySelector('[type="submit"]').disabled,false);assert.equal(form.elements.ownerId.value,'','old draft therapist choice is not restored');
 });
 
-test('intake draft restoration refuses a revoked store, stopped owner or owner from another store without silently replacing them',()=>{
-  assert.equal(typeof reception.restoreReceptionIntakeDraft,'function');
-  for(const invalid of ['unauthorized-store','inactive-store','inactive-owner','other-store-owner']) {
-    const m=fixture();m.state.frontDesks.find(f=>f.id==='f1').storeIds=invalid==='unauthorized-store'?['a']:['a','b'];
-    if(invalid==='inactive-store')m.state.stores.find(s=>s.id==='b').active=false;
-    if(invalid==='inactive-owner')m.state.therapists.find(t=>t.id==='t2').active=false;
-    const form=intakeDraftForm(m),saved=intakeSavedDraft('b',invalid==='other-store-owner'?'t1':'t2');genericIntakeRestore(form,saved);
-    reception.restoreReceptionIntakeDraft(form,saved,context(m));
-    assert.equal(form.elements.ownerId.value,'',`${invalid} must require a fresh legal owner choice`);
-    if(invalid.endsWith('-store'))assert.equal(form.elements.storeId.value,'','invalid saved store must not silently become the entry store');
-    assert.equal(form.querySelector('[type="submit"]').disabled,true);
-  }
+test('intake draft restoration refuses unauthorized or stopped stores without silently replacing them',()=>{
+ for(const mode of ['unauthorized','stopped']){const m=fixture();if(mode==='stopped'){m.state.frontDesks[0].storeIds=['a','b'];m.state.stores.find(s=>s.id==='b').active=false;}
+ const form=intakeDraftForm(m),saved=intakeSavedDraft();genericIntakeRestore(form,saved);reception.restoreReceptionIntakeDraft(form,saved,context(m));assert.equal(form.elements.storeId.value,'');assert.equal(form.querySelector('[type="submit"]').disabled,true);}
 });
 
 test('restoring a valid intake draft never unlocks an in-flight or known duplicate submission',()=>{
@@ -158,6 +157,6 @@ test('restoring a valid intake draft never unlocks an in-flight or known duplica
   for(const locked of [{busy:'true'},{duplicate:'true'}]) {
     const form=intakeDraftForm(m,locked),saved=intakeSavedDraft();genericIntakeRestore(form,saved);
     reception.restoreReceptionIntakeDraft(form,saved,context(m));
-    assert.equal(form.elements.ownerId.value,'t2');assert.equal(form.querySelector('[type="submit"]').disabled,true);
+    assert.equal(form.elements.ownerId.value,'');assert.equal(form.querySelector('[type="submit"]').disabled,true);
   }
 });

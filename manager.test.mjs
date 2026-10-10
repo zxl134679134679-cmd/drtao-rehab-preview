@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { confirmedTestSchedules, confirmTestShift } from './scheduling-test-fixture.mjs';
 import { scheduleRows, scheduleRequestRows, bossScheduleNotifications } from './schedules.js';
 import { scheduleDialog } from './schedules-ui.js';
@@ -461,7 +461,7 @@ test('all actual manager detail types display local data and deny foreign or unk
   }
 });
 
- test('actual app permits manager local new-booking route while still rejecting a foreign client',()=>{const m=model(),app=appReaders(m,managerA);assert.match(app.dialog('appointment-create','c1').html,/data-form=\"appointment-create\"/);assert.throws(()=>app.dialog('appointment-create','c2'),/权限|本店|查看/);});
+ test('actual app rejects manager local and foreign new-booking routes',()=>{const m=model(),app=appReaders(m,managerA);for(const id of ['c1','c2'])assert.throws(()=>app.dialog('appointment-create',id),/权限|监管|查看/);});
 
 test('manager and therapist primary navigation each provide direct daily, booking, customer and business destinations',()=>{
  for(const [role,view,booking] of [[managerA,'manager-overview','manager-appointments'],[{type:'therapist',id:'t1'},'work','therapist-appointments']]){

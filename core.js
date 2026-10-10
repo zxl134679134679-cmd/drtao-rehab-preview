@@ -1,5 +1,5 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261009-daily-permissions-2';
-import { assertScheduleAvailability } from './schedules.js?v=20261009-daily-permissions-2';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261010-assessor-personnel-1';
+import { assertScheduleAvailability } from './schedules.js?v=20261010-assessor-personnel-1';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -89,7 +89,7 @@ const receptionPhone = value => {
   if (!/^1\d{10}$/.test(phone)) throw new Error('请输入 11 位手机号');
   return phone;
 };
-const receptionBasicClient = client => Object.fromEntries(['id', 'name', 'phone', 'age', 'problem', 'storeId', 'ownerId']
+const receptionBasicClient = client => Object.fromEntries(['id', 'name', 'phone', 'age', 'problem', 'storeId', 'ownerId', 'assessorId']
   .filter(key => client[key] !== undefined).map(key => [key, client[key]]));
 
 // Read raster headers as well as the declared MIME type. SVG and remote URLs
@@ -182,20 +182,26 @@ function seedState() {
       { id: 'a', name: '麦岛店', address: '青岛 · 麦岛店（详细地址待补充）' },
       { id: 'b', name: '崂山店', address: '青岛 · 崂山店（详细地址待补充）' },
     ],
+    assessors: [{ id: 'tao', name: '涛博士', accountRole: 'boss' }],
     therapists: [
-      { id: 't1', name: '林予安', storeId: 'a', active: true },
-      { id: 't2', name: '周亦宁', storeId: 'b', active: true },
-      { id: 't3', name: '苏晴', storeId: 'a', active: true },
-      { id: 't4', name: '何知行', storeId: 'b', active: true },
-      { id: 't5', name: '许映', storeId: 'a', active: true },
+      { id: 't-qiu-zhen', name: '邱振', storeId: 'a', active: true },
+      { id: 't-zou-zonglin', name: '邹宗霖', storeId: 'a', active: true },
+      { id: 't-wu-wenpei', name: '武文沛', storeId: 'b', active: true },
+      { id: 't1', name: '林予安', storeId: 'a', active: false, legacy: true },
+      { id: 't2', name: '周亦宁', storeId: 'b', active: false, legacy: true },
+      { id: 't3', name: '苏晴', storeId: 'a', active: false, legacy: true },
+      { id: 't4', name: '何知行', storeId: 'b', active: false, legacy: true },
+      { id: 't5', name: '许映', storeId: 'a', active: false, legacy: true },
     ],
     frontDesks: [
       { id: 'f1', name: '麦岛店前台', storeIds: ['a'], active: true },
       { id: 'f2', name: '崂山店前台', storeIds: ['b'], active: true },
     ],
     storeManagers: [
-      { id: 'm1', name: '麦岛店店长', storeId: 'a', active: true },
-      { id: 'm2', name: '崂山店店长', storeId: 'b', active: true },
+      { id: 'm-chen-kang', name: '陈康', storeId: 'a', active: true },
+      { id: 'm-he-zanfeng', name: '何赞峰', storeId: 'b', active: true },
+      { id: 'm1', name: '麦岛店店长', storeId: 'a', active: false, legacy: true },
+      { id: 'm2', name: '崂山店店长', storeId: 'b', active: false, legacy: true },
     ],
     clients: [
       seedClient('c1', '陈一诺', 't1', 'a', 'p1', '13800000001'),
@@ -269,7 +275,7 @@ export class DemoModel {
     const source = state === undefined ? seedState() : state;
     const collections = ['stores', 'therapists', 'clients', 'packages', 'services', 'appointments', 'tasks', 'reviews', 'audit'];
     if (!source || collections.some(key => !Array.isArray(source[key]))) throw new Error('业务状态缺少有效的数据集合');
-    for (const key of ['receipts', 'refunds', 'frontDesks', 'appointmentBatches', 'storeManagers', 'cashClosings']) {
+    for (const key of ['receipts', 'refunds', 'frontDesks', 'appointmentBatches', 'storeManagers', 'cashClosings', 'assessors']) {
       if (source[key] !== undefined && !Array.isArray(source[key])) throw new Error('业务状态缺少有效的数据集合');
       collections.push(key);
     }
@@ -280,6 +286,7 @@ export class DemoModel {
     this.state.appointmentBatches ??= [];
     this.state.storeManagers ??= [];
     this.state.cashClosings ??= [];
+    this.state.assessors ??= [{ id: 'tao', name: '涛博士', accountRole: 'boss' }];
     if (!Number.isSafeInteger(sequence) || sequence < 0) throw new Error('业务序列无效');
     const ids = collections.flatMap(key => this.state[key].map(row => row?.id));
     if (ids.some(id => typeof id !== 'string' || !id.trim())) throw new Error('业务状态包含无效记录标识');
@@ -305,8 +312,8 @@ export class DemoModel {
       if (!client.storeTherapistIds || typeof client.storeTherapistIds !== 'object' || Array.isArray(client.storeTherapistIds)) throw new Error('客户本店执行师授权记录无效');
       for (const [storeId, therapistId] of Object.entries(client.storeTherapistIds)) {
         this._store(storeId);
-        const therapist = this._therapist(therapistId);
-        if (therapist.storeId !== storeId) throw new Error('客户执行师授权须属于本店在职康复师');
+        const therapist = this.state.therapists.find(row => row.id === therapistId);
+        if (!therapist || therapist.storeId !== storeId) throw new Error('客户执行师授权须属于本店在职康复师');
       }
     }
     this.state.packages.forEach(pack => {
@@ -566,12 +573,12 @@ export class DemoModel {
     this._receptionActor(role, storeId);
     const store = this._store(storeId);
     if (store.active === false) throw new Error('接待门店已停用，请核对门店');
-    const ownerId = required(data.ownerId, '负责康复师', 80), owner = this._therapist(ownerId);
-    if (owner.storeId !== storeId) throw new Error('请选择本店在职康复师作为负责人');
-    if (role.type === 'therapist' && ownerId !== role.id) throw new Error('康复师新建档案的负责人须为本人');
+    if (data.ownerId || data.therapistId || data.principalId) throw new Error('建档时不选择治疗师或负责人，请在预约时选择服务人员');
+    if (data.assessorId && data.assessorId !== 'tao') throw new Error('评估师固定为涛博士，不能选择其他人员');
+    const ownerId = '', assessorId = 'tao';
     const requestId = required(data.requestId, '建档提交标识', 80);
     const input = { name: required(data.name, '客户姓名', 80), phone: receptionPhone(data.phone), age: count(data.age, '客户年龄', 0, 120),
-      problem: required(data.problem, '主要问题', 1000), storeId, ownerId };
+      problem: optionalText(data.problem, '主要问题', 1000), storeId, ownerId, assessorId };
     const inputKey = JSON.stringify(input);
     const existing = this.state.clients.find(client => client.receptionRequestId === requestId && client.createdBy === role.id && client.createdRole === role.type);
     if (existing) {
@@ -581,9 +588,9 @@ export class DemoModel {
     if (this.findReceptionDuplicates(input.phone, role).duplicate) throw new Error('该手机号已存在客户档案，请核对原档案，避免重复建档；其他门店档案请联系老板处理');
     const stamp = this._timestamp(), staged = this._stagePackageWrite(stamp);
     const client = seedClient(staged._id('c'), input.name, ownerId, storeId, null, input.phone);
-    Object.assign(client, { age: input.age, problem: input.problem, goal: '待制定康复计划', phase: '待初次评估',
-      nextStep: '预约首次评估，完成后由负责康复师制定计划', planNotes: '客户基本资料已登记，康复计划待负责康复师完成评估后制定。',
-      homeAdvice: '待负责康复师完成评估后补充', createdAt: stamp, createdBy: role.id, createdRole: role.type,
+    Object.assign(client, { assessorId, age: input.age, problem: input.problem, goal: '待制定康复计划', phase: '待初次评估',
+      nextStep: '预约首次评估，完成后由涛博士制定计划', planNotes: '客户基本资料已登记，康复计划待涛博士完成评估后制定。',
+      homeAdvice: '待涛博士完成评估后补充', createdAt: stamp, createdBy: role.id, createdRole: role.type,
       receptionRequestId: requestId, receptionInputKey: inputKey });
     staged.state.clients.push(client);
     staged._log('reception_client_created', { clientId: client.id, storeId, after: receptionBasicClient(client), note: '仅建立客户基本档案，不办理套餐、不登记收款、不计消费业绩' }, role);
@@ -598,15 +605,9 @@ export class DemoModel {
     if (clientId && !this.canSeeClient(role, clientId)) throw new Error('您没有该客户的前台操作权限');
     return frontDesk;
   }
-  _managerBookingActor(role, clientId, storeId, principalId) {
-    const boundStoreId = this.managerStoreId(role);
-    if (storeId !== boundStoreId) throw new Error('店长仅有本店客户的新建预约和待预约确认权限');
-    if (this._store(boundStoreId).active === false) throw new Error('本店已停用，不能安排预约');
-    if (!this.canSeeClient(role, clientId)) throw new Error('您没有该客户的本店预约权限');
-    const person = this._therapist(principalId);
-    if (person.storeId !== boundStoreId) throw new Error('店长仅有安排本店在职康复师的预约权限');
-    if (!this._therapistClientWorkAllowed(person.id, clientId, boundStoreId)) throw new Error('此康复师没有该客户的本店服务权限，请由老板先安排执行权限');
-    return this._client(clientId);
+  _managerBookingActor(role) {
+    this.managerStoreId(role);
+    throw new Error('店长仅有本店监管只读权限，预约由前台或老板安排');
   }
   _bookingActor(role, clientId, storeId) {
     if (role?.type !== 'frontdesk') return this._staff(role, clientId, storeId);
@@ -1178,13 +1179,30 @@ export class DemoModel {
   }
 
   _therapistClientBaseAllowed(therapistId, clientId) {
-    return this._client(clientId).ownerId === therapistId || this.state.services.some(item => item.clientId === clientId && item.status === 'valid' &&
-      (item.principalId === therapistId || item.participantIds.includes(therapistId)));
+    const person = this.state.therapists.find(row => row.id === therapistId);
+    return this._client(clientId).ownerId === therapistId ||
+      (!person?.legacy && this.state.appointments.some(row => row.clientId === clientId && pendingAppointment(row.status) &&
+        (row.principalId === therapistId || (row.participantIds || []).includes(therapistId)))) ||
+      this.state.services.some(row => row.clientId === clientId && row.status === 'valid' &&
+        (row.principalId === therapistId || row.participantIds.includes(therapistId)));
   }
 
   _therapistClientWorkAllowed(therapistId, clientId, storeId) {
-    return this.state.therapists.some(row => row.id === therapistId && row.active) &&
-      (this._therapistClientBaseAllowed(therapistId, clientId) || this.clientStoreTherapist(clientId, storeId) === therapistId);
+    const person = this.state.therapists.find(row => row.id === therapistId && row.active);
+    if (!person) return false;
+    if (this.clientStoreTherapist(clientId, storeId) === therapistId) return true;
+    if (person.legacy) return this._therapistClientBaseAllowed(therapistId, clientId);
+    return (person.storeId === storeId && this._client(clientId).ownerId === therapistId) ||
+      this.state.appointments.some(row => row.clientId === clientId && row.storeId === storeId && pendingAppointment(row.status) &&
+        (row.principalId === therapistId || (row.participantIds || []).includes(therapistId))) ||
+      this.state.services.some(row => row.clientId === clientId && row.storeId === storeId && row.status === 'valid' &&
+        (row.principalId === therapistId || row.participantIds.includes(therapistId)));
+  }
+
+  bookingTherapistAllowed(therapistId, clientId, storeId) {
+    if(!this.state.clients.some(client=>client.id===clientId))return false;
+    const person = this.state.therapists.find(row => row.id === therapistId && row.active);
+    return Boolean(person && ((!person.legacy && person.storeId === storeId) || this._therapistClientWorkAllowed(therapistId, clientId, storeId)));
   }
 
   assignStoreTherapist(data, role) {
@@ -1256,13 +1274,13 @@ export class DemoModel {
     if (role?.type !== 'therapist' || !this.state.therapists.some(item => item.id === role.id && item.active)) return false;
     // Evidence access follows this service, including revoked records. Taking
     // part in a different service does not expose another service's photos.
-    return client.ownerId === role.id || service.principalId === role.id || service.participantIds.includes(role.id);
+    return (this._therapist(role.id).legacy && client.ownerId === role.id) || service.principalId === role.id || service.participantIds.includes(role.id);
   }
 
   visibleClients(role) {
     if (role?.type === 'manager') return this.managerSnapshot(role).clients;
     const clients = this.state.clients.filter(item => this.canSeeClient(role, item.id));
-    if (role?.type === 'frontdesk') return clients.map(({ id, name, phone, age, problem, ownerId, storeId, packageId }) => ({ id, name, phone, age, problem, ownerId, storeId, packageId }));
+    if (role?.type === 'frontdesk') return clients.map(({ id, name, phone, age, problem, ownerId, assessorId, storeId, packageId }) => ({ id, name, phone, age, problem, ownerId, assessorId, storeId, packageId }));
     return clients;
   }
 
@@ -1309,6 +1327,7 @@ export class DemoModel {
 
   registerService(data, role) {
     const client = this._staff(role, data.clientId, data.storeId);
+    if(role.type==='therapist'&&!this._therapist(role.id).legacy&&data.principalId!==role.id&&!(data.participantIds||[]).includes(role.id))throw new Error('治疗师仅能登记本人主服务或协作服务');
     const requestId = required(data.requestId, '提交标识', 80);
     const billingMode = data.billingMode ?? 'package';
     if (!['package', 'single'].includes(billingMode)) throw new Error('请选择套餐消课或单次付费服务');
@@ -1457,7 +1476,7 @@ export class DemoModel {
 
   publishPlan(clientId, data, role) {
     const client = this._staff(role, clientId);
-    if (role.type !== 'boss' && client.ownerId !== role.id) throw new Error('仅负责康复师或老板有权限发布计划');
+    if (role.type !== 'boss' && (client.assessorId || !this._therapist(role.id).legacy || client.ownerId !== role.id)) throw new Error('仅指定评估师涛博士或老板有权限发布计划');
     const next = {
       goal: required(data.goal, '康复目标'), phase: required(data.phase, '当前阶段'),
       nextStep: required(data.nextStep, '下一步安排'), planNotes: required(data.planNotes, '计划内容'),
@@ -1485,7 +1504,13 @@ export class DemoModel {
     return client;
   }
 
+  assertTherapistAppointment(role, appointment) {
+    if(role?.type==='therapist' && !this._therapist(role.id).legacy && appointment.principalId!==role.id && !(appointment.participantIds||[]).includes(role.id)) throw new Error('治疗师仅有本人预约的查看和操作权限');
+    return appointment;
+  }
+
   saveAppointment(data, role) {
+    if(role?.type==='therapist' && !this._therapist(role.id).legacy && data.principalId!==role.id)throw new Error('治疗师仅能安排本人服务预约');
     if (role?.type === 'manager' && Object.hasOwn(data, 'id')) throw new Error('店长仅能新建本店预约，已有预约请由前台或负责康复师调整');
     const client = role?.type === 'manager' ? this._managerBookingActor(role, data.clientId, data.storeId, data.principalId) : this._bookingActor(role, data.clientId, data.storeId);
     const input = {
@@ -1496,10 +1521,10 @@ export class DemoModel {
     if (input.date < this.today) throw new Error('不能预约过去的日期');
     this._store(input.storeId);
     this._therapist(input.principalId);
-    if (!this._therapistClientWorkAllowed(input.principalId, client.id, input.storeId)) throw new Error('服务康复师尚未负责、参与有效服务或获本店执行授权，请先由老板指定本店执行师，再安排服务');
+    if (!this.bookingTherapistAllowed(input.principalId, client.id, input.storeId)) throw new Error('服务康复师尚未负责、参与有效服务或获本店执行授权，请先由老板指定本店执行师，再安排服务');
     const existing = data.id ? this.state.appointments.find(item => item.id === data.id) : null;
     if (data.id && !existing) throw new Error('预约记录不存在');
-    if (existing) this._bookingActor(role, existing.clientId, existing.storeId);
+    if (existing) { this.assertTherapistAppointment(role, existing); this._bookingActor(role, existing.clientId, existing.storeId); }
     if (existing && existing.clientId !== client.id) throw new Error('不能将预约转给其他客户');
     if (existing && !pendingAppointment(existing.status)) throw new Error('该预约已结束或已取消，不能编辑，请重新安排服务');
     if (existing?.arrivalAt && ['date', 'time', 'storeId'].some(key => existing[key] !== input[key])) throw new Error('此预约已到店，不能搬移到其他时间或门店，请先核对原预约后重新安排新预约');
@@ -1608,6 +1633,7 @@ export class DemoModel {
   cancelAppointment(id, reason, role) {
     const row = this.state.appointments.find(item => item.id === id);
     if (!row) throw new Error('预约记录不存在');
+    this.assertTherapistAppointment(role,row);
     this._bookingActor(role, row.clientId, row.storeId);
     if (!pendingAppointment(row.status)) throw new Error('该预约已结束或已取消');
     const why = required(reason, '取消原因'), stamp = this._timestamp();
@@ -1622,6 +1648,7 @@ export class DemoModel {
   markNoShow(id, reason, role) {
     const row = this.state.appointments.find(item => item.id === id);
     if (!row) throw new Error('预约记录不存在');
+    this.assertTherapistAppointment(role,row);
     this._bookingActor(role, row.clientId, row.storeId);
     if (role.type !== 'boss' && role.type !== 'frontdesk' && row.principalId !== role.id) throw new Error('仅当次主康复师、授权前台或老板有权限确认未到店');
     if (!['confirmed', 'reschedule_requested'].includes(row.status)) throw new Error('该预约已结束，不能重复确认未到店');

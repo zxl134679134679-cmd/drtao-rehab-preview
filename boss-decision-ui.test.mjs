@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
-import {DemoModel,ensureStorePackageExamples} from './core.js';
+import {DemoModel,ensureStorePackageExamples} from './legacy-test-fixture.mjs';
 import {ensureEvaluations} from './evaluations.js';
 import {ensurePaperIntakes} from './paper-intake.js';
 import {renderStaff} from './staff.js';

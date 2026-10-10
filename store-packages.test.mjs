@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import * as core from './core.js';
+import * as core from './legacy-test-fixture.mjs';
 import { confirmedTestSchedules, confirmTestShift } from './scheduling-test-fixture.mjs';
 
 const { DemoModel } = core;

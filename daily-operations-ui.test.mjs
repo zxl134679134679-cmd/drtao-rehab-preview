@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './legacy-test-fixture.mjs';
 import { ensureSchedules } from './schedules.js';
 
 let ui = {};
@@ -25,8 +25,8 @@ function fixture() {
   model.registerService({ appointmentId: first.id, clientId: 'c3', storeId: 'a', date: model.today, time: '10:00', principalId: 't1', participantIds: ['t3'], project: first.project, notes: '实际完成本次评估', evidencePhotos: photo(), requestId: 'daily-service' }, { type: 'therapist', id: 't1' });
   const ownerArrival = arrange('c1', '13:00');
   model.recordArrival(ownerArrival.id, { notes: '', requestId: 'daily-boss-arrival' }, boss);
-  model.createReceptionClient({ name: '本店新档案', phone: '13800000101', age: '30', problem: '想恢复跑步', storeId: 'a', ownerId: 't1', requestId: 'daily-new-file' }, front);
-  model.createReceptionClient({ name: '另一门店新档案', phone: '13800000102', age: '28', problem: '日常活动不适', storeId: 'b', ownerId: 't2', requestId: 'daily-other-file' }, otherFront);
+  model.createReceptionClient({ name: '本店新档案', phone: '13800000101', age: '30', problem: '想恢复跑步', storeId: 'a', requestId: 'daily-new-file' }, front);
+  model.createReceptionClient({ name: '另一门店新档案', phone: '13800000102', age: '28', problem: '日常活动不适', storeId: 'b', requestId: 'daily-other-file' }, otherFront);
   model.recordReceipt({ clientId: 'c2', storeId: 'b', purpose: 'single', channel: 'direct', method: 'cash', amount: '700', date: model.today, time: '12:00', requestId: 'daily-other-receipt' }, otherFront);
   return model;
 }

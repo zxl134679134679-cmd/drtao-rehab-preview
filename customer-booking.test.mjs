@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { confirmedTestSchedules, confirmTestShift } from './scheduling-test-fixture.mjs';
 
 const moduleUrl = new URL('./customer-booking.js', import.meta.url);

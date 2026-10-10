@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './legacy-test-fixture.mjs';
 
 const boss = { type: 'boss', id: 'boss' };
 const frontA = { type: 'frontdesk', id: 'f1' };
@@ -8,7 +8,7 @@ const managerA = { type: 'manager', id: 'm1' };
 const managerB = { type: 'manager', id: 'm2' };
 const now = () => '2026-10-08T12:00:00.000Z';
 const model = () => ensureStorePackageExamples(new DemoModel({ now }));
-const intake = (extra = {}) => ({ name: '新到店客户', phone: '13910000001', age: '35', problem: '运动后不适，希望安排首次评估', storeId: 'a', ownerId: 't1', requestId: 'read-only-intake', ...extra });
+const intake = (extra = {}) => ({ name: '新到店客户', phone: '13910000001', age: '35', problem: '运动后不适，希望安排首次评估', storeId: 'a', requestId: 'read-only-intake', ...extra });
 const unchanged = (m, run) => {
   const before = structuredClone(m.state), sequence = m.sequence;
   assert.throws(run, /权限|监管|只读|老板|仅|查看/);
@@ -27,7 +27,7 @@ test('store managers cannot create local or foreign customer files even with a s
     unchanged(m, () => m.createReceptionClient(intake({ storeId: 'b', ownerId: 't2' }), role));
   }
   const local = m.createReceptionClient(intake(), frontA);
-  const other = m.createReceptionClient(intake({ phone: '13910000002', storeId: 'b', ownerId: 't2', requestId: 'boss-local-intake' }), boss);
+  const other = m.createReceptionClient(intake({ phone: '13910000002', storeId: 'b', requestId: 'boss-local-intake' }), boss);
   assert.equal(m.managerSnapshot(managerA).clients.some(row => row.id === local.id), true);
   assert.equal(m.managerSnapshot(managerA).clients.some(row => row.id === other.id), false);
   assert.equal(m.managerSnapshot(managerB).clients.some(row => row.id === other.id), true);

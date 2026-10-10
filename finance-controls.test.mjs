@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './legacy-test-fixture.mjs';
 
 const boss = { type: 'boss', id: 'boss' };
 const frontA = { type: 'frontdesk', id: 'f1' };

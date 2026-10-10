@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DemoModel} from './core.js';
+import {DemoModel} from './legacy-test-fixture.mjs';
 import {workflowDialog} from './workflow-ui.js';
 test('a store manager can read explicit local intake handoff for a client whose main archive belongs to the other store',()=>{
  const m=new DemoModel();

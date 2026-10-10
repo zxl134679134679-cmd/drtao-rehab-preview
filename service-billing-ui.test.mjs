@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DemoModel} from './core.js';
+import {DemoModel} from './legacy-test-fixture.mjs';
 import {staffDialog,updateServicePackageChoices,renderStaff} from './staff.js';
 const boss={type:'boss',id:'boss'};
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

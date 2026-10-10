@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { ensureSchedules,saveSchedule,scheduleStatus } from './schedules.js';
 import { updateAppointmentAvailability } from './booking-availability.js';
 import { hourTimeField } from './hour-picker.js';

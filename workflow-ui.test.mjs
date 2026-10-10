@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DemoModel} from './core.js';
+import {DemoModel} from './legacy-test-fixture.mjs';
 const flow=await import('./workflow-ui.js').catch(e=>{if(e.code==='ERR_MODULE_NOT_FOUND')return {};throw e;});
 const boss={type:'boss',id:'boss'},ctx=(m,role=boss)=>({model:m,role});
 test('a general task opens a result form for its assignee and never gives an unrelated therapist the task',()=>{

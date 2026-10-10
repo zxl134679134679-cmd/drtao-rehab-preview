@@ -1,7 +1,7 @@
 // Desired times are requests, not live availability or confirmed appointments.
 // The preview's existing appointment model remains the confirmation authority.
-import { assertScheduleAvailability } from './schedules.js?v=20261009-daily-permissions-2';
-import { bookingAvailability } from './booking-availability.js?v=20261010-multi-day-booking-1';
+import { assertScheduleAvailability } from './schedules.js?v=20261010-assessor-personnel-1';
+import { bookingAvailability } from './booking-availability.js?v=20261010-assessor-personnel-1';
 const clone = value => JSON.parse(JSON.stringify(value));
 const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt', 'resolutionReason', 'resolvedBy', 'resolvedRole', 'resolvedAt', 'suggestedDate', 'suggestedTime', 'acceptedRequestId', 'acceptedBy', 'acceptedAt', 'sourceRequestId'];
 const publicRow = row => clone(Object.fromEntries(fields.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
@@ -45,7 +45,7 @@ function assignment(model, row) {
   const store = model._store(row.storeId);
   if (store.active === false) throw new Error('该门店已停用，请选择其他门店');
   const person = model._therapist(row.principalId);
-  const permitted=model._therapistClientWorkAllowed?.(person.id,row.clientId,row.storeId) ?? (model.canSeeClient({ type: 'therapist', id: person.id }, row.clientId)||model.clientStoreTherapist?.(row.clientId,row.storeId)===person.id);
+  const permitted=model.bookingTherapistAllowed?.(person.id,row.clientId,row.storeId) ?? (model.canSeeClient({ type: 'therapist', id: person.id }, row.clientId)||model.clientStoreTherapist?.(row.clientId,row.storeId)===person.id);
   if (!permitted) throw new Error('请先联系负责康复师或老板安排本店执行康复师');
   assertScheduleAvailability(model, row);
 }
@@ -152,7 +152,7 @@ export function customerBookingRows(model, role) {
     if (storeIds) return storeIds.includes(row.storeId);
     // Reading follows the existing customer archive scope. Confirmation below
     // stays with the responsible therapist; prior participation grants read only.
-    return model.canSeeClient(role, row.clientId);
+    return model.state.therapists.find(t=>t.id===role.id)?.legacy ? model.canSeeClient(role, row.clientId) : row.principalId===role.id;
   }).map(publicRow);
 }
 

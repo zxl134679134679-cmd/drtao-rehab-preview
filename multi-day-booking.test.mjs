@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DemoModel} from './core.js';
+import {DemoModel} from './legacy-test-fixture.mjs';
 import {confirmedTestSchedules,confirmTestShift} from './scheduling-test-fixture.mjs';
 import {ensureCustomerBooking,confirmCustomerBooking} from './customer-booking.js';
 const api=await import('./multi-day-booking.js').catch(()=>({}));
@@ -17,15 +17,15 @@ test('customer can request two nonconsecutive days without occupying slots or fi
  const result=save(m);assert.equal(result.count,2);assert.equal(result.items.length,2);assert.deepEqual(result.items.map(r=>r.status),['pending','pending']);assert.equal(m.state.appointments.length,count);assert.equal(m.state.bookingRequests.length,2);assert.equal(finance(m),before);assert.deepEqual(Object.keys(m.state),keys);
  assert.deepEqual(result.items.map(r=>[r.date,r.time,r.principalId]),input().items.map(r=>[r.date,r.time,r.principalId]));
  for(const row of result.items)for(const field of ['requestId','inputKey','items','batchInputKey'])assert.equal(Object.hasOwn(row,field),false);
- confirmCustomerBooking(m,result.items[0].id,manager);assert.equal(m.state.bookingRequests[1].status,'pending');assert.equal(m.state.appointments.length,count+1);
+ confirmCustomerBooking(m,result.items[0].id,front);assert.equal(m.state.bookingRequests[1].status,'pending');assert.equal(m.state.appointments.length,count+1);
 });
 
-test('front desk, manager and authorized therapist can confirm each independent day with their actual identity',()=>{
- for(const role of [front,manager,{type:'therapist',id:'t1'},boss]){const m=fixture(),before=finance(m),count=m.state.appointments.length,result=save(m,input(),role);assert.equal(result.count,2);assert.ok(result.items.every(r=>r.status==='confirmed'));assert.equal(m.state.appointments.length,count+2);assert.equal(m.state.bookingRequests.length,0);assert.equal(finance(m),before);assert.equal(m.state.audit[0].actorType,role.type);assert.equal(m.state.audit[0].actorId,role.id);}
+test('front desk, boss and authorized therapist can confirm each independent day with their actual identity',()=>{
+ for(const role of [front,{type:'therapist',id:'t1'},boss]){const m=fixture(),before=finance(m),count=m.state.appointments.length,result=save(m,input(),role);assert.equal(result.count,2);assert.ok(result.items.every(r=>r.status==='confirmed'));assert.equal(m.state.appointments.length,count+2);assert.equal(m.state.bookingRequests.length,0);assert.equal(finance(m),before);assert.equal(m.state.audit[0].actorType,role.type);assert.equal(m.state.audit[0].actorId,role.id);}
 });
 
 test('entire batch is atomic when the last day has a shift or booking conflict, including customer requests',()=>{
- for(const role of [customer,front,manager])for(const mode of ['conflict','shift']){const m=fixture();if(mode==='conflict')m.saveAppointment({clientId:'c3',storeId:'a',date:'2026-10-14',time:'14:30',principalId:'t1',project:'别的服务'},boss);else confirmTestShift(m,{therapistId:'t1',date:'2026-10-14',startTime:'09:00',endTime:'14:30'});denied(m,input(),role,/第\s*2\s*天[\s\S]*(未保存|未提交)/);}
+ for(const role of [customer,front])for(const mode of ['conflict','shift']){const m=fixture();if(mode==='conflict')m.saveAppointment({clientId:'c3',storeId:'a',date:'2026-10-14',time:'14:30',principalId:'t1',project:'别的服务'},boss);else confirmTestShift(m,{therapistId:'t1',date:'2026-10-14',startTime:'09:00',endTime:'14:30'});denied(m,input(),role,/第\s*2\s*天[\s\S]*(未保存|未提交)/);}
 });
 
 test('invalid count, repeated dates, past dates and quarter-hour time all fail without changing memory',()=>{
@@ -33,13 +33,13 @@ test('invalid count, repeated dates, past dates and quarter-hour time all fail w
 });
 
 test('retry keys remain idempotent and changed content cannot reuse a batch key',()=>{
- for(const role of [customer,front,manager]){const m=fixture(),first=save(m,input(),role),before=snapshot(m);assert.deepEqual(save(m,input(),role),first);assert.equal(snapshot(m),before);denied(m,input({items:[input().items[0],{...input().items[1],time:'15:00'}]}),role,/提交|内容|变化/);const restored=fixture();restored.state=structuredClone(m.state);restored.sequence=m.sequence;assert.deepEqual(save(restored,input(),role),first);}
+ for(const role of [customer,front]){const m=fixture(),first=save(m,input(),role),before=snapshot(m);assert.deepEqual(save(m,input(),role),first);assert.equal(snapshot(m),before);denied(m,input({items:[input().items[0],{...input().items[1],time:'15:00'}]}),role,/提交|内容|变化/);const restored=fixture();restored.state=structuredClone(m.state);restored.sequence=m.sequence;assert.deepEqual(save(restored,input(),role),first);}
 });
 
 test('manager stays within active current local client and therapist scope on initial writes and replays',()=>{
  const m=fixture();for(const data of [input({clientId:'c2',storeId:'b',items:input().items.map(row=>({...row,principalId:'t2'}))}),input({items:[input().items[0],{...input().items[1],principalId:'t4'}]}),input({id:''}),input({items:[input().items[0],{...input().items[1],id:'a1'}]})])denied(m,data,manager,/本店|权限|新建|已有|店长/);
  confirmTestShift(m,{therapistId:'t2',storeId:'a',date:'2026-10-14'});denied(m,input({items:[input().items[0],{...input().items[1],principalId:'t2'}]}),manager,/本店|权限/);
- const result=save(m,input(),manager);m.state.therapists.find(t=>t.id==='t1').active=false;denied(m,input(),manager,/在职|停用|康复师/);assert.ok(result.items.every(row=>row.status==='confirmed'));
+ denied(m,input(),manager,/只读|监管/);const result=save(m,input(),front);m.state.therapists.find(t=>t.id==='t1').active=false;denied(m,input(),front,/在职|停用|康复师/);assert.ok(result.items.every(row=>row.status==='confirmed'));
 });
 
 test('each day may choose a different authorized therapist and missing or resting shifts stay blocked',()=>{
@@ -50,17 +50,17 @@ test('each day may choose a different authorized therapist and missing or restin
 test('customer cannot target another client and front desk cannot use another store',()=>{const m=fixture();denied(m,input({clientId:'c2'}),customer,/本人/);denied(m,input({clientId:'c2',storeId:'b',items:input().items.map(row=>({...row,principalId:'t2'}))}),front,/门店|权限/);});
 
 test('replay rejects a live record whose last day date, principal, client or store was changed',()=>{
- for(const change of [{date:'2026-10-15'},{principalId:'t2'},{clientId:'c3'},{storeId:'b'},{project:'另一项目'},{time:'15:00'}]){const m=fixture(),result=save(m,input(),manager);Object.assign(m.state.appointments.find(row=>row.id===result.items[1].id),change);denied(m,input(),manager,/关联|变化|本店|权限/);}
+ for(const change of [{date:'2026-10-15'},{principalId:'t2'},{clientId:'c3'},{storeId:'b'},{project:'另一项目'},{time:'15:00'}]){const m=fixture(),result=save(m,input(),front);Object.assign(m.state.appointments.find(row=>row.id===result.items[1].id),change);denied(m,input(),front,/关联|变化|本店|权限/);}
 });
 
 test('reopening the same pending days reuses requests; confirmed days block an all-new batch atomically',()=>{
  const m=fixture(),first=save(m),count=m.state.bookingRequests.length,next=save(m,input({requestId:'multi-reopen'}));assert.deepEqual(next.items.map(row=>row.id),first.items.map(row=>row.id));assert.equal(m.state.bookingRequests.length,count);
- confirmCustomerBooking(m,first.items[1].id,manager);assert.equal(save(m).items[1].status,'confirmed');denied(m,input({requestId:'new-after-confirm'}),customer,/第\s*2\s*天[\s\S]*未保存/);
+ confirmCustomerBooking(m,first.items[1].id,front);assert.equal(save(m).items[1].status,'confirmed');denied(m,input({requestId:'new-after-confirm'}),customer,/第\s*2\s*天[\s\S]*未保存/);
 });
 
-test('unknown batch or daily permission fields are rejected rather than ignored',()=>{const m=fixture();denied(m,input({actorRole:'boss'}),manager,/不支持|字段/);denied(m,input({items:[input().items[0],{...input().items[1],actorId:'boss'}]}),manager,/第\s*2\s*天[\s\S]*未保存/);});
+test('unknown batch or daily permission fields are rejected rather than ignored',()=>{const m=fixture();denied(m,input({actorRole:'boss'}),manager,/不支持|字段/);denied(m,input({items:[input().items[0],{...input().items[1],actorId:'boss'}]}),front,/第\s*2\s*天[\s\S]*未保存/);});
 
 test('the full 14-day limit saves independent dates and a reconstructed validated state replays without duplicates',()=>{
  const items=Array.from({length:14},(_,index)=>({date:`2026-10-${String(index+9).padStart(2,'0')}`,time:index%2?'14:30':'11:00',principalId:'t1'}));
- for(const role of [customer,front,manager]){const m=fixture(),result=save(m,input({items}),role),restored=new DemoModel({state:structuredClone(m.state),sequence:m.sequence,now:()=> '2026-10-09T04:00:00.000Z'});ensureCustomerBooking(restored);assert.equal(result.count,14);assert.equal(new Set(result.items.map(row=>row.date)).size,14);const before=snapshot(restored);assert.deepEqual(save(restored,input({items}),role),result);assert.equal(snapshot(restored),before);}
+ for(const role of [customer,front]){const m=fixture(),result=save(m,input({items}),role),restored=new DemoModel({state:structuredClone(m.state),sequence:m.sequence,now:()=> '2026-10-09T04:00:00.000Z'});ensureCustomerBooking(restored);assert.equal(result.count,14);assert.equal(new Set(result.items.map(row=>row.date)).size,14);const before=snapshot(restored);assert.deepEqual(save(restored,input({items}),role),result);assert.equal(snapshot(restored),before);}
 });

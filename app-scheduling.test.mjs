@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { ensureSchedules } from './schedules.js';
 import { renderScheduleSummary } from './schedules-ui.js';
 const source=await readFile(new URL('./app.js',import.meta.url),'utf8');

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { renderStaff } from './staff.js';
 import { ensureCustomerBooking } from './customer-booking.js';
 import { renderRequestHistory, customerRequestDialog } from './customer-ui.js';

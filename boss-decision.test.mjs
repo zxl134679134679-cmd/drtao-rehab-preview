@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {DemoModel,ensureStorePackageExamples} from './core.js';
+import {DemoModel,ensureStorePackageExamples} from './legacy-test-fixture.mjs';
 import {ensureEvaluations} from './evaluations.js';
 import {ensurePaperIntakes} from './paper-intake.js';
 let decision={};try {decision=await import('./boss-decision.js');}catch(e){if(e.code!=='ERR_MODULE_NOT_FOUND')throw e;}

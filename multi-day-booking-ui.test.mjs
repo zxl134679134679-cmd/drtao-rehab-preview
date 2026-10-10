@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
-import {DemoModel} from './core.js';
+import {DemoModel} from './legacy-test-fixture.mjs';
 import {confirmedTestSchedules} from './scheduling-test-fixture.mjs';
 import {ensureCustomerBooking} from './customer-booking.js';
 import {saveMultiDayBooking} from './multi-day-booking.js';
@@ -21,17 +21,17 @@ function runtime(role,{fail=false,data=input}={}){
 
 test('multi-day dialog is a two-step per-day form with fixed customer, store scope and no recurrence assumptions',()=>{
  assert.equal(typeof ui.multiDayBookingDialog,'function');
- for(const role of [{type:'customer',id:'c1'},{type:'frontdesk',id:'f1'},{type:'manager',id:'m1'},{type:'therapist',id:'t1'}]){const dialog=ui.multiDayBookingDialog('c1',{model:fixture(),role,filters:{},esc:String});const html=dialog.html;assert.match(dialog.title,/一次约多天/);assert.match(html,/data-form="multi-day-booking"/);assert.match(html,/data-multi-day-row/g);assert.match(html,/data-multi-step="2"/);assert.match(html,/再加一天/);assert.match(html,/14/);assert.match(html,/不扣|未扣/);if(role.type==='manager')assert.doesNotMatch(html,/<option value="b"|<option value="c2"/);}
+ for(const role of [{type:'customer',id:'c1'},{type:'frontdesk',id:'f1'},{type:'therapist',id:'t1'}]){const dialog=ui.multiDayBookingDialog('c1',{model:fixture(),role,filters:{},esc:String});const html=dialog.html;assert.match(dialog.title,/一次约多天/);assert.match(html,/data-form="multi-day-booking"/);assert.match(html,/data-multi-day-row/g);assert.match(html,/data-multi-step="2"/);assert.match(html,/再加一天/);assert.match(html,/14/);assert.match(html,/不扣|未扣/);if(role.type==='manager')assert.doesNotMatch(html,/<option value="b"|<option value="c2"/);}
 });
 
 test('form-data parser preserves independent dates, times and staff in rendered order',()=>{assert.equal(typeof ui.multiDayBookingItems,'function');assert.deepEqual(ui.multiDayBookingItems(new Data({data:input})),[{date:'2026-10-12',time:'11:30',principalId:'t1'},{date:'2026-10-14',time:'14:00',principalId:'t1'}]);});
 
-test('actual app submit creates two pending customer requests or two manager/front confirmed appointments once',async()=>{
- for(const role of [{type:'customer',id:'c1'},{type:'manager',id:'m1'},{type:'frontdesk',id:'f1'},{type:'therapist',id:'t1'}]){const r=runtime(role),before=r.model.state.appointments.length;await r.run();await r.run();assert.equal(r.scope.error,undefined);assert.equal(r.f.dataset.succeeded,'true');assert.match(r.scope.success?.title||'',/2/);if(role.type==='customer'){assert.equal(r.model.state.bookingRequests.length,2);assert.equal(r.model.state.appointments.length,before);}else assert.equal(r.model.state.appointments.length,before+2);}
+test('actual app submit creates two pending customer requests or two front/boss confirmed appointments once',async()=>{
+ for(const role of [{type:'customer',id:'c1'},{type:'frontdesk',id:'f1'},{type:'therapist',id:'t1'}]){const r=runtime(role),before=r.model.state.appointments.length;await r.run();await r.run();assert.equal(r.scope.error,undefined);assert.equal(r.f.dataset.succeeded,'true');assert.match(r.scope.success?.title||'',/2/);if(role.type==='customer'){assert.equal(r.model.state.bookingRequests.length,2);assert.equal(r.model.state.appointments.length,before);}else assert.equal(r.model.state.appointments.length,before+2);}
 });
 
 test('actual app simulated failure keeps the full draft and allows retry without partial saves',async()=>{
- const r=runtime({type:'manager',id:'m1'},{fail:true}),before=JSON.stringify([r.model.state,r.model.sequence]);await r.run();assert.equal(JSON.stringify([r.model.state,r.model.sequence]),before);assert.match(r.scope.error||'',/未保存|未提交/);assert.deepEqual(r.scope.savedDraft,input);assert.equal(r.f.dataset.busy,'false');await r.run();assert.equal(r.scope.success?.title,'2 天预约已确认');
+ const r=runtime({type:'frontdesk',id:'f1'},{fail:true}),before=JSON.stringify([r.model.state,r.model.sequence]);await r.run();assert.equal(JSON.stringify([r.model.state,r.model.sequence]),before);assert.match(r.scope.error||'',/未保存|未提交/);assert.deepEqual(r.scope.savedDraft,input);assert.equal(r.f.dataset.busy,'false');await r.run();assert.equal(r.scope.success?.title,'2 天预约已确认');
 });
 
 test('actual app batch submits retain manager rejection for foreign store and existing appointment IDs',async()=>{
@@ -62,6 +62,6 @@ test('repeated dates and rest or unassigned days cannot advance the multi-day fo
  const model=fixture(),shift=model.state.staffSchedules.find(row=>row.therapistId==='t1'&&row.date==='2026-10-14');Object.assign(shift,{status:'rest',startTime:'',endTime:''});const b=boundary([{date:'2026-10-12',time:'11:30',principalId:'t1'},{date:'2026-10-14',time:'14:00',principalId:'t1'}]);ui.updateMultiDayBookingForm(b.form,{model,role:{type:'customer',id:'c1'},esc:String});assert.equal(b.rows[1].time.options.filter(option=>option.value).length,0);assert.match(b.rows[1].note.innerHTML,/休息/);assert.equal(b.submit.disabled,true);
 });
 
-test('manager multi-day controls never list a foreign principal even with an approved local visiting shift',()=>{
- const model=fixture();const shift=model.state.staffSchedules.find(row=>row.therapistId==='t2'&&row.date==='2026-10-14');shift.storeId='a';const b=boundary([{date:'2026-10-12',time:'11:30',principalId:'t1'},{date:'2026-10-14',time:'14:00',principalId:'t2'}]);ui.updateMultiDayBookingForm(b.form,{model,role:{type:'manager',id:'m1'},esc:String});assert.ok(!b.rows[1].principal.options.some(option=>option.value==='t2'));assert.equal(b.rows[1].principal.value,'t1');assert.ok(!b.form.elements.storeId.options.some(option=>option.value==='b'));
+test('manager cannot open or restore a multi-day booking even with local visiting shifts',()=>{
+ const model=fixture(),role={type:'manager',id:'m1'},ctx={model,role,esc:String},b=boundary([{date:'2026-10-12',time:'11:30',principalId:'t1'},{date:'2026-10-14',time:'14:00',principalId:'t2'}]);assert.throws(()=>ui.multiDayBookingDialog('c1',ctx),/只读|监管/);assert.throws(()=>ui.updateMultiDayBookingForm(b.form,ctx),/只读|监管/);
 });

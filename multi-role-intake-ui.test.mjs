@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './legacy-test-fixture.mjs';
 import { renderStaff, personnelDialog } from './staff.js';
 import { renderManager, managerDialog } from './manager.js';
 import * as reception from './reception.js';
@@ -30,18 +30,15 @@ test('boss and therapist retain intake entries while manager home and customer l
   }
 });
 
-test('shared intake respects role stores and makes therapist themselves the explicit default owner',()=>{
+test('shared intake respects role stores and keeps assessment and treatment separate for every intake actor',()=>{
   const m=fixture();
   for(const kind of ['boss','frontdesk','therapist']){
     const html=reception.receptionIntakeDialog('reception-create-client','',ctx(m,roles[kind])).html;
-    for(const key of ['name','age','phone','problem'])assert.match(html,new RegExp(`name="${key}"`));
+    for(const key of ['name','age','phone'])assert.match(html,new RegExp(`name="${key}"`));
+    assert.doesNotMatch(html,/name="problem"/);
     if(kind==='boss')assert.match(html,/value="b"/);
     else assert.ok(!html.includes('value="b"'));
-    if(kind==='therapist'){
-      assert.match(html,/value="t1" selected/);
-      assert.ok(!html.includes('value="t3"'));
-      assert.match(html,/由您负责/);
-    }
+    assert.doesNotMatch(html,/name="ownerId"|name="therapistId"/);assert.match(html,/涛博士/);assert.match(html,/预约时选择/);
   }
 });
 
@@ -55,7 +52,7 @@ test('actual app dispatch refuses manager intake, existing appointment edits, as
 });
 
 test('manager can inspect frontdesk-created local clients without receiving intake or booking actions',()=>{
-  const m=fixture(),role=roles.manager,c=m.createReceptionClient({name:'前台接待示例',phone:'13899092211',age:34,problem:'客户自述跑步后不适',storeId:'a',ownerId:'t1',requestId:'manager-ui'},roles.frontdesk);
+  const m=fixture(),role=roles.manager,c=m.createReceptionClient({name:'前台接待示例',phone:'13899092211',age:34,problem:'客户自述跑步后不适',storeId:'a',requestId:'manager-ui'},roles.frontdesk);
   assert.equal(typeof reception.receptionIntakeSuccess,'function');
   const result=reception.receptionIntakeSuccess(c,ctx(m,role));
   assert.match(result,/前台或负责康复师/);assert.match(result,/data-action="manager-client"/);
@@ -67,9 +64,6 @@ test('manager can inspect frontdesk-created local clients without receiving inta
   assert.match(renderManager(ctx(m,role,'manager-clients')),/尚未办理本店套餐/);
 });
 
-test('therapist intake choice restoration never offers or accepts a different owner',()=>{
-  const m=fixture(),owner={value:'t3',innerHTML:'',disabled:false},submit={disabled:false},hint={textContent:''};
-  const form={dataset:{form:'reception-create-client'},elements:{storeId:{value:'a'},ownerId:owner},querySelector:s=>s==='[type="submit"]'?submit:s==='[data-intake-owner-help]'?hint:null};
-  reception.updateReceptionIntakeChoices(form,ctx(m,roles.therapist));
-  assert.equal(owner.value,'t1');assert.ok(!owner.innerHTML.includes('value="t3"'));assert.match(hint.textContent,/由您负责/);
+test('therapist intake uses fixed assessment and no treatment assignment',()=>{
+ const m=fixture(),submit={},hint={},form={dataset:{form:'reception-create-client'},elements:{storeId:{value:'a'}},querySelector:s=>s==='[type="submit"]'?submit:hint};reception.updateReceptionIntakeChoices(form,ctx(m,roles.therapist));assert.equal(submit.disabled,false);assert.match(hint.textContent,/涛博士/);assert.match(hint.textContent,/预约/);
 });

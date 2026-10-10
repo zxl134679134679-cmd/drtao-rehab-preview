@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import { savePaperIntake, reviewPaperIntake, paperIntakeRows, paperIntakeDialog, renderPaperIntakeList } from './paper-intake.js';
 import { clientIntakeButton, receptionIntakeDialog } from './reception.js';
 import { renderManager, managerDialog } from './manager.js';
@@ -21,13 +21,13 @@ test('manager can supervise local intake but cannot create, review or replay a w
   unchanged(model, () => reviewPaperIntake(model, row.id, { decision: 'assessment', nextStep: '安排评估', requestId: 'no-manager-review' }, manager));
 });
 
-test('manager client and intake surfaces keep sensitive writes unavailable while exposing the local booking exception', () => {
+test('manager client and intake surfaces keep sensitive writes unavailable including all booking writes', () => {
   const model = fresh(), row = savePaperIntake(model, input(), front);
   assert.equal(clientIntakeButton(ctx(model, manager)), '');
   unchanged(model, () => receptionIntakeDialog('reception-create-client', 'a', ctx(model, manager)));
   const pages = [renderManager(ctx(model, manager)), renderManager(ctx(model, manager, 'manager-clients')), managerDialog('manager-client', 'c3', ctx(model, manager)).html, receptionIntakeDialog('reception-client', 'c3', ctx(model, manager)).html, renderPaperIntakeList(ctx(model, manager)), paperIntakeDialog('paper-intake-detail', row.id, ctx(model, manager)).html];
   for (const html of pages) assert.doesNotMatch(html, /data-action="(?:reception-create-client|paper-intake-create|paper-intake-review)"|data-form="paper-intake-select"/);
-  assert.match(pages[0], /data-action="appointment-create"/);
+  assert.doesNotMatch(pages[0], /data-action="appointment-create"/);
   assert.doesNotMatch(pages[0], /data-action="appointment-edit"|data-action="register"|data-action="cash-closing-confirm"/);
   assert.match(pages[4], /跑步后膝部/);
   assert.match(clientIntakeButton(ctx(model, front)), /新客户建档/);

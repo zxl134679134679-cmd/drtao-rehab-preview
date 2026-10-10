@@ -53,7 +53,7 @@ export function storeWorkSnapshot(model, role, filters = {}) {
       const packs = model.availablePackages(client.id,storeId);
       const pack = packs[0];
       const remaining = model.remainingInStore(client.id,storeId), total=packs.reduce((sum,p)=>sum+p.total,0);
-      return { ...pick(client, ['id', 'name', 'phone', 'age', 'problem', 'ownerId', 'storeId', 'planName', 'goal', 'phase', 'nextStep', 'phaseNote', 'progress', 'homeAdvice']), packageId:pack?.id || null, remaining, total, used:total-remaining, packageName:pack?.name || '暂无本店可用套餐' };
+      return { ...pick(client, ['id', 'name', 'phone', 'age', 'problem', 'ownerId', 'assessorId', 'storeId', 'planName', 'goal', 'phase', 'nextStep', 'phaseNote', 'progress', 'homeAdvice']), packageId:pack?.id || null, remaining, total, used:total-remaining, packageName:pack?.name || '暂无本店可用套餐' };
     }),
     services: dated(state.services).map(row => ({
       ...pick(row, ['id', 'clientId', 'packageId', 'storeId', 'date', 'time', 'project', 'principalId', 'participantIds', 'ownerId', 'recordedBy', 'recordedAt', 'createdAt', 'amount', 'amountMinor', 'sessions', 'billingMode', 'receiptId', 'nextStepSuggestion', 'status', 'notes', 'revokeReason', 'revokedBy', 'revokedAt']),
@@ -63,10 +63,11 @@ export function storeWorkSnapshot(model, role, filters = {}) {
     })),
     appointments: dated(state.appointments).map(row => pick(row, ['id', 'clientId', 'storeId', 'date', 'time', 'project', 'principalId', 'participantIds', 'status', 'groupId', 'serviceId', 'request', 'requestNote', 'arrivalAt', 'arrivalBy', 'arrivalByRole', 'cancellationRequest', 'cancellationHistory', 'createdAt', 'cancelReason', 'cancelledAt', 'noShowReason', 'noShowAt'])),
     tasks: tasks.map(row => pick(row, ['id', 'clientId', 'title', 'assigneeId', 'dueDate', 'status', 'type', 'appointmentId', 'serviceId', 'paperIntakeId', 'storeId', 'completedAt', 'completedBy', 'completionResult'])),
-    assessments: dated(state.assessments).map(row => pick(row, ['id', 'clientId', 'storeId', 'date', 'time', 'type', 'project', 'therapistId', 'summary', 'metrics', 'status', 'recordedBy', 'recordedRole', 'createdAt', 'confirmedBy', 'confirmedAt', 'voidReason', 'voidedBy', 'voidedAt'])),
+    assessments: dated(state.assessments).map(row => pick(row, ['id', 'clientId', 'storeId', 'date', 'time', 'type', 'project', 'therapistId', 'assessorId', 'summary', 'metrics', 'status', 'recordedBy', 'recordedRole', 'createdAt', 'confirmedBy', 'confirmedAt', 'voidReason', 'voidedBy', 'voidedAt'])),
     receipts: receiptRows, refunds: refundRows,
     frontDeskEvaluations: localEvaluations.filter(row => (!from || row.to >= from) && (!to || row.from <= to)).map(row => pick(row, ['id', 'frontDeskId', 'storeId', 'from', 'to', 'dataConclusion', 'receptionConclusion', 'cashConclusion', 'summary', 'improvement', 'dueDate', 'status', 'createdAt', 'voidReason'])),
     therapists: state.therapists.filter(row => row.storeId === storeId || therapistIds.has(row.id)).map(row => pick(row, ['id', 'name', 'storeId', 'active'])),
+    assessors: (state.assessors || []).map(row => pick(row, ['id', 'name', 'accountRole'])),
     frontDesks: (state.frontDesks || []).filter(row => row.storeIds.includes(storeId) || frontDeskIds.has(row.id)).map(row => ({ ...pick(row, ['id', 'name', 'active']), storeIds: row.storeIds.filter(id => id === storeId) })),
     cash: { ...pick(cash, ['receivedMinor', 'refundedMinor', 'netMinor', 'received', 'refunded', 'net', 'pendingMinor', 'pending', 'channels']), receipts: receiptRows.filter(row => row.status === 'valid'), refunds: refundRows.filter(row => row.status === 'valid') },
   });

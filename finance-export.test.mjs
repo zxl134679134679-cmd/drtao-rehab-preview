@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import vm from 'node:vm';
-import { DemoModel, ensureStorePackageExamples } from './core.js';
+import { DemoModel, ensureStorePackageExamples } from './legacy-test-fixture.mjs';
 import { receptionStores } from './reception.js';
 import { ensureEvaluations, assessmentRows, frontDeskEvaluationRows } from './evaluations.js';
 import { ensureCustomerBooking, customerBookingRows } from './customer-booking.js';

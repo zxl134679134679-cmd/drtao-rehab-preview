@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { DemoModel } from './core.js';
+import { DemoModel } from './legacy-test-fixture.mjs';
 import * as staff from './staff.js';
 
 const boss={type:'boss',id:'boss'},therapist={type:'therapist',id:'t2'};
