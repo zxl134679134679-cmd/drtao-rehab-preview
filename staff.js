@@ -1,11 +1,12 @@
+import { renderBossDecision } from './boss-decision.js?v=20261010-boss-decision-1';
 /* Employee and owner views for the in-memory review prototype. */
-import { renderScheduleSummary } from './schedules-ui.js?v=20261009-daily-permissions-2';
-import { customerBookingTherapists } from './booking-availability.js?v=20261010-multi-day-booking-1';
-import { renderPaperIntakeInbox } from './paper-intake.js?v=20261009-daily-permissions-2';
-import { renderDailyOperations } from './daily-operations-ui.js?v=20261009-daily-permissions-2';
-import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261009-daily-permissions-2';
-import { hourTimeField } from './hour-picker.js?v=20261009-daily-permissions-2';
-import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261010-multi-day-booking-1';
+import { renderScheduleSummary } from './schedules-ui.js?v=20261010-boss-decision-1';
+import { customerBookingTherapists } from './booking-availability.js?v=20261010-boss-decision-1';
+import { renderPaperIntakeInbox } from './paper-intake.js?v=20261010-boss-decision-1';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261010-boss-decision-1';
+import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261010-boss-decision-1';
+import { hourTimeField } from './hour-picker.js?v=20261010-boss-decision-1';
+import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261010-boss-decision-1';
 const TODAY = '2026-10-08';
 
 function h(ctx) {
@@ -291,6 +292,7 @@ function overview(ctx) {
     <header class="boss-heading"><div><span class="eyebrow">${x.date(TODAY)} · 示例数据</span><h1>老板看板</h1></div><div class="action-row">${clientIntakeButton(ctx)}${x.action('一起预约','appointment-batch','','btn-outline')}${x.action('客户管理','nav','clients','btn-outline','users')}</div></header>
     <div class="boss-toolbar"><div class="boss-period" aria-label="业绩时间范围">${[['today','今天'],['month','本月'],['all','全部']].map(([id,label]) => `<button type="button" data-action="boss-period" data-id="${id}" aria-pressed="${period === (id === 'all' ? '全部时间' : label)}">${label}</button>`).join('')}</div><label class="boss-store"><span class="sr-only">看板门店</span><select data-boss-store aria-label="看板门店"><option value="">全部门店</option>${x.state.stores.map(s => `<option value="${x.esc(s.id)}" ${f.storeId === s.id ? 'selected' : ''}>${x.esc(s.name)}</option>`).join('')}</select></label><details class="boss-more"><summary>更多筛选</summary><form data-form="filters" class="boss-advanced"><input type="hidden" name="storeId" value="${x.esc(f.storeId || '')}"><label class="field"><span>康复师</span><select name="therapistId"><option value="">全部康复师</option>${x.state.therapists.map(t => `<option value="${x.esc(t.id)}" ${f.therapistId === t.id ? 'selected' : ''}>${x.esc(t.name)}</option>`).join('')}</select></label><label class="field"><span>开始日期</span><input type="date" name="from" value="${x.esc(f.from || '')}"></label><label class="field"><span>结束日期</span><input type="date" name="to" value="${x.esc(f.to || '')}"></label><div class="action-row"><button type="submit" class="btn btn-primary">应用筛选</button>${x.action('恢复今天','boss-reset','','btn-quiet')}</div><p class="boss-filter-note">业绩、预约与反馈按服务门店及主康复师查看；客户提醒按所属门店及负责人；工作待办按客户所属门店及执行人。</p></form></details></div>
     <p class="boss-scope">${x.esc(scopeLabel)} · ${period}${period === '所选日期' ? ` ${f.from ? x.date(f.from) : '不限开始'}—${f.to ? x.date(f.to) : '不限结束'}` : ''}</p>
+    ${renderBossDecision(ctx)}
     ${cashOverview(ctx,period)}
     <div class="boss-stats"><div class="boss-stat"><span>服务消费业绩</span><strong>${x.money(b.amount)}</strong><small>完成服务产生 · 收款另计</small></div><div class="boss-stat"><span>完成服务</span><strong>${b.valid.length}<small> 次</small></strong><small>${period}已登记</small></div><div class="boss-stat"><span>待处理工作</span><strong>${b.tasks.length+b.appointments.length+b.reviews.length+b.unrecordedArrivals.length}<small> 项</small></strong><small>预约、登记、反馈与待办</small></div></div>
     ${renderDailyOperations(ctx,{compact:true})}
