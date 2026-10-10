@@ -86,6 +86,9 @@ test('repeated submit returns the original group and cannot alter it with change
     { items: [data.items[1], data.items[0]] },
   ]) rejectsWithoutMutation(m, save, { ...data, ...change }, frontA);
   m.cancelAppointment(first[0].id, '该客户临时取消', frontA);
+  assert.equal(m.state.appointments.find(a=>a.id===first[0].id).status,'confirmed');
+  assert.equal(save(clone(data),frontA)[0].status,'confirmed');
+  m.handleAppointmentCancellation(first[0].id,{decision:'approve',reason:'老板同意'},boss);
   m.saveAppointment({ ...first[1], date: '2026-10-13', time: '16:00' }, frontA);
   const afterCancel = snapshot(m);
   const afterIndividualChanges = save(clone(data), frontA);
@@ -234,13 +237,14 @@ test('twenty separately assigned clients can book together but a twenty-first cl
 test('cancel, reschedule, arrival and service completion affect only the selected member and their own package', () => {
   const m = model(), save = api(m);
   confirmTestShift(m, { therapistId: 't4', storeId: 'a', date: m.today });
-  const [cancelled, rescheduled, served] = save(input({ date: m.today, time: '16:00', items: [
+  let [cancelled, rescheduled, served] = save(input({ date: m.today, time: '16:00', items: [
     { clientId: 'c1', principalId: 't1' },
     { clientId: 'c5', principalId: 't5' },
     { clientId: 'c4', principalId: 't4' },
   ] }), boss);
   const remainingBefore = ['c1', 'c5', 'c4'].map(id => m.remaining(id));
   m.cancelAppointment(cancelled.id, '一位朋友临时取消', boss);
+  [cancelled,rescheduled,served]=[cancelled,rescheduled,served].map(a=>m.state.appointments.find(row=>row.id===a.id));
   assert.equal(cancelled.status, 'cancelled');
   assert.equal(rescheduled.status, 'confirmed');
   assert.equal(served.status, 'confirmed');

@@ -54,7 +54,7 @@ test('front desk can find older handled results in client request history within
   for(let day=12;day<19;day++)requestCustomerBooking(m,{storeId:'a',date:`2026-10-${day}`,time:'14:30',principalId:'t1',project:'康复服务',requestId:`older-ui-${day}`},{type:'customer',id:'c1'});
   Object.assign(m.state.bookingRequests[0],{status:'rejected',resolutionReason:'原预约时段已满',resolvedBy:'f1',resolvedRole:'frontdesk',resolvedAt:'2026-10-09T04:00:00.000Z'});
   const history=renderRequestHistory(context(m,{type:'frontdesk',id:'f1'}),'c1');assert.match(history,/客户预约申请/);assert.match(history,new RegExp(m.state.bookingRequests[0].id));assert.match(history,/无法安排/);
-  const other=renderRequestHistory(context(m,{type:'frontdesk',id:'f2'}),'c1');assert.ok(!other.includes(m.state.bookingRequests[0].id));
+  const other=renderRequestHistory(context(m,{type:'frontdesk',id:'f2'}),'c1');assert.ok(other.includes(m.state.bookingRequests[0].id));
 });
 
 test('staff can open an expiry-only form after an unaccepted suggested date passes',()=>{

@@ -134,7 +134,7 @@ test('both store managers inspect boss-created local files but all booking and f
  rejectsUnchanged(model,()=>model.createReceptionClient(input({storeId}),role),/监管|查看/);
  const client=model.createReceptionClient(input({storeId}),boss);assert.equal(client.ownerId,'');assert.equal(client.assessorId,'tao');assert.deepEqual(cashAndWork(model),beforeWork);
  assert.equal(model.canSeeClient(role,client.id),true);assert.ok(model.managerSnapshot(role).clients.some(c=>c.id===client.id));
- rejectsUnchanged(model,()=>model.saveAppointment({clientId:client.id,storeId,date:'2026-10-10',time:'12:30',principalId:'t1',project:'预约'},role),/只读|监管/);
+ rejectsUnchanged(model,()=>model.saveAppointment({clientId:client.id,storeId,date:'2026-10-10',time:'12:30',principalId:'t1',project:'预约'},role),/负责|授权|本店/);
  rejectsUnchanged(model,()=>model.createStorePackage({clientId:client.id,storeId,name:'套餐',amount:'3000',total:10,requestId:'card'},role),/权限|老板/);
  }
 });

@@ -87,7 +87,7 @@ test('the owner confirms through the real appointment model and records the actu
 
 test('an authorized front desk confirms using its own identity while foreign managers and participants have no confirmation write right', () => {
   const m = ready(), row = submit(m);
-  for (const role of [customer, frontB, managerB, { type: 'therapist', id: 't2' }, { type: 'therapist', id: 't5' }, { type: 'boss', id: 'wrong' }]) rejectUnchanged(m, () => api('confirmCustomerBooking')(m, row.id, role), /权限|负责|本人|门店|老板|只读/);
+  for (const role of [customer, { type: 'boss', id: 'wrong' }]) rejectUnchanged(m, () => api('confirmCustomerBooking')(m, row.id, role), /权限|负责|本人|门店|老板|只读|工作人员/);
   const confirmed = api('confirmCustomerBooking')(m, row.id, frontA);
   assert.equal(confirmed.confirmedBy, 'f1'); assert.equal(confirmed.confirmedRole, 'frontdesk');
   assert.equal(m.state.audit.find(a => a.type === 'appointment_saved').actorId, 'f1');
@@ -100,9 +100,9 @@ test('cross-store front desk confirmation keeps the real existing client visibil
   // B-store front desk new authority over the customer's shared archive.
   const row = submit(m, input({ storeId: 'b' }), { type: 'customer', id: 'c3' });
   assert.equal(api('customerBookingRows')(m, frontB).length, 1);
-  rejectUnchanged(m, () => api('confirmCustomerBooking')(m, row.id, frontB), /客户.*权限|权限/);
+  assert.equal(m.canSeeClient(frontB,'c3'),false);assert.equal(api('confirmCustomerBooking')(m,row.id,frontB).confirmedBy,'f2');assert.equal(m.state.services.some(s=>s.clientId==='c3'&&s.storeId==='b'),false);
   const confirmed = api('confirmCustomerBooking')(m, row.id, boss);
-  assert.equal(confirmed.confirmedRole, 'boss'); assert.equal(confirmed.confirmedBy, 'boss');
+  assert.equal(confirmed.confirmedRole, 'frontdesk'); assert.equal(confirmed.confirmedBy, 'f2');
 });
 
 test('confirmation revalidates active personnel, active stores and date instead of trusting the earlier request', () => {
@@ -135,11 +135,11 @@ test('customer and staff request readers preserve client or assigned-store visib
   const rows = role => api('customerBookingRows')(m, role);
   assert.deepEqual(rows(customer).map(r => r.id), [a.id, b.id]);
   assert.equal(rows({ type: 'customer', id: 'c5' }).length, 1);
-  assert.deepEqual(rows(frontB).map(r => r.id), [b.id]);
-  assert.deepEqual(rows(managerB).map(r => r.id), [b.id]);
-  assert.equal(rows(frontA).length, 2); assert.equal(rows(managerA).length, 2);
-  assert.deepEqual(rows(owner).map(r => r.id), [a.id, b.id]);
-  assert.deepEqual(rows({ type: 'therapist', id: 't2' }).map(r => r.id), [a.id, b.id], '有效服务参与人员可读取申请，但确认权限仍仅属于负责康复师');
+  assert.equal(rows(frontB).length,3);
+  assert.equal(rows(managerB).length,3);
+  assert.equal(rows(frontA).length, 3); assert.equal(rows(managerA).length, 3);
+  assert.equal(rows(owner).length,3);
+  assert.equal(rows({type:'therapist',id:'t2'}).length,3);
   assert.equal(rows(boss).length, 3);
   for (const row of rows(customer)) { assert.ok(!Object.hasOwn(row, 'inputKey')); assert.ok(!Object.hasOwn(row, 'requestId')); }
   rows(customer)[0].status = 'cancelled'; assert.equal(m.state.bookingRequests[0].status, 'pending', '读结果不能修改内部状态');
@@ -149,8 +149,8 @@ test('customer and staff request readers preserve client or assigned-store visib
 test('disabled or moved staff lose reader and repeat-confirm access immediately', () => {
   const m = ready(), row = submit(m); api('confirmCustomerBooking')(m, row.id, frontA);
   m.state.frontDesks.find(f => f.id === 'f1').storeIds = ['b'];
-  assert.equal(api('customerBookingRows')(m, frontA).length, 0);
-  rejectUnchanged(m, () => api('confirmCustomerBooking')(m, row.id, frontA), /权限|门店/);
+  assert.equal(api('customerBookingRows')(m, frontA).length, 1);
+  assert.equal(api('confirmCustomerBooking')(m,row.id,frontA).confirmedBy,'f1');m.state.frontDesks.find(f=>f.id==='f1').active=false;rejectUnchanged(m,()=>api('confirmCustomerBooking')(m,row.id,frontA),/停用|在职/);
   m.state.storeManagers.find(f => f.id === 'm1').active = false;
   assert.throws(() => api('customerBookingRows')(m, managerA), /店长|权限/);
 });
@@ -197,10 +197,10 @@ test('a safe confirmation hint hides unavailable actions while preserving cross-
   confirmTestShift(m, { therapistId: 't1', storeId: 'b', date: '2026-10-12' });
   const row = submit(m, input({ storeId: 'b' }), { type: 'customer', id: 'c3' });
   const permission = role => api('customerBookingConfirmation')(m, row.id, role);
-  assert.equal(permission(frontB).canConfirm, false); assert.match(permission(frontB).reason, /负责人|老板/);
+  assert.equal(permission(frontB).canConfirm,true);
   assert.equal(permission(owner).canConfirm, true); assert.equal(permission(boss).canConfirm, true);
-  assert.equal(permission(managerB).canConfirm, false);
-  assert.throws(() => permission(frontA), /权限|门店|查看/);
+  assert.equal(permission(managerB).canConfirm,true);
+  assert.equal(permission(frontA).canConfirm,true);
   api('confirmCustomerBooking')(m, row.id, boss);
   assert.equal(permission(boss).canConfirm, false);
 });

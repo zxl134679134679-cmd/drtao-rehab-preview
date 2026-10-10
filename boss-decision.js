@@ -1,6 +1,6 @@
 // Boss-only, deterministic guidance over existing records. No writes, AI calls,
 // inferred cash, commission calculations or synthetic resolution records.
-import { dailyOperationsSummary } from './daily-operations.js?v=20261010-assessor-personnel-1';
+import { dailyOperationsSummary } from './daily-operations.js?v=20261011-assessor-reception-cancel-3';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = value => `¥${Number(value).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const methods = {wechat:'微信',alipay:'支付宝',cash:'现金',bank:'银行'};

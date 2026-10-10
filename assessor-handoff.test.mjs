@@ -13,7 +13,7 @@ const intake=(m,extra={})=>m.createReceptionClient({name:'新客户',phone:'1391
 const ctx=m=>({model:m,role:front,filters:{storeId:'a'},esc:String,icon:()=>''});
 const reject=(m,fn,re=/权限|只读|监管|评估|治疗|人员|选择|预约/)=>{const before=JSON.stringify([m.state,m.sequence]);assert.throws(fn,re);assert.equal(JSON.stringify([m.state,m.sequence]),before);};
 test('current personnel are actual staff; legacy IDs and names remain inactive historical references',()=>{
- const m=fresh();assert.deepEqual(m.state.assessors,[{id:'tao',name:'涛博士',accountRole:'boss'}]);
+ const m=fresh();assert.deepEqual(m.assessorRows('a').map(p=>p.name),['王勤涛','陈康','邱振','邹宗霖']);assert.deepEqual(m.assessorRows('b').map(p=>p.name),['王勤涛','何赞峰','武文沛']);
  assert.deepEqual(m.state.therapists.filter(t=>t.active).map(t=>[t.name,t.storeId]),[['邱振','a'],['邹宗霖','a'],['武文沛','b']]);
  assert.deepEqual(m.state.storeManagers.filter(t=>t.active).map(t=>[t.name,t.storeId]),[['陈康','a'],['何赞峰','b']]);
  assert.equal(m.state.storeManagers.find(t=>t.id==='m1').name,'麦岛店店长');assert.equal(m.state.storeManagers.find(t=>t.id==='m1').active,false);assert.equal(m.state.therapists.find(t=>t.id==='t1').name,'林予安');assert.equal(m.state.therapists.find(t=>t.id==='t1').active,false);
@@ -22,7 +22,7 @@ test('current personnel are actual staff; legacy IDs and names remain inactive h
 test('new clients have independent fixed assessor, no owner or therapist, and intake selects no therapist',()=>{
  const m=fresh(),c=intake(m);assert.equal(c.assessorId,'tao');assert.equal(c.ownerId,'');assert.equal(c.therapistId,undefined);
  assert.equal(m.canSeeClient(qiu,c.id),false);assert.equal(m.canSeeClient(zou,c.id),false);
- const html=receptionIntakeDialog('reception-create-client','a',ctx(m)).html;assert.doesNotMatch(html,/name="ownerId"|name="therapistId"|name="principalId"/);assert.match(html,/涛博士/);assert.match(receptionIntakeSuccess(c,ctx(m)),/预约时选择/);
+ const html=receptionIntakeDialog('reception-create-client','a',ctx(m)).html;assert.doesNotMatch(html,/name="ownerId"|name="therapistId"|name="principalId"/);assert.match(html,/王勤涛/);assert.match(receptionIntakeSuccess(c,ctx(m)),/预约时选择/);
  reject(m,()=>intake(m,{phone:'13912345679',ownerId:'t-qiu-zhen',requestId:'forged-owner'}));
  reject(m,()=>intake(m,{phone:'13912345679',assessorId:'other',requestId:'forged-assessor'}));
 });
@@ -50,12 +50,7 @@ test('Tao reviews and publishes using boss authority, independent of owner; serv
  const plan={goal:'恢复运动',phase:'训练',nextStep:'基础训练',planNotes:'经评估制定',homeAdvice:'按指导练习'};
  m.publishPlan(c.id,plan,boss);reject(m,()=>m.publishPlan(c.id,plan,qiu));
 });
-test('manager supervision is read-only for new appointments and booking confirmations',()=>{
- const m=fresh(),c=intake(m),manager={type:'manager',id:'m-chen-kang'};
- reject(m,()=>m.saveAppointment({clientId:c.id,storeId:'a',date:'2026-10-12',time:'10:00',principalId:'t-qiu-zhen',project:'训练'},manager));
- const r=requestCustomerBooking(m,{storeId:'a',date:'2026-10-12',time:'10:00',principalId:'t-qiu-zhen',project:'训练',requestId:'manager-view'},{type:'customer',id:c.id});
- assert.equal(customerBookingConfirmation(m,r.id,manager).canConfirm,false);reject(m,()=>confirmCustomerBooking(m,r.id,manager));
-});
+test('manager can confirm bookings but clinical plan permissions remain unchanged',()=>{const m=fresh(),c=intake(m),manager={type:'manager',id:'m-chen-kang'};const r=requestCustomerBooking(m,{storeId:'a',date:'2026-10-12',time:'10:00',principalId:'t-qiu-zhen',project:'训练',requestId:'manager-view'},{type:'customer',id:c.id});assert.equal(customerBookingConfirmation(m,r.id,manager).canConfirm,true);assert.equal(confirmCustomerBooking(m,r.id,manager).confirmedBy,manager.id);reject(m,()=>m.publishPlan(c.id,{goal:'未授权计划'},manager));});
 
 test('professional assessment uses the independent assessor roster and therapist cannot confirm it even after becoming owner',async()=>{
  const {recordAssessment,confirmAssessment,evaluationDialog}=await import('./evaluations.js');
@@ -64,7 +59,7 @@ test('professional assessment uses the independent assessor roster and therapist
  m.transferClient(c.id,'t-qiu-zhen','独立客户交接',boss);assert.equal(m._client(c.id).assessorId,'tao');
  reject(m,()=>confirmAssessment(m,row.id,qiu));assert.equal(confirmAssessment(m,row.id,boss).confirmedBy,'boss');
  reject(m,()=>recordAssessment(m,{...payload,therapistId:'t-qiu-zhen',requestId:'forged-assessor'},front));
- const html=evaluationDialog('assessment-create',c.id,ctx(m)).html;assert.match(html,/name="assessorId"/);assert.match(html,/涛博士/);assert.doesNotMatch(html,/name="therapistId"/);
+ const html=evaluationDialog('assessment-create',c.id,ctx(m)).html;assert.match(html,/name="assessorId"/);assert.match(html,/王勤涛/);assert.doesNotMatch(html,/name="therapistId"/);
  reject(m,()=>m.publishPlan(c.id,{goal:'目标',phase:'阶段',nextStep:'下一步',planNotes:'计划',homeAdvice:'指导'},qiu));
 });
 
@@ -89,7 +84,7 @@ test('intake with no owner supports companion booking using current local person
 test('assigning a current therapist as customer owner never grants assessment, professional review or plan publishing',async()=>{
  const {staffDialog}=await import('./staff.js'),{evaluationDialog}=await import('./evaluations.js');const m=fresh();m.transferClient('c3','t-qiu-zhen','明确客户跟进负责人',boss);
  const plan={goal:'恢复运动',phase:'训练',nextStep:'继续',planNotes:'计划',homeAdvice:'指导'};reject(m,()=>m.publishPlan('c3',plan,qiu));
- reject(m,()=>staffDialog('edit-plan','c3',{...ctx(m),role:qiu}));reject(m,()=>evaluationDialog('assessment-create','c3',{...ctx(m),role:qiu}));
+ reject(m,()=>staffDialog('edit-plan','c3',{...ctx(m),role:qiu}));assert.match(evaluationDialog('assessment-create','c3',{...ctx(m),role:qiu}).html,/name="assessorId"/);
  const row=savePaperIntake(m,{clientId:'c3',storeId:'a',age:32,problem:'自述问题',goal:'目标',answers:Object.fromEntries(PAPER_SAFETY_QUESTIONS.map(q=>[q.key,'no'])),requestId:'legacy-client-new-paper'},front);
  reject(m,()=>reviewPaperIntake(m,row.id,{decision:'assessment',nextStep:'评估',assigneeId:'boss',dueDate:m.today,requestId:'invalid-review'},qiu));
 });
@@ -98,11 +93,11 @@ test('assigning a current therapist as customer owner never grants assessment, p
 test('cancelled or no-show appointments without services revoke appointment chart permission and live appointments are store scoped',()=>{
  const m=fresh(),c=intake(m),first=m.saveAppointment({clientId:c.id,storeId:'a',date:'2026-10-12',time:'10:00',principalId:qiu.id,project:'训练'},front);
  assert.equal(m.canSeeClient(qiu,c.id),true);assert.equal(m._therapistClientWorkAllowed(qiu.id,c.id,'a'),true);assert.equal(m._therapistClientWorkAllowed(qiu.id,c.id,'b'),false);
- m.cancelAppointment(first.id,'客户取消',front);assert.equal(m.canSeeClient(qiu,c.id),false);
+ m.cancelAppointment(first.id,'客户取消',front);assert.equal(m.canSeeClient(qiu,c.id),true);m.handleAppointmentCancellation(first.id,{decision:'approve',reason:'同意'},boss);assert.equal(m.canSeeClient(qiu,c.id),false);
  const second=m.saveAppointment({clientId:c.id,storeId:'a',date:'2026-10-13',time:'10:00',principalId:qiu.id,project:'训练'},front);
  m.state.appointments.find(a=>a.id===second.id).status='no_show';assert.equal(m.canSeeClient(qiu,c.id),false);
  const third=m.saveAppointment({clientId:c.id,storeId:'a',date:'2026-10-14',time:'10:00',principalId:qiu.id,project:'训练'},front);assert.equal(m.canSeeClient(qiu,c.id),true);
- m.cancelAppointment(third.id,'取消剩余预约',front);assert.equal(m.canSeeClient(qiu,c.id),false);
+ m.cancelAppointment(third.id,'取消剩余预约',front);m.handleAppointmentCancellation(third.id,{decision:'approve',reason:'同意'},boss);assert.equal(m.canSeeClient(qiu,c.id),false);
 });
 test('own completed service retains chart access only in its store; another therapist or store photos remain private',()=>{
  const m=fresh(),c=intake(m);
@@ -122,5 +117,5 @@ test('new treatment booking defaults to training and manager assessment screens 
  const managerCtx={...ctx(m),role:{type:'manager',id:'m-chen-kang'},view:'manager-overview'};
  assert.equal(m.managerSnapshot(managerCtx.role).clients.find(x=>x.id===c.id).assessorId,'tao');
  assert.equal(m.managerSnapshot(managerCtx.role).assessments.find(x=>x.id===row.id).assessorId,'tao');
- assert.match(managerDialog('manager-assessment',row.id,managerCtx).html,/评估师[\s\S]*涛博士/);const managerHtml=renderManager(managerCtx);assert.match(managerHtml,/待 涛博士 确认/);assert.doesNotMatch(managerHtml,/可代客户新建|店长可核对并确认/);assert.match(managerHtml,/监管只读/);
+ assert.match(managerDialog('manager-assessment',row.id,managerCtx).html,/评估师[\s\S]*王勤涛/);const managerHtml=renderManager(managerCtx);assert.match(managerHtml,/待 王勤涛 确认/);assert.doesNotMatch(managerHtml,/可代客户新建|店长可核对并确认/);assert.match(managerHtml,/监管只读/);
 });

@@ -259,9 +259,8 @@ test('manager booking exception preserves denial of all unrelated writes without
     ['publishPlan', () => m.publishPlan('c1', { goal: '目标', phase: '阶段', nextStep: '训练', planNotes: '安排', homeAdvice: '练习' }, managerA)],
     ['saveAppointment-edit', () => m.saveAppointment({ id: 'a3', clientId: 'c3', storeId: 'a', date: '2026-10-12', time: '10:00', principalId: 't1', project: '基础训练' }, managerA)],
     ['saveAppointmentBatch', () => m.saveAppointmentBatch({ storeId: 'a', date: '2026-10-12', time: '10:00', project: '基础训练', items: [{ clientId: 'c1', principalId: 't1' }, { clientId: 'c5', principalId: 't5' }], requestId: 'denied-group' }, managerA)],
-    ['cancelAppointment', () => m.cancelAppointment('a3', '更正', managerA)],
+    ['cancelAppointment-cross-store', () => m.cancelAppointment('a1', '更正', managerA)],
     ['markNoShow', () => m.markNoShow('a3', '未到店', managerA)],
-    ['recordArrival', () => m.recordArrival('a3', { requestId: 'denied-arrival', notes: '到店' }, managerA)],
     ['requestReschedule', () => m.requestReschedule('a1', { date: '2026-10-12', time: '10:00', reason: '改约' }, managerA)],
     ['completeTask', () => m.completeTask('task1', managerA)],
     ['submitReview', () => m.submitReview('s1', { score: 5 }, managerA)],
@@ -389,7 +388,7 @@ test('actual app export follows the manager snapshot instead of shared-client br
 test('actual app denies legacy manager dialog routes and checks each requested service store', () => {
   const m = model(); api(m);
   const app = appReaders(m, managerA);
-  for (const type of ['reset', 'reception-create-client', 'paper-intake-create', 'paper-intake-review', 'appointment-batch', 'register', 'edit-plan', 'appointment-edit', 'record-arrival', 'appointment-cancel', 'appointment-no-show', 'record-receipt', 'refund-receipt', 'settle-receipt', 'void-receipt', 'void-refund', 'transfer-client', 'revoke-service', 'renew-package', 'activate-package', 'import-opening', 'import-opening-batch', 'add-store', 'add-therapist', 'add-frontdesk', 'add-manager', 'deactivate-manager', 'assessment-create', 'assessment-confirm', 'frontdesk-evaluate', 'followup', 'review', 'plan-history', 'client-audit', 'service-detail', 'client-detail']) {
+  for (const type of ['reset', 'reception-create-client', 'paper-intake-create', 'appointment-batch', 'register', 'edit-plan', 'appointment-edit', 'record-arrival', 'appointment-no-show', 'record-receipt', 'refund-receipt', 'settle-receipt', 'void-receipt', 'void-refund', 'transfer-client', 'revoke-service', 'renew-package', 'activate-package', 'import-opening', 'import-opening-batch', 'add-store', 'add-therapist', 'add-frontdesk', 'add-manager', 'deactivate-manager', 'frontdesk-evaluate', 'followup', 'review', 'plan-history', 'client-audit', 'service-detail', 'client-detail']) {
     assert.throws(() => app.dialog(type, 'c1'), /店长|只读|仅|权限|查看/, type);
   }
   assert.throws(() => app.service('s1'), /权限|本店|门店/);

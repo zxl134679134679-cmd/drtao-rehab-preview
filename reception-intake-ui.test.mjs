@@ -27,7 +27,7 @@ test('front desk home leads with new customer intake before scheduling and cash,
 test('new intake window asks only basic information with fixed assessor and treatment chosen during booking',()=>{
   const html=dialog(fixture(),'reception-create-client','a').html;
   for(const key of ['name','age','phone','storeId'])assert.match(html,new RegExp(`name="${key}"`));
-  assert.doesNotMatch(html,/name="ownerId"|name="therapistId"/);assert.match(html,/涛博士/);assert.match(html,/预约时选择/);
+  assert.doesNotMatch(html,/name="ownerId"|name="therapistId"/);assert.match(html,/王勤涛/);assert.match(html,/预约时选择/);
   assert.match(html,/客户姓名/);assert.match(html,/年龄/);
   assert.doesNotMatch(html,/name="problem"|主要问题（客户自述）/);
   assert.match(html,/检查已有档案/);assert.match(html,/保存档案，下一步预约/);
@@ -73,7 +73,7 @@ test('a freshly created client can be reopened with age and original problem, wi
 
 test('store choice controls intake availability independently from therapy staffing',()=>{
  const m=fixture(),submit={},hint={},form={dataset:{form:'reception-create-client'},elements:{storeId:{value:'a'}},querySelector:s=>s==='[type="submit"]'?submit:hint};
- m.state.therapists.forEach(t=>t.active=false);reception.updateReceptionIntakeChoices(form,context(m));assert.equal(submit.disabled,false);assert.match(hint.textContent,/涛博士/);
+ m.state.therapists.forEach(t=>t.active=false);reception.updateReceptionIntakeChoices(form,context(m));assert.equal(submit.disabled,false);assert.match(hint.textContent,/王勤涛/);
  form.elements.storeId.value='b';reception.updateReceptionIntakeChoices(form,context(m));assert.equal(submit.disabled,true);
 });
 

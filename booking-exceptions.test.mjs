@@ -123,6 +123,6 @@ test('an execution therapist may handle their own store assignment while another
   const m=ready();m.assignStoreTherapist({clientId:'c3',storeId:'b',therapistId:'t2',reason:'在崂山店执行'},boss);
   const shift=m.state.staffSchedules.find(row=>row.therapistId==='t1'&&row.date==='2026-10-12');shift.storeId='b';
   const row=submit(m,{storeId:'b',principalId:'t1'},{type:'customer',id:'c3'}),execution={type:'therapist',id:'t2'};
-  assert.equal(booking.customerBookingConfirmation(m,row.id,execution).canConfirm,false);
+  assert.equal(booking.customerBookingConfirmation(m,row.id,execution).canConfirm,true);
   rejectUnchanged(m,()=>api('resolveCustomerBooking')(m,{id:row.id,outcome:'rejected',reason:'不能安排'},execution),/负责|执行|权限/);
 });

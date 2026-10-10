@@ -45,7 +45,7 @@ test('verified boss can review and assign the next step with the actual boss ide
   assert.equal(task.createdRole, 'boss'); assert.equal(task.createdBy, 'boss'); assert.equal(task.assigneeId, 't1');
   assert.equal(model.state.audit.at(-1).actorType, 'boss');
   const detail = paperIntakeDialog('paper-intake-detail', row.id, ctx(model, front)).html;
-  assert.match(detail, /已由老板复核/); assert.match(detail, /复核人 老板/);
+  assert.match(detail, /已由老板复核/); assert.match(detail, /复核人 王勤涛/);
   const before = JSON.stringify([model.state, model.sequence]);
   assert.equal(reviewPaperIntake(model, row.id, data, boss).id, row.id);
   assert.equal(JSON.stringify([model.state, model.sequence]), before);

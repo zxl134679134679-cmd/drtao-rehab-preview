@@ -1,5 +1,5 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261010-assessor-personnel-1';
-import { assertScheduleAvailability } from './schedules.js?v=20261010-assessor-personnel-1';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-assessor-reception-cancel-3';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-assessor-reception-cancel-3';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -182,7 +182,7 @@ function seedState() {
       { id: 'a', name: '麦岛店', address: '青岛 · 麦岛店（详细地址待补充）' },
       { id: 'b', name: '崂山店', address: '青岛 · 崂山店（详细地址待补充）' },
     ],
-    assessors: [{ id: 'tao', name: '涛博士', accountRole: 'boss' }],
+    assessors: [{id:'tao',name:'王勤涛',accountRole:'boss',accountId:'boss',storeIds:['a','b']},{id:'m-chen-kang',name:'陈康',accountRole:'manager',accountId:'m-chen-kang',storeIds:['a']},{id:'t-qiu-zhen',name:'邱振',accountRole:'therapist',accountId:'t-qiu-zhen',storeIds:['a']},{id:'t-zou-zonglin',name:'邹宗霖',accountRole:'therapist',accountId:'t-zou-zonglin',storeIds:['a']},{id:'m-he-zanfeng',name:'何赞峰',accountRole:'manager',accountId:'m-he-zanfeng',storeIds:['b']},{id:'t-wu-wenpei',name:'武文沛',accountRole:'therapist',accountId:'t-wu-wenpei',storeIds:['b']}],
     therapists: [
       { id: 't-qiu-zhen', name: '邱振', storeId: 'a', active: true },
       { id: 't-zou-zonglin', name: '邹宗霖', storeId: 'a', active: true },
@@ -286,7 +286,7 @@ export class DemoModel {
     this.state.appointmentBatches ??= [];
     this.state.storeManagers ??= [];
     this.state.cashClosings ??= [];
-    this.state.assessors ??= [{ id: 'tao', name: '涛博士', accountRole: 'boss' }];
+    this.state.assessors ??= [{id:'tao',name:'王勤涛',accountRole:'boss',accountId:'boss',storeIds:['a','b']},{id:'m-chen-kang',name:'陈康',accountRole:'manager',accountId:'m-chen-kang',storeIds:['a']},{id:'t-qiu-zhen',name:'邱振',accountRole:'therapist',accountId:'t-qiu-zhen',storeIds:['a']},{id:'t-zou-zonglin',name:'邹宗霖',accountRole:'therapist',accountId:'t-zou-zonglin',storeIds:['a']},{id:'m-he-zanfeng',name:'何赞峰',accountRole:'manager',accountId:'m-he-zanfeng',storeIds:['b']},{id:'t-wu-wenpei',name:'武文沛',accountRole:'therapist',accountId:'t-wu-wenpei',storeIds:['b']}];
     if (!Number.isSafeInteger(sequence) || sequence < 0) throw new Error('业务序列无效');
     const ids = collections.flatMap(key => this.state[key].map(row => row?.id));
     if (ids.some(id => typeof id !== 'string' || !id.trim())) throw new Error('业务状态包含无效记录标识');
@@ -538,6 +538,30 @@ export class DemoModel {
     if (role?.type !== 'frontdesk') throw new Error('仅前台可读取本人门店权限');
     return [...this._frontDesk(role.id).storeIds];
   }
+  assertAppointmentStaff(role) {
+    if(role?.type==='boss')return this._boss(role);
+    if(role?.type==='frontdesk')return this._frontDesk(role.id);
+    if(role?.type==='manager')return this.managerStoreId(role);
+    if(role?.type==='therapist')return this._therapist(role.id);
+    throw new Error('仅在职工作人员可以确认预约和接待');
+  }
+  assessorRows(storeId) {
+    this._store(storeId);
+    return this.state.assessors.filter(person=>person.storeIds?.includes(storeId)&&(()=>{try{this.assertAppointmentStaff({type:person.accountRole,id:person.accountId});return true;}catch{return false;}})());
+  }
+  isAssignedAssessor(role,assessorId,storeId) {
+    return this.assessorRows(storeId).some(p=>p.id===assessorId&&p.accountRole===role?.type&&p.accountId===role?.id);
+  }
+  appointmentReceptionRows(role) {
+    this.assertAppointmentStaff(role);
+    return this.state.appointments.map(a=>({id:a.id,clientId:a.clientId,clientName:this._client(a.clientId).name,phone:this._client(a.clientId).phone,storeId:a.storeId,date:a.date,time:a.time,principalId:a.principalId,status:a.status,arrivalAt:a.arrivalAt}));
+  }
+  receptionAppointment(role,id,{arrived=false}={}) {
+    this.assertAppointmentStaff(role);const a=this.state.appointments.find(a=>a.id===id);
+    if(!a)throw new Error('预约不存在');
+    if(arrived&&(a.date!==this.today||!a.arrivalAt||a.cancellationRequest?.status==='pending'||!['confirmed','reschedule_requested'].includes(a.status)))throw new Error('先明确确认预约并确认今天实际到店，再填写本次接待表');
+    return a;
+  }
   receptionStoreIds(role) {
     let ids;
     if (role?.type === 'boss') {
@@ -574,8 +598,8 @@ export class DemoModel {
     const store = this._store(storeId);
     if (store.active === false) throw new Error('接待门店已停用，请核对门店');
     if (data.ownerId || data.therapistId || data.principalId) throw new Error('建档时不选择治疗师或负责人，请在预约时选择服务人员');
-    if (data.assessorId && data.assessorId !== 'tao') throw new Error('评估师固定为涛博士，不能选择其他人员');
-    const ownerId = '', assessorId = 'tao';
+    const ownerId = '', assessorId = data.assessorId || 'tao';
+    if(!this.assessorRows(storeId).some(p=>p.id===assessorId))throw new Error('请选择本店在职评估师');
     const requestId = required(data.requestId, '建档提交标识', 80);
     const input = { name: required(data.name, '客户姓名', 80), phone: receptionPhone(data.phone), age: count(data.age, '客户年龄', 0, 120),
       problem: optionalText(data.problem, '主要问题', 1000), storeId, ownerId, assessorId };
@@ -589,8 +613,8 @@ export class DemoModel {
     const stamp = this._timestamp(), staged = this._stagePackageWrite(stamp);
     const client = seedClient(staged._id('c'), input.name, ownerId, storeId, null, input.phone);
     Object.assign(client, { assessorId, age: input.age, problem: input.problem, goal: '待制定康复计划', phase: '待初次评估',
-      nextStep: '预约首次评估，完成后由涛博士制定计划', planNotes: '客户基本资料已登记，康复计划待涛博士完成评估后制定。',
-      homeAdvice: '待涛博士完成评估后补充', createdAt: stamp, createdBy: role.id, createdRole: role.type,
+      nextStep: '预约所选评估师首次评估，完成后由王勤涛制定计划', planNotes: '客户基本资料已登记，康复计划待实际评估后由王勤涛制定。',
+      homeAdvice: '待完成评估后补充', createdAt: stamp, createdBy: role.id, createdRole: role.type,
       receptionRequestId: requestId, receptionInputKey: inputKey });
     staged.state.clients.push(client);
     staged._log('reception_client_created', { clientId: client.id, storeId, after: receptionBasicClient(client), note: '仅建立客户基本档案，不办理套餐、不登记收款、不计消费业绩' }, role);
@@ -605,9 +629,11 @@ export class DemoModel {
     if (clientId && !this.canSeeClient(role, clientId)) throw new Error('您没有该客户的前台操作权限');
     return frontDesk;
   }
-  _managerBookingActor(role) {
-    this.managerStoreId(role);
-    throw new Error('店长仅有本店监管只读权限，预约由前台或老板安排');
+  _managerBookingActor(role,clientId,storeId) { return this._newBookingActor(role,clientId,storeId); }
+  _newBookingActor(role,clientId,storeId) {
+    this.assertAppointmentStaff(role);this._store(storeId);
+    if(this._store(storeId).active===false)throw new Error('预约门店已停用');
+    return this._client(clientId);
   }
   _bookingActor(role, clientId, storeId) {
     if (role?.type !== 'frontdesk') return this._staff(role, clientId, storeId);
@@ -1364,6 +1390,7 @@ export class DemoModel {
     }
     const activeService = appointment => this.state.services.some(item => item.status === 'valid' &&
       (item.appointmentId === appointment.id || item.id === appointment.serviceId));
+    if(this.state.appointments.some(a=>a.cancellationRequest?.status==='pending'&&['clientId','date','time','storeId'].every(key=>a[key]===input[key])))throw new Error('取消申请待审批或处理，不能登记服务');
     const sameSlot = appointment => ['clientId', 'date', 'time', 'storeId', 'principalId'].every(key => appointment[key] === input[key]);
     let appointment;
     if (input.appointmentId) {
@@ -1383,6 +1410,7 @@ export class DemoModel {
       if (appointment && appointment.project !== input.project) throw new Error('服务项目须与所选预约一致，请先核对或调整预约');
       if (matches.some(item => item.status === 'pending_reassignment')) throw new Error('该预约需要重新分配康复师，请先确认新的服务安排');
     }
+    if(appointment?.cancellationRequest?.status==='pending')throw new Error('取消申请待审批或处理，不能登记服务');
     let pack, value;
     if (billingMode === 'single') {
       const receipt = this.state.receipts.find(item => item.id === input.receiptId);
@@ -1510,9 +1538,9 @@ export class DemoModel {
   }
 
   saveAppointment(data, role) {
-    if(role?.type==='therapist' && !this._therapist(role.id).legacy && data.principalId!==role.id)throw new Error('治疗师仅能安排本人服务预约');
-    if (role?.type === 'manager' && Object.hasOwn(data, 'id')) throw new Error('店长仅能新建本店预约，已有预约请由前台或负责康复师调整');
-    const client = role?.type === 'manager' ? this._managerBookingActor(role, data.clientId, data.storeId, data.principalId) : this._bookingActor(role, data.clientId, data.storeId);
+    if (data.id && role?.type==='therapist' && !this._therapist(role.id).legacy && data.principalId!==role.id) throw new Error('治疗师仅能调整本人服务预约');
+    if (Object.hasOwn(data,'id') && !data.id) throw new Error('已有预约标识无效，不能作为新建预约提交');
+    const client = data.id?this._bookingActor(role,data.clientId,data.storeId):this._newBookingActor(role,data.clientId,data.storeId);
     const input = {
       clientId: client.id, date: validDate(data.date), time: validTime(data.time),
       storeId: required(data.storeId, '服务门店'), principalId: required(data.principalId, '服务康复师'),
@@ -1525,6 +1553,7 @@ export class DemoModel {
     const existing = data.id ? this.state.appointments.find(item => item.id === data.id) : null;
     if (data.id && !existing) throw new Error('预约记录不存在');
     if (existing) { this.assertTherapistAppointment(role, existing); this._bookingActor(role, existing.clientId, existing.storeId); }
+    if(existing?.cancellationRequest?.status==='pending')throw new Error('取消申请待审批或处理，不能改约');
     if (existing && existing.clientId !== client.id) throw new Error('不能将预约转给其他客户');
     if (existing && !pendingAppointment(existing.status)) throw new Error('该预约已结束或已取消，不能编辑，请重新安排服务');
     if (existing?.arrivalAt && ['date', 'time', 'storeId'].some(key => existing[key] !== input[key])) throw new Error('此预约已到店，不能搬移到其他时间或门店，请先核对原预约后重新安排新预约');
@@ -1630,19 +1659,38 @@ export class DemoModel {
     return appointment;
   }
 
-  cancelAppointment(id, reason, role) {
-    const row = this.state.appointments.find(item => item.id === id);
-    if (!row) throw new Error('预约记录不存在');
-    this.assertTherapistAppointment(role,row);
-    this._bookingActor(role, row.clientId, row.storeId);
-    if (!pendingAppointment(row.status)) throw new Error('该预约已结束或已取消');
-    const why = required(reason, '取消原因'), stamp = this._timestamp();
-    row.cancelReason = why;
-    row.status = 'cancelled';
-    this._resolveAppointmentCancellation(row, row.cancelReason, role, stamp);
-    const closedTaskIds = this._closeAppointmentTasks(row, row.cancelReason, role, stamp);
-    this._log('appointment_cancelled', { appointmentId: id, clientId: row.clientId, reason: row.cancelReason, closedTaskIds }, role, stamp);
-    return row;
+  assertCancellationActor(role,row,{approval=false}={}) {
+    if(role?.type==='boss')return this._boss(role);
+    if(role?.type==='manager'){if(this.managerStoreId(role)!==row.storeId)throw new Error('仅本店店长有取消及审批权限');return;}
+    if(approval)throw new Error('前台取消须老板或本店店长审批');
+    this.assertTherapistAppointment(role,row);this._bookingActor(role,row.clientId,row.storeId);
+    if(role.type!=='frontdesk'&&role.id!==row.principalId)throw new Error('仅当次主治疗师、授权前台、老板或本店店长有取消权限');
+  }
+  cancellationPermissions(role,row) {
+    this.assertAppointmentStaff(role);
+    let canCancel=false,canHandle=false;try{this.assertCancellationActor(role,row,{approval:row.cancellationRequest?.status==='pending'&&(row.cancellationRequest.needsApproval===true||row.cancellationRequest.source==='frontdesk')});canCancel=true;}catch{}
+    try{this.assertCancellationActor(role,row,{approval:row.cancellationRequest?.needsApproval===true||row.cancellationRequest?.source==='frontdesk'});canHandle=true;}catch{}
+    return {canCancel:canCancel&&pendingAppointment(row.status),canHandle:canHandle&&row.cancellationRequest?.status==='pending',requiresApproval:role.type==='frontdesk'};
+  }
+  cancelAppointment(id, reason, role, data={}) {
+    const row=this.state.appointments.find(item=>item.id===id);if(!row)throw new Error('预约记录不存在');
+    this.assertCancellationActor(role,row,{approval:role.type!=='frontdesk'&&row.cancellationRequest?.status==='pending'&&(row.cancellationRequest.needsApproval===true||row.cancellationRequest.source==='frontdesk')});
+    if(data.requestId!=null)required(data.requestId,'取消提交标识',80);
+    const why=required(reason,'取消原因',1000);
+    if(role.type==='frontdesk') {
+      if(row.cancellationRequest?.status==='pending'&&row.cancellationRequest.source!=='frontdesk')return this.handleAppointmentCancellation(id,{decision:'approve',reason:why,requestId:data.requestId},role);
+      return this.requestAppointmentCancellation(id,{reason:why,requestId:data.requestId},role);
+    }
+    if(row.status==='cancelled'&&data.requestId&&row.cancelRequestId===data.requestId&&row.cancelledBy===role.id&&row.cancelledRole===role.type&&row.cancelReason===why)return row;
+    if(!pendingAppointment(row.status))throw new Error('该预约已结束或已取消');
+    const stamp=this._timestamp(),staged=this._stageWorkflowWrite(stamp),target=staged.state.appointments.find(a=>a.id===id);
+    Object.assign(target,{cancelReason:why,status:'cancelled',cancelledBy:role.id,cancelledRole:role.type,cancelledAt:stamp,cancelById:role.id,cancelByRole:role.type,cancelAt:stamp,...(data.requestId?{cancelRequestId:data.requestId}:{})});
+    const approval=target.cancellationRequest?.status==='pending'&&(target.cancellationRequest.needsApproval===true||target.cancellationRequest.source==='frontdesk');
+    staged._resolveAppointmentCancellation(target,why,role,stamp);
+    if(approval)target.cancellationRequest.status='approved';
+    const closedTaskIds=staged._closeAppointmentTasks(target,why,role,stamp);
+    staged._log('appointment_cancelled',{appointmentId:id,clientId:target.clientId,storeId:target.storeId,reason:why,closedTaskIds},role,stamp);
+    this.state=staged.state;this.sequence=staged.sequence;return target;
   }
 
   markNoShow(id, reason, role) {
@@ -1652,6 +1700,7 @@ export class DemoModel {
     this._bookingActor(role, row.clientId, row.storeId);
     if (role.type !== 'boss' && role.type !== 'frontdesk' && row.principalId !== role.id) throw new Error('仅当次主康复师、授权前台或老板有权限确认未到店');
     if (!['confirmed', 'reschedule_requested'].includes(row.status)) throw new Error('该预约已结束，不能重复确认未到店');
+    if(row.cancellationRequest?.status==='pending')throw new Error('取消申请待审批或处理，不能确认未到店');
     if (row.arrivalAt) throw new Error('此预约已经确认到店，不能再确认未到店，请联系老板核对原记录');
     if (row.date > this.today) throw new Error('未来预约尚未发生，不能确认未到店');
     this._assertServiceStarted(row.date, row.time);
@@ -1667,14 +1716,13 @@ export class DemoModel {
   }
 
   recordArrival(id, data, role) {
-    if (role?.type === 'boss') this._boss(role);
-    else if (role?.type === 'frontdesk') this._frontDesk(role.id);
-    else throw new Error('仅老板和授权门店前台有权限确认到店');
+    this.assertAppointmentStaff(role);
     const row = this.state.appointments.find(item => item.id === id);
     if (!row) throw new Error('预约记录不存在');
-    this._bookingActor(role, row.clientId, row.storeId);
+    this._newBookingActor(role, row.clientId, row.storeId);
     const requestId = required(data.requestId, '到店提交标识', 80), notes = optionalText(data.notes, '到店备注', 1000);
     if (row.date !== this.today) throw new Error('只能确认今天预约的实际到店；过去或未来日期请先核对服务安排，目前不支持补录历史到店');
+    if(row.cancellationRequest?.status==='pending')throw new Error('取消意愿尚待原有权人员处理，不能确认到店');
     if (row.arrivalAt) return row;
     if (this.state.appointments.some(item => item.id !== id && item.arrivalBy === role.id && item.arrivalRequestId === requestId)) throw new Error('此到店提交请求已用于另一预约，请使用新的提交标识');
     if (!['confirmed', 'reschedule_requested'].includes(row.status)) throw new Error('只能确认当前已安排的预约到店，该预约已结束或需要重新安排');
@@ -1690,6 +1738,7 @@ export class DemoModel {
     if (!row) throw new Error('预约记录不存在');
     if (role?.type !== 'customer' || role.id !== row.clientId) throw new Error('仅客户本人有权限提交改约申请');
     if (!pendingAppointment(row.status)) throw new Error('此预约已结束或已取消，不能改约');
+    if(row.cancellationRequest?.status==='pending')throw new Error('取消申请待审批或处理，不能改约');
     if (row.arrivalAt) throw new Error('此预约已经到店，请联系门店核对安排，需要改期时重新安排新预约');
     const request = { date: validDate(data.date), time: validTime(data.time), reason: required(data.reason || data.requestNote, '改约说明') };
     if (request.date < this.today) throw new Error('不能改约到过去的日期');
@@ -1707,55 +1756,62 @@ export class DemoModel {
     return row;
   }
 
-  requestAppointmentCancellation(id, data, role) {
-    const row = this.state.appointments.find(item => item.id === id);
-    if (!row) throw new Error('预约记录不存在');
-    if (role?.type !== 'customer' || role.id !== row.clientId) throw new Error('仅客户本人有权限申请取消预约');
-    if (!['confirmed', 'reschedule_requested'].includes(row.status)) throw new Error('此预约已结束或需要重新安排，不能申请取消');
-    if (row.arrivalAt) throw new Error('此预约已确认到店，请联系门店核对服务安排');
-    const reason = required(data.reason, '取消申请原因', 1000);
-    if (row.cancellationRequest?.status === 'pending') {
-      if (row.cancellationRequest.reason === reason) return row;
+  requestAppointmentCancellation(id,data,role) {
+    const row=this.state.appointments.find(a=>a.id===id);if(!row)throw new Error('预约记录不存在');
+    if(role?.type==='customer'){if(role.id!==row.clientId)throw new Error('仅客户本人有权限申请取消预约');this._client(role.id);}
+    else if(role?.type==='frontdesk')this.assertCancellationActor(role,row);
+    else throw new Error('仅客户本人或本店前台可申请取消');
+    if(data.requestId!=null)required(data.requestId,'取消申请提交标识',80);
+    const reason=required(data.reason,'取消申请原因',1000),source=role.type==='frontdesk'?'frontdesk':'customer';
+    const previous=[...(row.cancellationHistory||[]),row.cancellationRequest].find(r=>r&&data.requestId&&r.requestId===data.requestId&&r.requestedBy===role.id&&(r.requestedRole||'customer')===role.type);
+    if(previous){if(previous.reason!==reason)throw new Error('同一取消提交内容发生变化');return row;}
+    if(!['confirmed','reschedule_requested'].includes(row.status))throw new Error('此预约已结束或需要重新安排，不能申请取消');
+    if(row.arrivalAt)throw new Error('此预约已确认到店，请联系门店核对服务安排');
+    if(row.cancellationRequest?.status==='pending') {
+      if(row.cancellationRequest.reason===reason&&row.cancellationRequest.requestedBy===role.id&&(row.cancellationRequest.requestedRole||'customer')===role.type)return row;
       throw new Error('已有取消申请等待处理，请勿重复提交不同申请');
     }
-    const stamp = this._timestamp(), staged = this._stageWorkflowWrite(stamp), target = staged.state.appointments.find(item => item.id === id);
-    if (target.cancellationRequest) target.cancellationHistory = [...(target.cancellationHistory || []), copy(target.cancellationRequest)];
-    target.cancellationRequest = { id: staged._id('cancelrequest'), status: 'pending', reason, requestedBy: role.id, requestedAt: stamp,
-      appointmentDate: target.date, appointmentTime: target.time, storeId: target.storeId, principalId: target.principalId };
-    const task = { id: staged._id('task'), type: 'appointment_cancellation', clientId: target.clientId, appointmentId: id,
-      cancellationRequestId: target.cancellationRequest.id, storeId: target.storeId, title: `处理${staged._client(target.clientId).name}的取消预约申请`, assigneeId: 'boss', dueDate: this.today, status: 'pending' };
-    staged.state.tasks.push(task);
-    staged._log('appointment_cancellation_requested', { appointmentId: id, clientId: target.clientId, storeId: target.storeId, request: target.cancellationRequest, taskId: task.id }, role);
-    this.state = staged.state; this.sequence = staged.sequence;
-    return target;
+    const stamp=this._timestamp(),staged=this._stageWorkflowWrite(stamp),target=staged.state.appointments.find(a=>a.id===id);
+    if(target.cancellationRequest)target.cancellationHistory=[...(target.cancellationHistory||[]),copy(target.cancellationRequest)];
+    target.cancellationRequest={id:staged._id('cancelrequest'),status:'pending',reason,source,requestedBy:role.id,requestedRole:role.type,requestedAt:stamp,...(data.requestId?{requestId:data.requestId}:{}),
+      ...(source==='frontdesk'?{needsApproval:true,approvalRequestedBy:role.id,approvalRequestedRole:role.type,approvalRequestedAt:stamp,approvalRequestedReason:reason}:{}),
+      appointmentDate:target.date,appointmentTime:target.time,storeId:target.storeId,principalId:target.principalId};
+    const task={id:staged._id('task'),type:'appointment_cancellation',clientId:target.clientId,appointmentId:id,cancellationRequestId:target.cancellationRequest.id,storeId:target.storeId,title:`处理${staged._client(target.clientId).name}的取消预约申请`,assigneeId:'boss',dueDate:this.today,status:'pending'};
+    staged.state.tasks.push(task);staged._log('appointment_cancellation_requested',{appointmentId:id,clientId:target.clientId,storeId:target.storeId,request:target.cancellationRequest,taskId:task.id},role);
+    this.state=staged.state;this.sequence=staged.sequence;return target;
   }
-
-  handleAppointmentCancellation(id, data, role) {
-    const row = this.state.appointments.find(item => item.id === id);
-    if (!row) throw new Error('预约记录不存在');
-    this._bookingActor(role, row.clientId, row.storeId);
-    if (role.type !== 'boss' && role.type !== 'frontdesk' && role.id !== row.principalId) throw new Error('仅本次执行康复师、授权前台或老板有权限处理取消申请');
-    if (!['approve', 'reject'].includes(data.decision)) throw new Error('请选择同意或拒绝取消申请');
-    const reason = required(data.reason, '取消申请处理说明', 1000), request = row.cancellationRequest;
-    if (!request) throw new Error('此预约没有取消申请');
-    const outcome = data.decision === 'approve' ? 'approved' : 'rejected';
-    if (request.status !== 'pending') {
-      if (request.status === outcome && request.decisionReason === reason && request.handledBy === role.id && request.handledRole === role.type) return row;
+  handleAppointmentCancellation(id,data,role) {
+    const row=this.state.appointments.find(a=>a.id===id);if(!row)throw new Error('预约记录不存在');
+    const request=row.cancellationRequest;if(!request)throw new Error('此预约没有取消申请');
+    const approval=request.needsApproval===true||request.source==='frontdesk';
+    if(data.requestId!=null)required(data.requestId,'取消处理提交标识',80);
+    if(role?.type==='frontdesk'&&approval){
+      this.assertCancellationActor(role,row);
+      if(request.status==='pending'&&data.decision==='approve'&&data.requestId&&request.approvalRequestId===data.requestId&&request.approvalRequestedBy===role.id&&request.approvalRequestedRole===role.type&&request.approvalRequestedReason===data.reason)return row;
+    }
+    this.assertCancellationActor(role,row,{approval});
+    if(!['approve','reject'].includes(data.decision))throw new Error('请选择同意或拒绝取消申请');
+    const reason=required(data.reason,'取消申请处理说明',1000),outcome=data.decision==='approve'?'approved':'rejected';
+    if(request.status!=='pending') {
+      if(request.status===outcome&&request.decisionReason===reason&&request.handledBy===role.id&&request.handledRole===role.type)return row;
       throw new Error('此取消申请已处理，请核对当前预约');
     }
-    if (!['confirmed', 'reschedule_requested'].includes(row.status)) throw new Error('此预约已结束或重新安排，请先核对原取消申请');
-    if (data.decision === 'approve' && (request.appointmentDate !== row.date || request.appointmentTime !== row.time || request.storeId !== row.storeId || request.principalId !== row.principalId)) throw new Error('预约安排已变化，原取消申请已过期，请核对新安排后重新申请');
-    if (data.decision === 'approve' && row.arrivalAt) throw new Error('此预约已确认到店，请先核对服务情况，不能批准原取消申请');
-    const stamp = this._timestamp(), staged = this._stageWorkflowWrite(stamp), target = staged.state.appointments.find(item => item.id === id);
-    if (data.decision === 'approve') staged.cancelAppointment(id, reason, role);
-    Object.assign(target.cancellationRequest, { status: outcome, decisionReason: reason, handledBy: role.id, handledRole: role.type, handledAt: stamp });
-    const completedTaskIds = [];
-    staged.state.tasks.filter(task => task.appointmentId === id && task.type === 'appointment_cancellation' && task.cancellationRequestId === request.id).forEach(task => {
-      Object.assign(task, { status: 'completed', completedBy: role.id, completedAt: stamp, completionResult: reason }); completedTaskIds.push(task.id);
-    });
-    staged._log('appointment_cancellation_handled', { appointmentId: id, clientId: row.clientId, storeId: row.storeId, cancellationRequestId: request.id, decision: data.decision, reason, completedTaskIds }, role);
-    this.state = staged.state; this.sequence = staged.sequence;
-    return target;
+    if(!['confirmed','reschedule_requested'].includes(row.status))throw new Error('此预约已结束或重新安排，请先核对原取消申请');
+    if(data.decision==='approve'&&(request.appointmentDate!==row.date||request.appointmentTime!==row.time||request.storeId!==row.storeId||request.principalId!==row.principalId))throw new Error('预约安排已变化，原取消申请已过期，请核对新安排后重新申请');
+    if(data.decision==='approve'&&row.arrivalAt)throw new Error('此预约已确认到店，请先核对服务情况，不能批准原取消申请');
+    const stamp=this._timestamp(),staged=this._stageWorkflowWrite(stamp),target=staged.state.appointments.find(a=>a.id===id);
+    if(role.type==='frontdesk'&&data.decision==='approve') {
+      Object.assign(target.cancellationRequest,{needsApproval:true,approvalRequestedBy:role.id,approvalRequestedRole:role.type,approvalRequestedAt:stamp,approvalRequestedReason:reason,...(data.requestId?{approvalRequestId:data.requestId}:{})});
+      staged._log('appointment_cancellation_approval_requested',{appointmentId:id,clientId:row.clientId,storeId:row.storeId,cancellationRequestId:request.id,reason},role,stamp);
+      this.state=staged.state;this.sequence=staged.sequence;return target;
+    }
+    if(data.decision==='approve') {staged.cancelAppointment(id,reason,role);}
+    // cancelAppointment commits into staged.state, so reacquire the immutable staged row.
+    const final=staged.state.appointments.find(a=>a.id===id);
+    Object.assign(final.cancellationRequest,{status:outcome,decisionReason:reason,handledBy:role.id,handledRole:role.type,handledAt:stamp,...(data.requestId?{decisionRequestId:data.requestId}:{})});
+    const completedTaskIds=[];staged.state.tasks.filter(t=>t.appointmentId===id&&t.type==='appointment_cancellation'&&t.cancellationRequestId===request.id).forEach(t=>{Object.assign(t,{status:'completed',completedBy:role.id,completedAt:stamp,completionResult:reason});completedTaskIds.push(t.id);});
+    staged._log('appointment_cancellation_handled',{appointmentId:id,clientId:row.clientId,storeId:row.storeId,cancellationRequestId:request.id,decision:data.decision,reason,completedTaskIds},role);
+    this.state=staged.state;this.sequence=staged.sequence;return final;
   }
 
   completeTask(id, role, data = {}) {

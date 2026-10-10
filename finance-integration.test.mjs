@@ -34,7 +34,7 @@ test('offsetting method differences still ask the operator to investigate before
  await r.run();assert.match(r.scope.successHtml,/差额.*核对|逐项.*核对/);
 });
 test('manager submit refuses non-booking business writes while boss confirms daily reconciliation',async()=>{
- for(const type of ['cash-closing-confirm','cash-closing','reception-create-client','paper-intake-create','schedule-save','schedule-decision','reset']){
+ for(const type of ['cash-closing-confirm','cash-closing','reception-create-client','schedule-save','schedule-decision','reset']){
   const denied=runtime(manager,type,{id:'closing-test',version:'1',storeId:'a',date:'2026-10-08'});await denied.run();
   assert.equal(denied.calls.length,0);assert.match(denied.scope.error,/店长.*权限/);assert.notEqual(denied.form.dataset.succeeded,'true');
  }

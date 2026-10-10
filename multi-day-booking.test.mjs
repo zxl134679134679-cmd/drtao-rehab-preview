@@ -36,11 +36,7 @@ test('retry keys remain idempotent and changed content cannot reuse a batch key'
  for(const role of [customer,front]){const m=fixture(),first=save(m,input(),role),before=snapshot(m);assert.deepEqual(save(m,input(),role),first);assert.equal(snapshot(m),before);denied(m,input({items:[input().items[0],{...input().items[1],time:'15:00'}]}),role,/提交|内容|变化/);const restored=fixture();restored.state=structuredClone(m.state);restored.sequence=m.sequence;assert.deepEqual(save(restored,input(),role),first);}
 });
 
-test('manager stays within active current local client and therapist scope on initial writes and replays',()=>{
- const m=fixture();for(const data of [input({clientId:'c2',storeId:'b',items:input().items.map(row=>({...row,principalId:'t2'}))}),input({items:[input().items[0],{...input().items[1],principalId:'t4'}]}),input({id:''}),input({items:[input().items[0],{...input().items[1],id:'a1'}]})])denied(m,data,manager,/本店|权限|新建|已有|店长/);
- confirmTestShift(m,{therapistId:'t2',storeId:'a',date:'2026-10-14'});denied(m,input({items:[input().items[0],{...input().items[1],principalId:'t2'}]}),manager,/本店|权限/);
- denied(m,input(),manager,/只读|监管/);const result=save(m,input(),front);m.state.therapists.find(t=>t.id==='t1').active=false;denied(m,input(),front,/在职|停用|康复师/);assert.ok(result.items.every(row=>row.status==='confirmed'));
-});
+test('manager new multi-day bookings stay idempotent and reject existing identifiers and inactive actors',()=>{for(const data of [input({id:''}),input({items:[input().items[0],{...input().items[1],id:'a1'}]})]){const m=fixture();denied(m,data,manager,/本店|权限|新建|已有|店长|字段|未保存/);}const m=fixture(),result=save(m,input(),manager);assert.ok(result.items.every(r=>r.status==='confirmed'));m.state.storeManagers.find(p=>p.id==='m1').active=false;denied(m,input(),manager,/在职|停用|店长|权限/);});
 
 test('each day may choose a different authorized therapist and missing or resting shifts stay blocked',()=>{
  const m=fixture();confirmTestShift(m,{therapistId:'t2',storeId:'a',date:'2026-10-14'});const result=save(m,input({items:[input().items[0],{...input().items[1],principalId:'t2'}]}),customer);assert.deepEqual(result.items.map(row=>row.principalId),['t1','t2']);

@@ -90,7 +90,7 @@ test('newer workflow management operations also remain unavailable to a read-onl
     () => m.linkReceiptPackage({ receiptId: receipt.id, packageId: 'p7', reason: '核对套餐收款', requestId: 'manager-link' }, managerA),
     () => m.createStorePackage({ clientId: 'c3', storeId: 'a', name: '本店套餐', amount: '3000', total: '10', requestId: 'manager-package' }, managerA),
     () => m.updateTask('task1', { assigneeId: 't1', dueDate: '2026-10-10', reason: '调整日期' }, managerA),
-    () => m.handleAppointmentCancellation('a3', { decision: 'approve', reason: '客户要求取消' }, managerA),
+    () => m.handleAppointmentCancellation('a3', { decision: 'approve', reason: '客户要求取消' }, managerB),
     () => m.saveCashClosing({ storeId: 'a', date: m.today, actualWechat: '3000', actualAlipay: '0', actualCash: '0', actualBank: '0', version: 0, requestId: 'manager-closing' }, managerA),
   ];
   entries.forEach(run => unchanged(m, run));

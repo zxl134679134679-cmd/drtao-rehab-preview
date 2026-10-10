@@ -1,8 +1,8 @@
-import { renderCashClosingSummary } from './cash.js?v=20261010-assessor-personnel-1';
+import { renderCashClosingSummary } from './cash.js?v=20261011-assessor-reception-cancel-3';
 /* Store managers supervise local work with read-only store access. */
-import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261010-assessor-personnel-1';
-import { renderBookingInbox } from './customer-ui.js?v=20261010-assessor-personnel-1';
-import { renderDailyOperations } from './daily-operations-ui.js?v=20261010-assessor-personnel-1';
+import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261011-assessor-reception-cancel-3';
+import { renderBookingInbox } from './customer-ui.js?v=20261011-assessor-reception-cancel-3';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-assessor-reception-cancel-3';
 const CHANNELS = {direct:'门店收款',douyin:'抖音',meituan:'美团',other_platform:'其他平台'};
 const METHODS = {wechat:'微信',alipay:'支付宝',cash:'现金',bank:'银行转账'};
 const PURPOSES = {package:'套餐',renewal:'续费',single:'单次服务',other:'其他',platform_settlement:'平台结算'};
@@ -53,7 +53,7 @@ function businessDate(stamp) {
 function between(value,from,to) { return Boolean(value) && (!from || value >= from) && (!to || value <= to); }
 
 function heading(x,title,description) {
-  return `<div class="page-head"><div><span class="eyebrow">${x.esc(x.all.store.name)} · 店长工作台</span><h1>${x.esc(title)}</h1><p class="muted">${x.esc(description)}</p><p class="meta">店长仅有本店监管只读权限；新建、确认或调整预约请联系前台或老板。</p></div><div class="action-row">${x.tag(`${x.all.manager.name} · 监管查看`,'green')}</div></div>`;
+  return `<div class="page-head"><div><span class="eyebrow">${x.esc(x.all.store.name)} · 店长工作台</span><h1>${x.esc(title)}</h1><p class="muted">${x.esc(description)}</p><p class="meta">店长可协同两店预约确认与到店接待，记录确认本人承担的评估；经营资料仍仅本店监管只读；可直接取消或审批本店预约，调整已有安排须原有权限。</p></div><div class="action-row">${x.tag(`${x.all.manager.name} · 监管查看`,'green')}</div></div>`;
 }
 function periodFilter(x) {
   return `<form class="filters" data-form="manager-filters"><label class="field"><span>开始日期</span><input type="date" name="from" value="${x.esc(x.snapshot.from || '')}"></label><label class="field"><span>结束日期</span><input type="date" name="to" value="${x.esc(x.snapshot.to || '')}"></label><button class="btn btn-primary" type="submit">查看</button>${x.button('全部时间','manager-clear-filters','','btn-quiet')}</form>`;
@@ -62,7 +62,7 @@ function fold(x,label,rows,render,emptyText,open = false) {
   return `<details class="ease-work-notice" ${open && rows.length ? 'open' : ''}><summary><strong>${x.esc(label)}</strong><span class="ease-fold-count">${rows.length} 条</span>${x.ico('chevron-right',18)}</summary><div class="ease-fold-body">${rows.length ? rows.map(render).join('') : x.empty(emptyText)}</div></details>`;
 }
 function appointmentCard(x,row) {
-  const text = row.arrivalAt && PENDING_APPOINTMENTS.has(row.status) ? '已到店待登记' : APPOINTMENT_STATUS[row.status] || '待核对';
+  const text = row.arrivalAt && PENDING_APPOINTMENTS.has(row.status) ? '已到店待登记' : row.cancellationRequest?.status==='pending'?'取消待审批 / 处理':APPOINTMENT_STATUS[row.status] || '待核对';
   return `<article class="ease-service-card"><div class="ease-service-head"><div><span class="ease-service-time">${x.esc(row.date)} · ${x.esc(row.time)}</span><h3>${x.esc(x.clientName(row.clientId))}</h3></div>${x.tag(text,row.status === 'completed' ? 'green' : row.status !== 'confirmed' || row.arrivalAt ? 'warn' : '')}</div><p class="ease-service-project">${x.esc(row.project)}</p><p class="meta">康复师 ${x.esc(x.name('therapists',row.principalId))}${row.groupId ? ' · 同行预约，每人独立安排' : ''}</p><div class="ease-service-actions">${x.link('预约明细','manager-appointment',row.id)}${x.clientLink(row.clientId)}</div></article>`;
 }
 function taskRow(x,row) {
@@ -77,7 +77,7 @@ function bookingInbox(ctx,x) {
 }
 function appointmentsPage(ctx) {
   const x=helpers(ctx),rows=scheduled(x.all.appointments.filter(row=>row.date>=x.today&&PENDING_APPOINTMENTS.has(row.status)));
-  return `<div class="manager-dashboard">${heading(x,'本店预约','核对客户申请与已确认的本店安排。')}${bookingInbox(ctx,x)}<section class="ease-work-main"><div class="section-head"><h2>今天及之后的预约</h2>${x.tag(`${rows.length} 次`)}</div><div class="ease-service-list">${rows.length?rows.map(row=>appointmentCard(x,row)).join(''):x.empty('本店暂无今天或之后的待服务预约。')}</div></section><p class="meta">店长仅监管查看；新建、确认或调整预约请联系前台或老板。</p></div>`;
+  return `<div class="manager-dashboard">${heading(x,'本店预约','核对客户申请与已确认的本店安排。')}<section class="ease-work-main"><div class="section-head"><h2>今天及之后的预约</h2>${x.tag(`${rows.length} 次`)}</div><div class="ease-service-list">${rows.length?rows.map(row=>appointmentCard(x,row)).join(''):x.empty('本店暂无今天或之后的待服务预约。')}</div></section><p class="meta">预约确认与接待请使用两店协同入口；经营资料仅本店监管只读。</p></div>`;
 }
 function overview(ctx) {
   const x = helpers(ctx);
@@ -92,7 +92,7 @@ function overview(ctx) {
   const assessments = latest((x.all.assessments || []).filter(row => row.status === 'pending'));
   const pendingReceipts = latest((x.all.receipts || []).filter(row => row.status === 'pending_settlement'));
   const assessmentItem = row => `<div class="row"><div class="row-main"><strong>${x.esc(x.clientName(row.clientId))} · ${x.esc(row.project)}</strong><div class="meta">${x.esc(row.date)} · 待 ${x.esc(x.name(row.assessorId ? 'assessors' : 'therapists',row.assessorId || row.therapistId))} 确认</div></div>${x.link('查看记录','manager-assessment',row.id)}</div>`;
-  return `<div class="boss-dashboard manager-dashboard">${heading(x,'本店今天','查看本店安排与监管记录，业务由前台和老板处理。')}<section class="ease-work-main manager-panel manager-today"><div class="section-head"><h2>今天的安排</h2>${x.tag(`${todayAppointments.length} 次`)}</div><div class="ease-service-list">${todayAppointments.length ? todayAppointments.map(row => appointmentCard(x,row)).join('') : x.empty('今天暂无待服务预约。')}</div></section>${bookingInbox(ctx,x)}<details class="manager-supervision" open><summary><strong>本店收支与员工工作</strong><span>展开监管记录</span></summary><div class="manager-supervision-body">${cashHero(x,today.cash,'本店今日实收')}${renderCashClosingSummary(ctx)}<div class="ease-work-stats"><div class="ease-work-stat"><span>今日待服务</span><strong>${todayAppointments.length}<small> 次</small></strong><small>其中已到店 ${todayAppointments.filter(row => row.arrivalAt).length} 次</small></div><div class="ease-work-stat"><span>今日完成服务</span><strong>${validServices.length}<small> 次</small></strong><small>按本店实际服务记录</small></div><div class="ease-work-stat"><span>今日消费业绩</span><strong>${x.money(serviceAmount(validServices))}</strong><small>主服务计一次，协作不重复计</small></div></div>${renderDailyOperations({...ctx,filters:{...ctx.filters,from:ctx.model.today,to:ctx.model.today}},{compact:true})}</div></details><section class="boss-panel manager-panel"><div class="section-head"><h2>先处理这些事</h2><span class="muted">当前全部待办</span></div>${renderPaperIntakeInbox(ctx)}${fold(x,'已到店待登记',unrecorded,row => appointmentCard(x,row),'服务记录均已补齐。',true)}${fold(x,'预约需要确认',attention,row => appointmentCard(x,row),'暂无改约、人员调整或逾期预约。')}${fold(x,'工作待办',tasks,row => taskRow(x,row),'暂无未完成工作。')}${fold(x,'评估待确认',assessments,assessmentItem,'本店评估均已处理。')}${fold(x,'平台待结算',pendingReceipts,row => cashRow(x,row,'receipt'),'本店没有平台待结算款项。')}<p class="manager-panel-note">待办由对应工作人员处理；退款、更正和权限调整由老板处理。</p></section>${fold(x,'之后的预约',future,row => appointmentCard(x,row),'暂无已确认的后续预约。')}<div class="boss-footer">${x.button('查看本店记录','nav','manager-records')}${x.button('查看人员工作','nav','manager-team')}</div></div>`;
+  return `<div class="boss-dashboard manager-dashboard">${heading(x,'本店今天','查看本店安排与监管记录，业务由前台和老板处理。')}<section class="ease-work-main manager-panel manager-today"><div class="section-head"><h2>今天的安排</h2>${x.tag(`${todayAppointments.length} 次`)}</div><div class="ease-service-list">${todayAppointments.length ? todayAppointments.map(row => appointmentCard(x,row)).join('') : x.empty('今天暂无待服务预约。')}</div></section><details class="manager-supervision" open><summary><strong>本店收支与员工工作</strong><span>展开监管记录</span></summary><div class="manager-supervision-body">${cashHero(x,today.cash,'本店今日实收')}${renderCashClosingSummary(ctx)}<div class="ease-work-stats"><div class="ease-work-stat"><span>今日待服务</span><strong>${todayAppointments.length}<small> 次</small></strong><small>其中已到店 ${todayAppointments.filter(row => row.arrivalAt).length} 次</small></div><div class="ease-work-stat"><span>今日完成服务</span><strong>${validServices.length}<small> 次</small></strong><small>按本店实际服务记录</small></div><div class="ease-work-stat"><span>今日消费业绩</span><strong>${x.money(serviceAmount(validServices))}</strong><small>主服务计一次，协作不重复计</small></div></div>${renderDailyOperations({...ctx,filters:{...ctx.filters,from:ctx.model.today,to:ctx.model.today}},{compact:true})}</div></details><section class="boss-panel manager-panel"><div class="section-head"><h2>先处理这些事</h2><span class="muted">当前全部待办</span></div>${renderPaperIntakeInbox(ctx)}${fold(x,'已到店待登记',unrecorded,row => appointmentCard(x,row),'服务记录均已补齐。',true)}${fold(x,'预约需要确认',attention,row => appointmentCard(x,row),'暂无改约、人员调整或逾期预约。')}${fold(x,'工作待办',tasks,row => taskRow(x,row),'暂无未完成工作。')}${fold(x,'评估待确认',assessments,assessmentItem,'本店评估均已处理。')}${fold(x,'平台待结算',pendingReceipts,row => cashRow(x,row,'receipt'),'本店没有平台待结算款项。')}<p class="manager-panel-note">待办由对应工作人员处理；退款、更正和权限调整由老板处理。</p></section>${fold(x,'之后的预约',future,row => appointmentCard(x,row),'暂无已确认的后续预约。')}<div class="boss-footer">${x.button('查看本店记录','nav','manager-records')}${x.button('查看人员工作','nav','manager-team')}</div></div>`;
 }
 
 function clientList(ctx) {
@@ -183,7 +183,7 @@ export function managerDialog(type,id,ctx) {
   } else if (type === 'manager-appointment') {
     const row = allowedRow(x,'appointments',id);
     title = '本店预约明细';
-    html = `${x.detail([['客户',x.clientName(row.clientId)],['服务时间',`${row.date} ${row.time}`],['门店',x.all.store.name],['项目',row.project],['康复师',x.name('therapists',row.principalId)],['状态',APPOINTMENT_STATUS[row.status] || '待核对'],['到店情况',row.arrivalAt ? `已确认到店 · ${businessDate(row.arrivalAt)}` : '未记录到店']])}${row.groupId ? '<p class="note">同行预约，每位客户独立安排、分别消课。</p>' : ''}${row.request ? `<div class="note"><strong>申请改约至 ${x.esc(row.request.date)} ${x.esc(row.request.time)}</strong><p>${x.esc(row.requestNote || row.request.reason || '未填写说明')}</p></div>` : ''}${x.clientLink(row.clientId)}`;
+    html = `${x.detail([['客户',x.clientName(row.clientId)],['服务时间',`${row.date} ${row.time}`],['门店',x.all.store.name],['项目',row.project],['康复师',x.name('therapists',row.principalId)],['状态',row.cancellationRequest?.status==='pending'?'取消待审批 / 处理':APPOINTMENT_STATUS[row.status] || '待核对'],['到店情况',row.arrivalAt ? `已确认到店 · ${businessDate(row.arrivalAt)}` : '未记录到店']])}${row.groupId ? '<p class="note">同行预约，每位客户独立安排、分别消课。</p>' : ''}${row.request ? `<div class="note"><strong>申请改约至 ${x.esc(row.request.date)} ${x.esc(row.request.time)}</strong><p>${x.esc(row.requestNote || row.request.reason || '未填写说明')}</p></div>` : ''}${x.clientLink(row.clientId)}`;
   } else if (type === 'manager-receipt') {
     const row = allowedRow(x,'receipts',id);
     const refunds = (x.all.refunds || []).filter(item => item.receiptId === id);

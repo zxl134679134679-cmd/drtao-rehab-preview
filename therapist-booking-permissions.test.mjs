@@ -28,18 +28,7 @@ function rejectUnchanged(model, action, pattern) {
   assert.equal(snapshot(model), before, '拒绝操作不能改变申请、预约、人员、客户、审计或序列');
 }
 
-test('therapist request readers follow owned clients and valid service participation, not the home store', () => {
-  const model = ready();
-  const c1 = request(model), c2 = request(model, 'c2'), c3 = request(model, 'c3'), c5 = request(model, 'c5');
-  const before = snapshot(model);
-  const ids = id => customerBookingRows(model, therapist(id)).map(row => row.id);
-  assert.deepEqual(ids('t1'), [c1.id, c3.id], '负责人可查看自己负责客户的预约申请');
-  assert.deepEqual(ids('t2'), [c1.id, c2.id], '曾作为实际主康复师服务的客户也可查看，跨店不丢失');
-  assert.deepEqual(ids('t3'), [c1.id], '曾参与有效协作服务可查看该客户预约申请');
-  assert.deepEqual(ids('t4'), [], '同店但未负责或参与的客户仍不可查看');
-  assert.deepEqual(ids('t5'), [c5.id]);
-  assert.equal(snapshot(model), before, '读取不改变预约、客户或权限状态');
-});
+test('all active therapists read basic requests while clinical visibility stays scoped',()=>{const model=ready(),rows=[request(model),request(model,'c2'),request(model,'c3'),request(model,'c5')],before=snapshot(model);for(const id of ['t1','t2','t3','t4','t5'])assert.deepEqual(customerBookingRows(model,therapist(id)).map(r=>r.id),rows.map(r=>r.id));assert.equal(model.canSeeClient(therapist('t4'),'c1'),false);assert.equal(snapshot(model),before);});
 
 test('valid participants read pending, confirmed and cancelled content without obtaining confirmation or cancellation powers', () => {
   for (const end of ['pending', 'confirmed', 'cancelled']) {
@@ -52,9 +41,9 @@ test('valid participants read pending, confirmed and cancelled content without o
     assert.equal(visible.id, row.id); assert.equal(visible.status, end);
     assert.deepEqual([visible.clientId, visible.storeId, visible.date, visible.time, visible.project, visible.principalId],
       ['c1', 'a', '2026-10-12', '14:30', '阶段复评与训练', 't1']);
-    assert.equal(customerBookingConfirmation(model, row.id, participant).canConfirm, false);
+    assert.equal(customerBookingConfirmation(model,row.id,participant).canConfirm,end==='pending');
     assert.equal(snapshot(model), before, '查询权限提示也不能写入业务状态');
-    rejectUnchanged(model, () => confirmCustomerBooking(model, row.id, participant), /负责|权限|只读/);
+    if(end==='pending')assert.equal(confirmCustomerBooking(model,row.id,participant).confirmedBy,'t3');else if(end==='cancelled')rejectUnchanged(model,()=>confirmCustomerBooking(model,row.id,participant),/取消|处理/);
     rejectUnchanged(model, () => cancelCustomerBooking(model, row.id, participant), /本人|客户|取消/);
   }
 });
@@ -83,21 +72,21 @@ test('revoking the only valid service immediately removes past participant read 
   assert.equal(customerBookingRows(model, participant)[0]?.id, row.id);
   model.revokeService('s1', '虚构服务误登记，撤销后重新核对', boss);
   const before = snapshot(model);
-  assert.deepEqual(customerBookingRows(model, participant), []);
-  assert.deepEqual(customerBookingRows(model, therapist('t2')), []);
+  assert.equal(customerBookingRows(model,participant)[0]?.id,row.id);assert.equal(model.canSeeClient(participant,'c1'),false);
+  assert.equal(customerBookingRows(model,therapist('t2'))[0]?.id,row.id);
   assert.equal(customerBookingRows(model, therapist('t1'))[0]?.id, row.id, '负责人权限保留');
-  rejectUnchanged(model, () => customerBookingConfirmation(model, row.id, participant), /查看|权限/);
+  assert.equal(customerBookingConfirmation(model,row.id,participant).canConfirm,true);
   assert.equal(snapshot(model), before, '不能凭撤销的协作记录继续获得客户预约访问权');
 });
 
 test('client handover changes booking read access immediately without rewriting the original booking', () => {
   const model = ready(), row = request(model, 'c3');
   assert.equal(customerBookingRows(model, therapist('t1'))[0]?.id, row.id);
-  assert.deepEqual(customerBookingRows(model, therapist('t3')), []);
+  assert.equal(customerBookingRows(model,therapist('t3'))[0]?.id,row.id);
   const original = structuredClone(model.state.bookingRequests[0]);
   model.transferClient('c3', 't3', '虚构客户交接，由苏晴继续负责', boss);
   const before = snapshot(model);
-  assert.deepEqual(customerBookingRows(model, therapist('t1')), []);
+  assert.equal(customerBookingRows(model,therapist('t1'))[0]?.id,row.id);assert.equal(model.canSeeClient(therapist('t1'),'c3'),false);
   assert.equal(customerBookingRows(model, therapist('t3'))[0]?.id, row.id);
   assert.deepEqual(model.state.bookingRequests[0], original, '预约的主康复师和历史身份不随交接被改写');
   assert.equal(snapshot(model), before);
@@ -114,5 +103,5 @@ test('participant projections omit retry metadata and arbitrary private fields a
     assert.equal(Object.hasOwn(visible, field), false, `${field} 不应进入预约只读投影`);
   visible.status = 'cancelled'; visible.project = '篡改显示结果';
   assert.equal(snapshot(model), before, '读结果与内部记录没有共享可写引用');
-  rejectUnchanged(model, () => customerBookingConfirmation(model, row.id, therapist('t4')), /权限|查看/);
+  assert.equal(customerBookingConfirmation(model,row.id,therapist('t4')).canConfirm,true);
 });

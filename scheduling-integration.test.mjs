@@ -43,5 +43,5 @@ test('a service correction restores counts while an off-shift old appointment ne
  const schedule=scheduling.scheduleStatus(model,service.principalId,model.today);
  scheduling.saveSchedule(model,{therapistId:service.principalId,storeId:service.storeId,date:model.today,status:'rest',reason:'虚构当日服务结束后休息',requestId:'restore-shift',expectedVersion:schedule.version},boss);
  model.revokeService(service.id,'虚构更正服务登记',boss);
- assert.equal(appointment.status,'pending_reassignment');assert.match(appointment.reassignmentReason,/排班|休息/);assert.equal(service.status,'revoked');
+ const current=model.state.appointments.find(a=>a.id===appointment.id);assert.equal(current.status,'pending_reassignment');assert.match(current.reassignmentReason,/排班|休息/);assert.equal(model.state.services.find(s=>s.id===service.id).status,'revoked');
 });

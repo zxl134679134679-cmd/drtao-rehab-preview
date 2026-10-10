@@ -139,24 +139,24 @@ test('cancellation approval follows original cancel path and does not consume mo
   const before = JSON.stringify([m.state, m.sequence]); m.handleAppointmentCancellation('a3', { decision: 'approve', reason: '电话确认同意取消' }, t1); assert.equal(JSON.stringify([m.state, m.sequence]), before);
 });
 
-test('cancellation customer ownership and handler scope are checked before replay; managers stay read-only', () => {
+test('cancellation customer ownership and handler scope are checked before replay; cross-store managers remain denied', () => {
   const m = fresh(); for (const role of [t1, boss, { type: 'customer', id: 'c1' }]) unchanged(m, () => m.requestAppointmentCancellation('a3', { reason: '取消' }, role));
   m.requestAppointmentCancellation('a3', { reason: '取消' }, c3);
-  for (const role of [f2, { type: 'therapist', id: 't3' }, { type: 'manager', id: 'm1' }, c3, { type: 'boss', id: 'fake' }]) unchanged(m, () => m.handleAppointmentCancellation('a3', { decision: 'approve', reason: '同意' }, role));
+  for (const role of [f2, { type: 'therapist', id: 't3' }, { type: 'manager', id: 'm2' }, c3, { type: 'boss', id: 'fake' }]) unchanged(m, () => m.handleAppointmentCancellation('a3', { decision: 'approve', reason: '同意' }, role));
   for (const data of [{ decision: 'bad', reason: '说明' }, { decision: 'approve', reason: '' }]) unchanged(m, () => m.handleAppointmentCancellation('a3', data, boss));
   m.handleAppointmentCancellation('a3', { decision: 'approve', reason: '同意' }, boss);
   unchanged(m, () => m.handleAppointmentCancellation('a3', { decision: 'approve', reason: '同意' }, { type: 'boss', id: 'fake' }));
   unchanged(m, () => m.requestAppointmentCancellation('a3', { reason: '再取消' }, c3));
 });
 
-test('cancel requests are resolved when original booking ends, while service reversal restores a previously pending request', () => {
-  const m = fresh(), cash = receipt(m); m.requestAppointmentCancellation('a3', { reason: '可能赶不上' }, c3);
-  const row = m.registerService(serviceInput(m, cash, { appointmentId: 'a3' }), t1);
-  assert.equal(m.state.appointments.find(x => x.id === 'a3').cancellationRequest.status, 'superseded');
-  assert.equal(m.state.tasks.find(x => x.type === 'appointment_cancellation').status, 'completed');
-  m.revokeService(row.id, '实际未完成，请继续处理取消申请', boss);
-  assert.equal(m.state.appointments.find(x => x.id === 'a3').cancellationRequest.status, 'pending'); assert.equal(m.state.tasks.find(x => x.type === 'appointment_cancellation').status, 'pending');
-  m.cancelAppointment('a3', '门店主动取消', f1); assert.equal(m.state.appointments.find(x => x.id === 'a3').cancellationRequest.status, 'superseded');
+test('pending cancellation blocks service and remains rejected after later service correction', () => {
+  const m=fresh(),cash=receipt(m);m.requestAppointmentCancellation('a3',{reason:'可能赶不上'},c3);
+  unchanged(m,()=>m.registerService(serviceInput(m,cash,{appointmentId:'a3'}),t1),/取消|审批/);
+  m.handleAppointmentCancellation('a3',{decision:'reject',reason:'本人已确认继续到店'},boss);
+  const row=m.registerService(serviceInput(m,cash,{appointmentId:'a3'}),t1);m.revokeService(row.id,'资料更正',boss);
+  assert.equal(m.state.appointments.find(a=>a.id==='a3').cancellationRequest.status,'rejected');
+  m.cancelAppointment('a3','门店主动申请',f1);assert.equal(m.state.appointments.find(a=>a.id==='a3').status,'confirmed');
+  m.handleAppointmentCancellation('a3',{decision:'approve',reason:'批准取消'},boss);assert.equal(m.state.appointments.find(a=>a.id==='a3').status,'cancelled');
 });
 
 test('general task completion requires actual result, saves it and remains idempotent while special tasks keep action checks', () => {
@@ -178,14 +178,7 @@ test('boss may adjust pending general task owner and due date with reason, while
   m.completeTask(row.id, t4, { result: '已完成阶段复评' }); unchanged(m, () => m.updateTask(row.id, { ...input, assigneeId: 'boss' }, boss));
 });
 
-test('a customer cannot cancel after arrival, and an earlier pending cancellation cannot erase later arrival', () => {
-  const m = fresh(); m.requestAppointmentCancellation('a3', { reason: '可能无法到店' }, c3);
-  m.recordArrival('a3', { requestId: 'arrival', notes: '客户按原安排到店' }, f1);
-  unchanged(m, () => m.requestAppointmentCancellation('a3', { reason: '取消' }, c3), /到店/);
-  unchanged(m, () => m.handleAppointmentCancellation('a3', { decision: 'approve', reason: '取消' }, boss), /到店/);
-  m.handleAppointmentCancellation('a3', { decision: 'reject', reason: '客户已经到店，按原计划进行' }, f1);
-  assert.equal(m.state.appointments.find(x => x.id === 'a3').status, 'confirmed'); assert.ok(m.state.appointments.find(x => x.id === 'a3').arrivalAt);
-});
+test('pending cancellation blocks reception until the original authorized actor resolves it',()=>{const m=fresh();m.requestAppointmentCancellation('a3',{reason:'可能无法到店'},c3);unchanged(m,()=>m.recordArrival('a3',{requestId:'arrival'},f1),/取消/);m.handleAppointmentCancellation('a3',{decision:'reject',reason:'客户确认按原计划到店'},f1);m.recordArrival('a3',{requestId:'arrival',notes:'实际到店'},f1);unchanged(m,()=>m.requestAppointmentCancellation('a3',{reason:'取消'},c3),/到店/);assert.equal(m.state.appointments.find(x=>x.id==='a3').status,'confirmed');assert.ok(m.state.appointments.find(x=>x.id==='a3').arrivalAt);});
 
 test('execution authorization cannot leak through another local task and workflow clock failures do not partially write', () => {
   const m = fresh(); m.assignStoreTherapist({ clientId: 'c3', storeId: 'b', therapistId: 't4', reason: '崂山店执行' }, boss);
@@ -199,22 +192,22 @@ test('execution authorization cannot leak through another local task and workflo
   unchanged(m, () => m.completeTask('task1', t1, { result: '已完成评估' }), /时钟/);
 });
 
-test('changing a confirmed appointment supersedes its old pending cancellation instead of cancelling the replacement', () => {
-  const m = fresh(); m.requestAppointmentCancellation('a3', { reason: '今天不能到店' }, c3);
-  const original = structuredClone(m.state.appointments.find(x => x.id === 'a3').cancellationRequest);
-  m.saveAppointment({ id: 'a3', clientId: 'c3', storeId: 'a', principalId: 't1', date: '2026-10-10', time: '14:00', project: '阶段复评' }, boss);
-  const changed = m.state.appointments.find(x => x.id === 'a3');
-  assert.equal(changed.status, 'confirmed'); assert.equal(changed.cancellationRequest.status, 'superseded'); assert.equal(changed.cancellationRequest.appointmentDate, original.appointmentDate);
-  const task = m.state.tasks.find(x => x.cancellationRequestId === original.id); assert.equal(task.status, 'completed'); assert.match(task.completionReason, /安排.*变化|预约.*更新/);
-  unchanged(m, () => m.handleAppointmentCancellation('a3', { decision: 'approve', reason: '同意旧取消申请' }, boss), /已处理|过期|变化|重新/);
-  m.requestAppointmentCancellation('a3', { reason: '新安排也无法到店' }, c3);
-  assert.equal(m.state.appointments.find(x => x.id === 'a3').cancellationHistory.find(x => x.id === original.id).status, 'superseded');
-  assert.equal(m.state.appointments.find(x => x.id === 'a3').cancellationRequest.appointmentDate, '2026-10-10');
+test('pending cancellation blocks changes until rejected and keeps its original history', () => {
+  const m=fresh();m.requestAppointmentCancellation('a3',{reason:'今天不能到店'},c3);
+  const original=structuredClone(m.state.appointments.find(a=>a.id==='a3').cancellationRequest);
+  const data={id:'a3',clientId:'c3',storeId:'a',principalId:'t1',date:'2026-10-10',time:'14:00',project:'阶段复评'};
+  unchanged(m,()=>m.saveAppointment(data,boss),/取消|审批/);
+  m.handleAppointmentCancellation('a3',{decision:'reject',reason:'客户确认改约'},boss);m.saveAppointment(data,boss);
+  const changed=m.state.appointments.find(a=>a.id==='a3');assert.equal(changed.status,'confirmed');assert.equal(changed.cancellationRequest.status,'rejected');
+  unchanged(m,()=>m.handleAppointmentCancellation('a3',{decision:'approve',reason:'同意旧申请'},boss),/已处理/);
+  m.requestAppointmentCancellation('a3',{reason:'新安排也无法到店'},c3);
+  assert.equal(m.state.appointments.find(a=>a.id==='a3').cancellationHistory.find(r=>r.id===original.id).status,'rejected');
+  assert.equal(m.state.appointments.find(a=>a.id==='a3').cancellationRequest.appointmentDate,'2026-10-10');
 });
 
-test('unchanged staff saving retains pending cancellation while stale snapshot cannot approve a different date, time, store or therapist', () => {
+test('even unchanged staff saving is blocked by pending cancellation while stale snapshot cannot approve a different date, time, store or therapist', () => {
   const m = fresh(); m.requestAppointmentCancellation('a3', { reason: '临时有事' }, c3);
-  m.saveAppointment({ id: 'a3', clientId: 'c3', storeId: 'a', principalId: 't1', date: m.today, time: '14:00', project: '阶段复评' }, boss);
+  unchanged(m,()=>m.saveAppointment({ id: 'a3', clientId: 'c3', storeId: 'a', principalId: 't1', date: m.today, time: '14:00', project: '阶段复评' }, boss),/取消|审批/);
   assert.equal(m.state.appointments.find(x => x.id === 'a3').cancellationRequest.status, 'pending'); assert.equal(m.state.tasks.find(x => x.type === 'appointment_cancellation').status, 'pending');
   for (const [field, different] of [['date', '2026-10-10'], ['time', '15:00'], ['storeId', 'b'], ['principalId', 't3']]) {
     const loaded = replay(m); loaded.state.appointments.find(x => x.id === 'a3')[field] = different;

@@ -1,7 +1,7 @@
 // Desired times are requests, not live availability or confirmed appointments.
 // The preview's existing appointment model remains the confirmation authority.
-import { assertScheduleAvailability } from './schedules.js?v=20261010-assessor-personnel-1';
-import { bookingAvailability } from './booking-availability.js?v=20261010-assessor-personnel-1';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-assessor-reception-cancel-3';
+import { bookingAvailability } from './booking-availability.js?v=20261011-assessor-reception-cancel-3';
 const clone = value => JSON.parse(JSON.stringify(value));
 const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt', 'resolutionReason', 'resolvedBy', 'resolvedRole', 'resolvedAt', 'suggestedDate', 'suggestedTime', 'acceptedRequestId', 'acceptedBy', 'acceptedAt', 'sourceRequestId'];
 const publicRow = row => clone(Object.fromEntries(fields.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
@@ -33,12 +33,12 @@ function reader(model, role) {
   if (role?.type === 'therapist') return model._therapist(role.id);
   throw new Error('您没有查看预约申请的权限');
 }
-function confirmActor(model, row, role, allowManager = false) {
-  if (allowManager && role?.type === 'manager') return model._managerBookingActor(role, row.clientId, row.storeId, row.principalId);
-  if (isBoss(role)) return model._boss(role);
-  if (role?.type === 'frontdesk') return model._bookingActor(role, row.clientId, row.storeId);
-  if (role?.type === 'therapist' && (model._client(row.clientId).ownerId === role.id || row.principalId === role.id && model.clientStoreTherapist?.(row.clientId,row.storeId) === role.id)) return model._staff(role, row.clientId, row.storeId);
-  throw new Error('仅老板、授权门店前台或该客户的负责康复师、本店执行康复师有处理权限；店长仅能确认本店待预约');
+function confirmActor(model,row,role,confirmation=false) {
+ if(confirmation)return model._newBookingActor(role,row.clientId,row.storeId);
+ if(isBoss(role))return model._boss(role);
+ if(role?.type==='frontdesk')return model._bookingActor(role,row.clientId,row.storeId);
+ if(role?.type==='therapist'&&(model._client(row.clientId).ownerId===role.id||row.principalId===role.id&&model.clientStoreTherapist?.(row.clientId,row.storeId)===role.id))return model._staff(role,row.clientId,row.storeId);
+ throw new Error('仅老板、本店前台或原授权康复师有处理申请权限');
 }
 function assignment(model, row) {
   if (row.date < model.today) throw new Error('不能申请或确认过去的预约日期');
@@ -87,7 +87,7 @@ export function ensureCustomerBooking(model) {
     if (row.status === 'confirmed') text(row.appointmentId, '已确认预约标识');
     if (['reschedule_suggested','rejected','expired','suggestion_accepted'].includes(row.status)) {
       text(row.resolutionReason,'处理原因',500); text(row.resolvedBy,'处理人');
-      if (!['boss','frontdesk','therapist'].includes(row.resolvedRole) || !Number.isFinite(Date.parse(row.resolvedAt))) throw new Error('预约申请处理记录无效');
+      if (!['boss','frontdesk','therapist','manager'].includes(row.resolvedRole) || !Number.isFinite(Date.parse(row.resolvedAt))) throw new Error('预约申请处理记录无效');
     }
     if (['reschedule_suggested','suggestion_accepted'].includes(row.status)) { date(row.suggestedDate); time(row.suggestedTime); }
     if (row.status === 'suggestion_accepted') { text(row.acceptedRequestId,'已接受申请标识'); if (row.acceptedBy !== row.clientId || !Number.isFinite(Date.parse(row.acceptedAt))) throw new Error('客户接受建议的记录无效'); }
@@ -143,17 +143,7 @@ export function cancelCustomerBooking(model, id, role) {
 export function customerBookingRows(model, role) {
   reader(model, role);
   ensureCustomerBooking(model);
-  let storeIds;
-  if (role.type === 'frontdesk') storeIds = model.frontDeskStoreIds(role);
-  if (role.type === 'manager') storeIds = [model.managerStoreId(role)];
-  return model.state.bookingRequests.filter(row => {
-    if (isBoss(role)) return true;
-    if (role.type === 'customer') return row.clientId === role.id;
-    if (storeIds) return storeIds.includes(row.storeId);
-    // Reading follows the existing customer archive scope. Confirmation below
-    // stays with the responsible therapist; prior participation grants read only.
-    return model.state.therapists.find(t=>t.id===role.id)?.legacy ? model.canSeeClient(role, row.clientId) : row.principalId===role.id;
-  }).map(publicRow);
+  return model.state.bookingRequests.filter(row => role.type!=='customer'||row.clientId===role.id).map(publicRow);
 }
 
 export function confirmCustomerBooking(model, id, role) {

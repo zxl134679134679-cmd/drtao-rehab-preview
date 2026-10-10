@@ -38,7 +38,7 @@ test('shared intake respects role stores and keeps assessment and treatment sepa
     assert.doesNotMatch(html,/name="problem"/);
     if(kind==='boss')assert.match(html,/value="b"/);
     else assert.ok(!html.includes('value="b"'));
-    assert.doesNotMatch(html,/name="ownerId"|name="therapistId"/);assert.match(html,/涛博士/);assert.match(html,/预约时选择/);
+    assert.doesNotMatch(html,/name="ownerId"|name="therapistId"/);assert.match(html,/王勤涛/);assert.match(html,/预约时选择/);
   }
 });
 
@@ -48,7 +48,7 @@ test('actual app dispatch refuses manager intake, existing appointment edits, as
   assert.ok(start>=0&&end>start);
   const scope={workflowTypes,workflowDialog,role,model:m,customerBookingTypes:new Set(),receptionIntakeDialog:reception.receptionIntakeDialog,managerDialog,scheduleDialog, personnelDialog,ctx:()=>ctx(m,role)};
   vm.runInNewContext(source.slice(start,end)+'\nglobalThis.open=buildDialog;',scope);
-  for(const type of ['reception-create-client','paper-intake-create','appointment-edit','appointment-cancel','assessment-create','record-receipt','reset'])assert.throws(()=>scope.open(type,'c1'),/店长|权限/);
+  for(const type of ['reception-create-client','paper-intake-create','appointment-edit','record-receipt','reset'])assert.throws(()=>scope.open(type,'c1'),/店长|权限/);
 });
 
 test('manager can inspect frontdesk-created local clients without receiving intake or booking actions',()=>{
@@ -65,5 +65,5 @@ test('manager can inspect frontdesk-created local clients without receiving inta
 });
 
 test('therapist intake uses fixed assessment and no treatment assignment',()=>{
- const m=fixture(),submit={},hint={},form={dataset:{form:'reception-create-client'},elements:{storeId:{value:'a'}},querySelector:s=>s==='[type="submit"]'?submit:hint};reception.updateReceptionIntakeChoices(form,ctx(m,roles.therapist));assert.equal(submit.disabled,false);assert.match(hint.textContent,/涛博士/);assert.match(hint.textContent,/预约/);
+ const m=fixture(),submit={},hint={},form={dataset:{form:'reception-create-client'},elements:{storeId:{value:'a'}},querySelector:s=>s==='[type="submit"]'?submit:hint};reception.updateReceptionIntakeChoices(form,ctx(m,roles.therapist));assert.equal(submit.disabled,false);assert.match(hint.textContent,/王勤涛/);assert.match(hint.textContent,/预约/);
 });

@@ -48,14 +48,14 @@ export function workflowDialog(type,id,{model,role}){
   const request=a.cancellationRequest;
   const summary=`<h3>${esc(name(model,'clients',a.clientId))} · ${esc(a.date)} ${esc(a.time)}</h3><p>${esc(a.project)} · ${esc(name(model,'stores',a.storeId))} · ${esc(name(model,'therapists',a.principalId))}</p>`;
   if(type==='appointment-cancel-request'){
-   if(role.type!=='customer'||role.id!==a.clientId)throw new Error('仅客户本人可以申请取消');
+   if(role.type==='customer'){if(role.id!==a.clientId)throw new Error('仅客户本人可以申请取消');}else if(role.type==='frontdesk')model.assertCancellationActor(role,a);else throw new Error('仅客户本人或本店前台可申请取消');
    if(request?.status==='pending')return {title:'取消申请待门店处理',html:`${summary}<p class="notice">原预约时间仍保留，门店确认后才取消。本次申请不扣次数。</p><p>申请原因：${esc(request.reason)}</p>`};
    if(!['confirmed','reschedule_requested'].includes(a.status))throw new Error('该预约已处理，不能申请取消');
-   return {title:'申请取消预约',html:form(type,`${hidden('id',id)}${summary}${textarea('取消原因','reason','','required maxlength="500" placeholder="请说明需要取消的原因"')}<p class="notice">门店确认前，原预约仍保留；申请本身不扣次数、不改变收款。</p>`,'提交取消申请')};
+   return {title:'申请取消预约',html:form(type,`${hidden('id',id)}${summary}${textarea('取消原因','reason','','required maxlength="500" placeholder="请说明需要取消的原因"')}<p class="notice">${role.type==='frontdesk'?'老板或本店店长批准前':'门店确认前'}，原预约仍保留；申请本身不扣次数、不改变收款。</p>`,'提交取消申请')};
   }
-  model._bookingActor(role,a.clientId,a.storeId);
+  model.assertCancellationActor(role,a,{approval:request?.needsApproval===true||request?.source==='frontdesk'});
   if(request?.status!=='pending')return {title:'取消申请已处理',html:`${summary}<p class="notice">请返回查看最新预约状态。</p>`};
-  return {title:'处理客户取消申请',html:form(type,`${hidden('id',id)}${summary}<div class="note"><strong>客户申请取消</strong><p>${esc(request.reason)}</p></div><label class="field"><span>处理结果</span><select name="decision" required><option value="">请选择处理结果</option><option value="approve">同意取消 · 释放时间</option><option value="reject">暂不同意 · 保留预约</option></select></label>${textarea('处理说明','reason','','required maxlength="500" placeholder="说明已核对的情况，客户可以查看"')}<p class="meta">只处理预约，不扣次数、不退款。款项更正仍由老板处理。</p>`,'保存处理结果')};
+  return {title:'处理取消申请',html:form(type,`${hidden('id',id)}${summary}<div class="note"><strong>${request.source==='frontdesk'?'前台申请取消，待老板或本店店长批准':'客户申请取消'}</strong><p>${esc(request.reason)}</p></div><label class="field"><span>处理结果</span><select name="decision" required><option value="">请选择处理结果</option><option value="approve">${role.type==='frontdesk'?'核对同意 · 申请老板或本店店长批准':'同意取消 · 释放时间'}</option><option value="reject">暂不同意 · 保留预约</option></select></label>${textarea('处理说明','reason','','required maxlength="500" placeholder="说明已核对的情况，客户可以查看"')}<p class="meta">只处理预约，不扣次数、不退款。款项更正仍由老板处理。</p>`,'保存处理结果')};
  }
  if(type==='confirm-service-next-step'){
   const s=find(model,'services',id),c=s&&find(model,'clients',s.clientId);

@@ -1,4 +1,4 @@
-import { dailyOperationsSummary } from './daily-operations.js?v=20261010-assessor-personnel-1';
+import { dailyOperationsSummary } from './daily-operations.js?v=20261011-assessor-reception-cancel-3';
 
 const escape = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const money = value => `¥${Number(value).toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

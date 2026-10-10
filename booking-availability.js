@@ -1,4 +1,4 @@
-import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261010-assessor-personnel-1';
+import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261011-assessor-reception-cancel-3';
 
 const minutes = time => Number(time.slice(0,2))*60+Number(time.slice(3));
 const pending = row => ['confirmed','reschedule_requested','pending_reassignment'].includes(row.status);
@@ -41,7 +41,7 @@ export function updateAppointmentAvailability(form,ctx) {
     select.innerHTML=`<option value="">${people.length?'选择服务康复师':'请联系门店安排康复师'}</option>${people.map(row=>`<option value="${esc(row.id)}"${row.id===selected?' selected':''}>${esc(row.name)}</option>`).join('')}`;
     data.principalId=selected;
   }
-  if (ctx.role.type==='manager' && type==='appointment-create') {
+  if (ctx.role.type==='manager' && type==='appointment-create' && form.dataset.staffReception!=='true') {
     const boundStore=model.managerStoreId(ctx.role);
     if(storeId!==boundStore || !model.canSeeClient(ctx.role,data.clientId)) throw new Error('您没有此客户或门店的本店预约权限');
     const select=form.elements.principalId, eligible=customerBookingTherapists(model,data.clientId,boundStore,date).filter(person=>person.storeId===boundStore), previous=select.value;

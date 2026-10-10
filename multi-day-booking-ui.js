@@ -1,5 +1,5 @@
-import {bookingAvailability,customerBookingTherapists} from './booking-availability.js?v=20261010-assessor-personnel-1';
-import {scheduleStatus} from './schedules.js?v=20261010-assessor-personnel-1';
+import {bookingAvailability,customerBookingTherapists} from './booking-availability.js?v=20261011-assessor-reception-cancel-3';
+import {scheduleStatus} from './schedules.js?v=20261011-assessor-reception-cancel-3';
 const limit=14;
 const starts=Array.from({length:48},(_,slot)=>`${String(Math.floor(slot/2)).padStart(2,'0')}:${slot%2?'30':'00'}`);
 const escDefault=value=>String(value??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));

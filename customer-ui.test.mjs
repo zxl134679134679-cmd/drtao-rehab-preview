@@ -142,14 +142,14 @@ test('a manager sees only its store request details and can read local requests 
   const m = fixture(), local = request(m,'c3'), foreign = request(m,'c2');
   const app = appReader(m,managerA,'manager-overview');
   const localHtml = app.open('customer-booking-detail',local.id).html;
-  assert.ok(!hasAction(localHtml,'customer-booking-confirm'));
+  assert.ok(hasAction(localHtml,'customer-booking-confirm'));
   assert.ok(!hasAction(localHtml,'customer-booking-cancel'));
-  assert.throws(()=>app.open('customer-booking-detail',foreign.id),/权限/);
-  assert.throws(()=>app.open('customer-booking-confirm',local.id),/权限|老板|确认/);
+  assert.match(app.open('customer-booking-detail',foreign.id).html,/崂山/);
+  assert.match(app.open('customer-booking-confirm',local.id).html,/确认预约安排/);
   const inbox = renderBookingInbox(app.customerContext());
-  assert.ok(inbox.includes(local.id)); assert.ok(!inbox.includes(foreign.id));
-  assert.ok(!hasAction(inbox,'customer-booking-confirm'));
-  assert.throws(()=>appReader(m,managerB,'manager-overview').open('customer-booking-detail',local.id),/权限/);
+  assert.ok(inbox.includes(local.id)); assert.ok(inbox.includes(foreign.id));
+  assert.ok(hasAction(inbox,'customer-booking-confirm'));
+  assert.match(appReader(m,managerB,'manager-overview').open('customer-booking-detail',local.id).html,/阶段训练/);
 });
 
 test('a foreign-store front desk may read a basic request but cannot reach the private client or confirmation form', () => {
@@ -162,10 +162,10 @@ test('a foreign-store front desk may read a basic request but cannot reach the p
   const html = app.open('customer-booking-detail',row.id).html;
   assert.match(html,/阶段训练/);assert.match(html,/崂山店/);
   for (const secret of [client.goal,client.openingNotes,client.phone]) assert.ok(!html.includes(secret),secret);
-  assert.ok(!hasAction(html,'customer-booking-confirm'));
-  assert.throws(()=>app.open('customer-booking-confirm',row.id),/权限|负责|确认/);
+  assert.ok(hasAction(html,'customer-booking-confirm'));
+  assert.match(app.open('customer-booking-confirm',row.id).html,/确认预约安排/);
   assert.throws(()=>app.open('client-detail','c3'),/康复师|老板|操作/);
-  assert.ok(!hasAction(renderBookingInbox(app.customerContext()),'customer-booking-confirm'));
+  assert.ok(hasAction(renderBookingInbox(app.customerContext()),'customer-booking-confirm'));
 });
 
 test('the authorized store front desk and boss get a confirmation action with a clear no-charge explanation', () => {

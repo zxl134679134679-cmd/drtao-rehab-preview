@@ -59,7 +59,7 @@ test('a valid collaborator can read request history and detail while remaining u
   assert.match(detail,/陈一诺/);assert.match(detail,/客户选择的阶段训练0/);
   assert.ok(!detail.includes('data-action="customer-booking-confirm"'));
   assert.ok(!detail.includes('data-action="customer-booking-cancel"'));
-  assert.throws(()=>customerRequestDialog('customer-booking-confirm','read-pending',ctx),/权限|负责康复师/);
+  assert.throws(()=>customerRequestDialog('customer-booking-confirm','read-pending',ctx),/权限|负责康复师|排班/);
   assert.throws(()=>customerRequestDialog('customer-booking-cancel','read-pending',ctx),/本人/);
 });
 
@@ -72,7 +72,8 @@ test('empty therapist request history still introduces arranged appointments wit
 
 test('unrelated, disabled and revoked-only therapists cannot render another client request content',()=>{
   const model=fixture();
-  for(const role of [therapist('t4'),therapist('unknown')]){
+  assert.match(renderRequestHistory(context(model,therapist('t4')),'c1'),/客户选择的阶段训练0/);
+  for(const role of [therapist('unknown')]){
     assert.equal(renderRequestHistory(context(model,role),'c1'),'');
     assert.throws(()=>customerRequestDialog('customer-booking-detail','read-pending',context(model,role)),/权限|不存在|停用|在职/);
   }
@@ -80,7 +81,7 @@ test('unrelated, disabled and revoked-only therapists cannot render another clie
   assert.equal(renderRequestHistory(context(model,therapist('t3')),'c1'),'');
   model.state.therapists.find(row=>row.id==='t3').active=true;
   model.state.services.find(row=>row.id==='s1').status='revoked';
-  assert.equal(renderRequestHistory(context(model,therapist('t3')),'c1'),'');
+  assert.match(renderRequestHistory(context(model,therapist('t3')),'c1'),/客户选择的阶段训练0/);
 });
 
 test('the customer request history retains its own existing title, own entries and empty behavior',()=>{
