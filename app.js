@@ -1,20 +1,22 @@
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261010-staff-mobile-booking-1';
-import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261010-staff-mobile-booking-1';
-import { renderManager, managerDialog } from './manager.js?v=20261010-staff-mobile-booking-1';
+import {saveMultiDayBooking} from './multi-day-booking.js?v=20261010-multi-day-booking-1';
+import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261010-multi-day-booking-1';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261010-multi-day-booking-1';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261010-multi-day-booking-1';
+import { renderManager, managerDialog } from './manager.js?v=20261010-multi-day-booking-1';
 import { hourTimeField } from './hour-picker.js?v=20261009-daily-permissions-2';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261010-staff-mobile-booking-1';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261010-multi-day-booking-1';
 import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261009-daily-permissions-2';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261010-staff-mobile-booking-1';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261010-multi-day-booking-1';
 import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261009-daily-permissions-2';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261010-staff-mobile-booking-1';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261010-staff-mobile-booking-1';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261010-multi-day-booking-1';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261010-multi-day-booking-1';
 
 import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261009-daily-permissions-2';
 
 import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261009-daily-permissions-2';
 import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261009-daily-permissions-2';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261010-staff-mobile-booking-1';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261010-multi-day-booking-1';
 import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261009-daily-permissions-2';
 
 // Keep operations on the displayed example day. Real systems use server time.
@@ -355,6 +357,7 @@ function tourDialog() {
 const evaluationTypes = new Set(['assessment-create','assessment-history','assessment-detail','assessment-confirm','assessment-void','frontdesk-work','frontdesk-evaluate','frontdesk-evaluation-detail','frontdesk-evaluation-void']);
 const staffTypes = new Set(['register','edit-plan','appointment-create','appointment-edit','followup','add-store','add-therapist','add-frontdesk','transfer-client','import-opening','revoke-service','register-appointment','renew-package']);
 function buildDialog(type, id) {
+  if(type==='multi-day-booking')return multiDayBookingDialog(id,role.type==='customer'?customerCtx():ctx());
   if(workflowTypes.has(type))return workflowDialog(type,id,ctx());
   if(['add-therapist','add-frontdesk','add-manager','edit-therapist','edit-frontdesk','edit-manager'].includes(type))return personnelDialog(type,id,ctx());
   if(['schedule-edit','schedule-request','schedule-decision','schedule-notification'].includes(type))return scheduleDialog(type,id,ctx());
@@ -494,6 +497,7 @@ function openDialog(type,id = '') {
   sheet.classList.toggle('legacy-sheet',type==='import-opening-batch');
   $('.sheet-head .icon-button').innerHTML = icon('x',22);
   restoreBookingDraft($('#sheet-body form'),saved,ctx());
+  restoreMultiDayBookingDraft($('#sheet-body form'),saved,ctx());
   restoreDraft(saved);
   restoreReceptionIntakeDraft($('#sheet-body form'),saved,ctx());
   updateCustomerBookingForm($('#sheet-body form'),customerCtx());
@@ -508,6 +512,7 @@ function openDialog(type,id = '') {
   updatePaperIntakeForm($('#sheet-body form'),ctx());
   updateScheduleForm($('#sheet-body form'),ctx());
   updateAppointmentAvailability($('#sheet-body form'),ctx());
+  updateMultiDayBookingForm($('#sheet-body form'),ctx());
   if(type==='reception-create-client'&&$('#sheet-body form')?.elements.phone?.value)checkReceptionIntakePhone($('#sheet-body form'));
   if (['register','register-appointment'].includes(type)) {
     updateParticipants();
@@ -571,6 +576,14 @@ document.addEventListener('click', event => {
   const id = target.dataset.id || '';
   try {
     if(action==='schedule-notification-read'){markScheduleNotificationRead(model,id,role);render();openDialog('schedule-notification',id);toast('已标为已读，变更记录保留');return;}
+    if(['multi-day-add','multi-day-remove','multi-day-back'].includes(action)){
+      const f=$('#sheet-body form');if(dialogContext?.type!=='multi-day-booking'||f?.dataset.busy==='true')return;
+      if(action==='multi-day-add')addMultiDayBookingRow(f,ctx());
+      else if(action==='multi-day-remove')removeMultiDayBookingRow(target.closest('[data-multi-day-row]'),f,ctx());
+      else if(Number(f.dataset.step)===1)return closeDialog();
+      else {f.dataset.step='1';updateMultiDayBookingForm(f,ctx());}
+      saveDraft();return;
+    }
     if (['booking-add','booking-remove'].includes(action)) {
       const f = $('#sheet-body form');
       if(dialogContext?.type!=='appointment-batch'||f?.dataset.busy==='true')return;
@@ -673,6 +686,7 @@ document.addEventListener('input', event => {
   const f=event.target.closest('form');
   updatePaperIntakeForm(f,ctx());
   updateScheduleForm(f,ctx());
+  if(f?.dataset.form==='multi-day-booking'&&event.target.name==='project')updateMultiDayBookingForm(f,ctx());
   if(f?.dataset.form==='reception-create-client'&&event.target.name==='phone') {
     f.dataset.duplicate='false';f.querySelector('[data-intake-duplicates]').innerHTML='';
     updateReceptionIntakeChoices(f,ctx());
@@ -708,6 +722,7 @@ document.addEventListener('change', event => {
   if (event.target.name === 'principalId' && $('#sheet-body form')?.dataset.form === 'register') updateParticipants();
   updateAppointmentAvailability(intakeForm,ctx());
   updateCustomerBookingForm(intakeForm,customerCtx());
+  updateMultiDayBookingForm(intakeForm,ctx());
 });
 function updateParticipants() {
   const principal = $('#sheet-body [name="principalId"]')?.value;
@@ -764,6 +779,7 @@ document.addEventListener('submit', async event => {
   if (f.dataset.busy === 'true' || f.dataset.succeeded === 'true') return;
   if(f.dataset.form==='import-opening-batch'){void dialogContext?.legacyController?.submit();return;}
   if(f.dataset.form==='customer-booking' && !advanceCustomerBookingForm(f,customerCtx())) {saveDraft();return;}
+  if(f.dataset.form==='multi-day-booking'&&!advanceMultiDayBookingForm(f,ctx())){saveDraft();return;}
   if (!f.reportValidity()) return;
   const type = f.dataset.form;
   if (['register','register-appointment'].includes(type)) {
@@ -795,7 +811,7 @@ document.addEventListener('submit', async event => {
   }
   if(type==='paper-intake-select'){openDialog('paper-intake-create',data.clientId);return;}
   if(type==='cash-closing-select'){try{model.cashClosingSummary(role,{storeId:data.storeId,date:data.date});openDialog('cash-closing',JSON.stringify({storeId:data.storeId,date:data.date}));}catch(error){formError(f,error.message);}return;}
-  if(role.type==='manager' && !['appointment-create','customer-booking-confirm'].includes(type)) {formError(f,'店长仅有本店新建预约和待预约确认权限，其他操作请由对应工作人员处理');return;}
+  if(role.type==='manager' && !['appointment-create','customer-booking-confirm','multi-day-booking'].includes(type)) {formError(f,'店长仅有本店新建预约和待预约确认权限，其他操作请由对应工作人员处理');return;}
   if (type === 'filters') {
     if (data.from && data.to && data.from > data.to) { toast('开始日期不能晚于结束日期'); return; }
     filters = {...filters,...data}; render(); return;
@@ -821,6 +837,11 @@ document.addEventListener('submit', async event => {
       throw new Error(['record-receipt','settle-receipt','refund-receipt','void-receipt','void-refund','link-receipt-package','cash-closing','cash-closing-confirm'].includes(type)?'模拟提交失败：内容已保留，收支、套餐和日结未改变，请重试。':type==='record-arrival'?'模拟提交失败：到店状态未改变，请重试。':'模拟提交失败：内容已保留，未扣次数，请重试。');
     }
     let result;
+    if(type==='multi-day-booking'){
+      result=saveMultiDayBooking(model,{clientId:data.clientId,storeId:data.storeId,project:data.project,items:multiDayBookingItems(fd),requestId:context.requestId},role);
+      drafts.delete(context.key);f.dataset.succeeded='true';render();
+      showSuccess(role.type==='customer'?`${result.count} 天预约申请已提交，待门店确认`:`${result.count} 天预约已确认`,multiDayResultSummary(result,ctx()));return;
+    }
     if(['task-complete','task-edit','assign-store-therapist','appointment-cancel-request','appointment-cancel-handle','confirm-service-next-step'].includes(type)) {
       if(type==='task-complete') result=model.completeTask(data.id,role,{result:data.result});
       else if(type==='task-edit'){assertBoss();result=model.updateTask(data.id,data,role);}
@@ -952,11 +973,11 @@ document.addEventListener('submit', async event => {
     } else throw new Error('此表单暂不可提交');
     drafts.delete(context.key); f.dataset.succeeded = 'true'; closeDialog(false); render();
     toast(({ 'record-arrival':'已确认到店，套餐次数未改变','void-receipt':'错误收款已撤销，原记录保留','void-refund':'错误退款已撤销，原记录保留','edit-plan':'计划已保存，客户页面同步更新','appointment-create':'服务安排已确认','appointment-edit':'新的服务安排已确认','appointment-cancel':'预约已取消，未扣次数','appointment-no-show':'未到店已记录，未扣次数','activate-package':'当前使用套餐已切换，历史余额和业绩各自保留',reschedule:'改约申请已提交，等待工作人员确认',followup:'回访结果已保存','add-store':'新门店已加入，共用客户档案','add-therapist':'康复师已加入，可分配客户','transfer-client':'负责人已转交，历史业绩保留原归属','import-opening':'期初档案已录入，不产生新消费业绩','deactivate-therapist':'康复师已停用，历史记录保留','add-frontdesk':'前台已加入，可在预览身份切换体验','deactivate-frontdesk':'前台账号已停用，历史记录保留' })[type] || '已保存');
-  } catch (error) { if (f.isConnected) formError(f,error.message); else toast(error.message); }
+  } catch (error) { if (f.isConnected) formError(f,type==='multi-day-booking'&&!error.message.includes('本批未保存')?`${error.message}。本批未保存，请调整后重试`:error.message); else toast(error.message); }
   finally {
     f.dataset.busy = 'false';
     submits.forEach(el => { el.disabled = false; el.textContent = el.dataset.original; });
-    if(f.isConnected){if(f.dataset.form==='assign-store-therapist')updateWorkflowForm(f,ctx());updateReceptionIntakeChoices(f,ctx());updatePaperIntakeForm(f,ctx());updateScheduleForm(f,ctx());updateAppointmentAvailability(f,ctx());}
+    if(f.isConnected){if(f.dataset.form==='assign-store-therapist')updateWorkflowForm(f,ctx());updateReceptionIntakeChoices(f,ctx());updatePaperIntakeForm(f,ctx());updateScheduleForm(f,ctx());updateAppointmentAvailability(f,ctx());if(type==='multi-day-booking')updateMultiDayBookingForm(f,ctx());}
     updateEvidencePicker();
   }
 });

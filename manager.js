@@ -1,7 +1,7 @@
 import { renderCashClosingSummary } from './cash.js?v=20261009-daily-permissions-2';
 /* Store managers supervise local work; only single new bookings and pending confirmations are writable. */
 import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261009-daily-permissions-2';
-import { renderBookingInbox } from './customer-ui.js?v=20261010-staff-mobile-booking-1';
+import { renderBookingInbox } from './customer-ui.js?v=20261010-multi-day-booking-1';
 import { renderDailyOperations } from './daily-operations-ui.js?v=20261009-daily-permissions-2';
 const CHANNELS = {direct:'门店收款',douyin:'抖音',meituan:'美团',other_platform:'其他平台'};
 const METHODS = {wechat:'微信',alipay:'支付宝',cash:'现金',bank:'银行转账'};
@@ -53,7 +53,7 @@ function businessDate(stamp) {
 function between(value,from,to) { return Boolean(value) && (!from || value >= from) && (!to || value <= to); }
 
 function heading(x,title,description) {
-  return `<div class="page-head"><div><span class="eyebrow">${x.esc(x.all.store.name)} · 店长工作台</span><h1>${x.esc(title)}</h1><p class="muted">${x.esc(description)}</p><p class="meta">可代客户新建本店预约、确认待预约；其他资料监管查看，调整由对应工作人员处理。</p></div><div class="action-row">${x.button('代客户预约','appointment-create','','btn-primary')}${x.tag(`${x.all.manager.name} · 监管查看`,'green')}</div></div>`;
+  return `<div class="page-head"><div><span class="eyebrow">${x.esc(x.all.store.name)} · 店长工作台</span><h1>${x.esc(title)}</h1><p class="muted">${x.esc(description)}</p><p class="meta">可代客户新建本店预约、确认待预约；其他资料监管查看，调整由对应工作人员处理。</p></div><div class="action-row">${x.button('代客户预约','appointment-create','','btn-primary')}${x.button('一次约多天','multi-day-booking','','btn-outline')}${x.tag(`${x.all.manager.name} · 监管查看`,'green')}</div></div>`;
 }
 function periodFilter(x) {
   return `<form class="filters" data-form="manager-filters"><label class="field"><span>开始日期</span><input type="date" name="from" value="${x.esc(x.snapshot.from || '')}"></label><label class="field"><span>结束日期</span><input type="date" name="to" value="${x.esc(x.snapshot.to || '')}"></label><button class="btn btn-primary" type="submit">查看</button>${x.button('全部时间','manager-clear-filters','','btn-quiet')}</form>`;
@@ -101,7 +101,7 @@ function clientList(ctx) {
   const clients = (x.all.clients || []).filter(row => !query || `${row.name} ${row.phone || ''}`.toLowerCase().includes(query));
   const cards = clients.map(client => {
     const next = scheduled((x.all.appointments || []).filter(row => row.clientId === client.id && row.date >= x.today && PENDING_APPOINTMENTS.has(row.status)))[0];
-    return `<article class="card person-card"><div class="section-head"><h2>${x.esc(client.name)}</h2>${x.tag(client.total?`剩余 ${client.remaining} 次`:'尚未办理本店套餐',client.total&&client.remaining <= 2 ? 'warn' : 'green')}</div><p class="meta">${x.esc(client.phone || '手机号待补充')} · 负责人 ${x.esc(x.name('therapists',client.ownerId))}</p><p class="client-goal">${x.esc(client.goal || client.planName || '计划待完善')}</p><p class="meta">本店下次服务：${next ? `${x.esc(next.date)} ${x.esc(next.time)}` : '待安排'}</p><p class="meta">${x.esc(client.nextStep || '下一步待康复师更新')}</p><div class="action-row">${x.link('查看档案与本店记录','manager-client',client.id)}${x.button('代客户预约','appointment-create',client.id,'btn-primary')}${x.button('接待记录','paper-intake-list',client.id)}</div></article>`;
+    return `<article class="card person-card"><div class="section-head"><h2>${x.esc(client.name)}</h2>${x.tag(client.total?`剩余 ${client.remaining} 次`:'尚未办理本店套餐',client.total&&client.remaining <= 2 ? 'warn' : 'green')}</div><p class="meta">${x.esc(client.phone || '手机号待补充')} · 负责人 ${x.esc(x.name('therapists',client.ownerId))}</p><p class="client-goal">${x.esc(client.goal || client.planName || '计划待完善')}</p><p class="meta">本店下次服务：${next ? `${x.esc(next.date)} ${x.esc(next.time)}` : '待安排'}</p><p class="meta">${x.esc(client.nextStep || '下一步待康复师更新')}</p><div class="action-row">${x.link('查看档案与本店记录','manager-client',client.id)}${x.button('代客户预约','appointment-create',client.id,'btn-primary')}${x.button('一次约多天','multi-day-booking',client.id,'btn-outline')}${x.button('接待记录','paper-intake-list',client.id)}</div></article>`;
   }).join('');
   return `<div class="manager-dashboard">${heading(x,'本店客户','查找本店客户，代约时间或查看本店工作记录。')}<form class="toolbar" data-form="manager-search"><label class="field search-field"><span>查找客户</span><input name="query" type="search" value="${x.esc(ctx.filters?.query || '')}" placeholder="输入姓名或手机号" maxlength="80"></label><button type="submit" class="btn btn-primary">查找</button></form><div class="section-head"><h2>客户档案</h2><span class="muted">${clients.length} 位</span></div><div class="client-grid">${cards || x.empty('未找到本店客户，请更换搜索内容。')}</div></div>`;
 }

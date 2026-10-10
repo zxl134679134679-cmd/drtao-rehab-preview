@@ -1,5 +1,5 @@
-import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261010-staff-mobile-booking-1';
-import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261010-staff-mobile-booking-1';
+import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261010-multi-day-booking-1';
+import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261010-multi-day-booking-1';
 
 export const customerBookingTypes = new Set(['customer-booking', 'customer-booking-detail', 'customer-booking-cancel', 'customer-booking-confirm', 'customer-booking-resolve', 'customer-booking-accept']);
 const statusLabels={pending:'待门店确认',confirmed:'申请已处理',cancelled:'申请已取消',reschedule_suggested:'门店建议 · 待您接受',rejected:'无法安排',expired:'申请已过期',suggestion_accepted:'已接受建议 · 新申请待确认'};
@@ -21,7 +21,7 @@ export function renderCustomerHome(ctx) {
   const recent = completed.find(row => !reviewFor(row.id)) || completed[0];
   const review = recent && reviewFor(recent.id);
   return `<div class="booking-home">
-    <section class="booking-hero"><p>${esc(client.name)}，你好</p><h1>下次康复，轻松约好</h1><span class="booking-store-line">${model.state.stores.filter(s => s.active !== false).map(s => esc(s.name)).join(' · ')}</span>${button('预约康复','customer-booking',client.id,'booking-primary','arrow-right')}<p class="booking-hero-hint">选择期望时间，门店确认后再到店</p></section>
+    <section class="booking-hero"><p>${esc(client.name)}，你好</p><h1>下次康复，轻松约好</h1><span class="booking-store-line">${model.state.stores.filter(s => s.active !== false).map(s => esc(s.name)).join(' · ')}</span>${button('预约康复','customer-booking',client.id,'booking-primary','arrow-right')}${button('一次约多天','multi-day-booking',client.id,'multi-day-entry')}<p class="booking-hero-hint">选择期望时间，门店确认后再到店</p></section>
     <div class="booking-content">
       <section class="booking-balance" aria-label="我的套餐次数"><label class="booking-store-filter"><span>查看哪个店的套餐</span><select data-customer-store aria-label="查看门店套餐">${model.state.stores.filter(store=>store.active!==false).map(store=>`<option value="${esc(store.id)}"${store.id===storeId?' selected':''}>${esc(store.name)}</option>`).join('')}</select></label><button data-action="package-store" data-id="${esc(client.id)}:${esc(storeId)}"><span>套餐剩余次数 <small class="tag tag-green">仅限${esc(name('stores',storeId))}</small></span><strong>${remaining}<em> 次</em></strong><small>${packs.length ? `已用 ${used} / 共 ${total} 次` : '暂无本店套餐'} · 查看使用明细 ${icon('chevron-right',14)}</small></button></section>
       ${storeBalances.length > 1 ? `<p class="booking-store-balances">${storeBalances.map(store=>`<span>${esc(store.name)} <strong>${store.remaining} 次</strong></span>`).join('')}<small>各店套餐分别使用</small></p>` : ''}
