@@ -1,36 +1,35 @@
-import {serviceEvidenceOwner,serviceVisitRows,purchasedCardDetails,renderOperationsPanel,operationsDialog,operationsTypes,updateOperationsForm,serviceItemsFromForm,dispatchOperations} from './operations-ui.js?v=20261011-operations-closed-loop-8b';
-import {mountClientSearch,handleClientSearchInput,validateClientSearchSelection} from './client-search.js?v=20261011-operations-closed-loop-8b';
-import {renderPurchasePanel,purchaseDialog,purchaseLinesFromForm} from './package-purchase-ui.js?v=20261011-operations-closed-loop-8b';
-import {approvedPurchaseReceipt,approvedPurchaseSettlement} from './package-purchase.js?v=20261011-operations-closed-loop-8b';
-import {renderFranchiseManagement,renderFranchiseDashboard,franchiseDialog} from './franchise-ui.js?v=20261011-operations-closed-loop-8b';
-import {INITIAL_CASE_FIELDS,updatePaperIntakeSearch,paperIntakeSelection} from './paper-case-form.js?v=20261011-operations-closed-loop-8b';
-import {renderStaffReception,staffReceptionDialog,updateAssessorChoices,restoreAssessorDraft} from './staff-reception.js?v=20261011-operations-closed-loop-8b';
-import { bossDecisionDialog } from './boss-decision.js?v=20261011-operations-closed-loop-8b';
-import {saveMultiDayBooking} from './multi-day-booking.js?v=20261011-operations-closed-loop-8b';
-import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261011-operations-closed-loop-8b';
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples, ensureFranchisePreviewExamples } from './core.js?v=20261011-operations-closed-loop-8b';
-import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261011-operations-closed-loop-8b';
-import { renderManager, managerDialog } from './manager.js?v=20261011-operations-closed-loop-8b';
-import { hourTimeField } from './hour-picker.js?v=20261011-operations-closed-loop-8b';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261011-operations-closed-loop-8b';
-import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261011-operations-closed-loop-8b';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261011-operations-closed-loop-8b';
-import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261011-operations-closed-loop-8b';
+import {serviceEvidenceOwner,serviceVisitRows,purchasedCardDetails,renderOperationsPanel,operationsDialog,operationsTypes,updateOperationsForm,serviceItemsFromForm,dispatchOperations} from './operations-ui.js?v=20261012-identity-flow-9';
+import {mountClientSearch,handleClientSearchInput,validateClientSearchSelection} from './client-search.js?v=20261012-identity-flow-9';
+import {renderPurchasePanel,purchaseDialog,purchaseLinesFromForm} from './package-purchase-ui.js?v=20261012-identity-flow-9';
+import {approvedPurchaseReceipt,approvedPurchaseSettlement} from './package-purchase.js?v=20261012-identity-flow-9';
+import {renderFranchiseManagement,renderFranchiseDashboard,franchiseDialog} from './franchise-ui.js?v=20261012-identity-flow-9';
+import {INITIAL_CASE_FIELDS,updatePaperIntakeSearch,paperIntakeSelection} from './paper-case-form.js?v=20261012-identity-flow-9';
+import {renderStaffReception,staffReceptionDialog,updateAssessorChoices,restoreAssessorDraft} from './staff-reception.js?v=20261012-identity-flow-9';
+import { bossDecisionDialog } from './boss-decision.js?v=20261012-identity-flow-9';
+import {saveMultiDayBooking} from './multi-day-booking.js?v=20261012-identity-flow-9';
+import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261012-identity-flow-9';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples, ensureFranchisePreviewExamples } from './core.js?v=20261012-identity-flow-9';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261012-identity-flow-9';
+import { renderManager, managerDialog } from './manager.js?v=20261012-identity-flow-9';
+import { hourTimeField } from './hour-picker.js?v=20261012-identity-flow-9';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261012-identity-flow-9';
+import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261012-identity-flow-9';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261012-identity-flow-9';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261012-identity-flow-9';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261011-operations-closed-loop-8b';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261011-operations-closed-loop-8b';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261012-identity-flow-9';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261012-identity-flow-9';
 
-import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, amendPaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261011-operations-closed-loop-8b';
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, amendPaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261012-identity-flow-9';
 
-import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261011-operations-closed-loop-8b';
-import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261011-operations-closed-loop-8b';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261011-operations-closed-loop-8b';
-import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261011-operations-closed-loop-8b';
+import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261012-identity-flow-9';
+import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261012-identity-flow-9';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261012-identity-flow-9';
+import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261012-identity-flow-9';
 
-// Keep operations on the displayed example day. Real systems use server time.
+// Use one fixed business moment for the fictional preview. Real systems use server time.
 function previewTimestamp() {
-  const time = new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Shanghai',hour:'2-digit',minute:'2-digit',second:'2-digit',hourCycle:'h23'}).format(new Date());
-  return new Date(`${TODAY}T${time}+08:00`).toISOString();
+  return new Date(`${TODAY}T18:00:00+08:00`).toISOString();
 }
 let model = new DemoModel({now:previewTimestamp});
 model.initializeOperationsWorkflow();
@@ -572,7 +571,7 @@ function openDialog(type,id = '') {
 async function loadLegacyDialog(context) {
   const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
   try {
-    const legacy=await import('./legacy.js?v=20261011-operations-closed-loop-8b');
+    const legacy=await import('./legacy.js?v=20261012-identity-flow-9');
     if(!active())return;
     $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
     context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,

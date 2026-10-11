@@ -1,6 +1,6 @@
-import {initialAssessmentFields,purchasedCardDetails} from './operations-ui.js?v=20261011-operations-closed-loop-8b';
-import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261011-operations-closed-loop-8b';
-import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-operations-closed-loop-8b';
+import {initialAssessmentFields,purchasedCardDetails} from './operations-ui.js?v=20261012-identity-flow-9';
+import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261012-identity-flow-9';
+import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261012-identity-flow-9';
 
 export const customerBookingTypes = new Set(['customer-booking', 'customer-booking-detail', 'customer-booking-cancel', 'customer-booking-confirm', 'customer-booking-resolve', 'customer-booking-accept']);
 const statusLabels={pending:'待门店确认',confirmed:'申请已处理',cancelled:'申请已取消',reschedule_suggested:'门店建议 · 待您接受',rejected:'无法安排',expired:'申请已过期',suggestion_accepted:'已接受建议 · 新申请待确认'};
@@ -39,7 +39,7 @@ export function renderCustomerHome(ctx) {
 
 function requestSummary(row, ctx) {
   const { esc, fmt: { date }, ui: { name, pair } } = ctx;
-  return `<div class="detail-grid">${pair('客户',name('clients',row.clientId))}${pair('服务门店',name('stores',row.storeId))}${pair('期望时间',`${date(row.date)} ${row.time}`)}${pair('期望康复师',name('therapists',row.principalId))}</div><p class="meta">项目：${esc(row.project)}</p>`;
+  return `<div class="detail-grid">${pair('客户',name('clients',row.clientId))}${pair('服务门店',name('stores',row.storeId))}${pair('期望时间',`${date(row.date)} ${row.time}`)}${pair('期望康复师',name('therapists',row.principalId))}${row.assessorId?pair('本次评估师',name('assessors',row.assessorId)):''}${row.assessmentTime?pair('评估时间',`${date(row.date)} ${row.assessmentTime}`):''}</div><p class="meta">项目：${esc(row.project)}</p>`;
 }
 
 function resolutionSummary(row,ctx) {
@@ -56,7 +56,7 @@ export function customerRequestDialog(type, id, ctx) {
   if (type === 'customer-booking') {
     if (role.type !== 'customer' || id && id !== role.id) throw new Error('只有客户本人可以申请预约');
     const client = model._client(role.id);
-    return { title:'预约康复', html:`<form data-form="customer-booking" data-step="1" novalidate>${hidden('project','康复服务')}<ol class="booking-steps" aria-label="预约流程"><li data-booking-progress="1" aria-current="step"><b>1</b>选门店</li><li data-booking-progress="2"><b>2</b>选时间</li><li data-booking-progress="3"><b>3</b>确认申请</li></ol><p class="booking-client-summary">${esc(client.name)} · 评估师 ${esc(model.state.assessors.find(p=>p.id===client.assessorId)?.name||'王勤涛')} · 治疗师 预约时选择</p><section data-booking-step="1"><h3>您想去哪个店？</h3><fieldset class="booking-store-picker"><legend class="sr-only">服务门店</legend>${model.state.stores.filter(store=>store.active !== false).map(store=>`<label><input type="radio" name="storeId" value="${esc(store.id)}" required${store.id === (selectedStoreId || client.storeId) ? ' checked' : ''}><span>${esc(store.name)}<small>本店套餐剩余 ${model.remainingInStore(client.id,store.id)} 次 · 仅限本店</small></span></label>`).join('')}</fieldset></section><section data-booking-step="2" hidden><h3>哪天、几点方便到店？</h3><div class="form-grid">${field('期望到店日期','date','','date',`required min="${model.today}"`)}<label class="field"><span>服务康复师</span><select name="principalId" required><option value="">预约时选择服务治疗师</option></select></label>${hourTimeField('',esc,'期望开始时间')}${initialAssessmentFields(model,client.id,selectedStoreId||client.storeId)}</div><p class="booking-request-explainer">可选整点或半点开始，按已确认排班与当前预约筛选。提交后仍需门店确认。</p><p class="meta">预览使用示例业务日期；这些时间选项不表示实时空位。</p></section><section data-booking-step="3" hidden><h3>核对您的预约申请</h3><div data-booking-summary></div><div class="note"><strong>提交后，待门店确认</strong><p>申请不扣套餐次数、不收款。确认安排后再到店，完成服务后登记消课。</p></div></section><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="customer-booking-back">暂不预约</button><button type="submit" class="btn btn-primary">下一步：选时间</button></div></form>` };
+    return { title:'预约康复', html:`<form data-form="customer-booking" data-step="1" novalidate>${hidden('project','康复服务')}<ol class="booking-steps" aria-label="预约流程"><li data-booking-progress="1" aria-current="step"><b>1</b>选门店</li><li data-booking-progress="2"><b>2</b>选时间</li><li data-booking-progress="3"><b>3</b>确认申请</li></ol><p class="booking-client-summary">${esc(client.name)} · 评估师 ${esc(model.state.assessors.find(p=>p.id===client.assessorId)?.name||'王勤涛')} · 治疗师 预约时选择</p><section data-booking-step="1"><h3>您想去哪个店？</h3><fieldset class="booking-store-picker"><legend class="sr-only">服务门店</legend>${model.state.stores.filter(store=>store.active !== false).map(store=>`<label><input type="radio" name="storeId" value="${esc(store.id)}" required${store.id === (selectedStoreId || client.storeId) ? ' checked' : ''}><span>${esc(store.name)}<small>本店套餐剩余 ${model.remainingInStore(client.id,store.id)} 次 · 仅限本店</small></span></label>`).join('')}</fieldset></section><section data-booking-step="2" hidden><h3>哪天、几点方便到店？</h3><div class="form-grid">${field('期望到店日期','date','','date',`required min="${model.today}"`)}<label class="field"><span>服务康复师</span><select name="principalId" required><option value="">预约时选择服务治疗师</option></select></label>${hourTimeField('',esc,'期望开始时间')}${initialAssessmentFields(model,client.id,selectedStoreId||client.storeId)}</div><p class="booking-request-explainer">可选整点或半点开始，按已确认排班与当前预约筛选。提交后仍需门店确认。</p><p class="meta">预览使用示例业务日期，演示当前时间 18:00；这些时间选项不表示实时空位。</p></section><section data-booking-step="3" hidden><h3>核对您的预约申请</h3><div data-booking-summary></div><div class="note"><strong>提交后，待门店确认</strong><p>申请不扣套餐次数、不收款。确认安排后再到店，完成服务后登记消课。</p></div></section><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="customer-booking-back">暂不预约</button><button type="submit" class="btn btn-primary">下一步：选时间</button></div></form>` };
   }
   const row = customerBookingRows(model, role).find(row => row.id === id);
   if (!row) throw new Error('您没有查看此预约申请的权限');
@@ -128,6 +128,8 @@ export function updateCustomerBookingForm(form, ctx) {
   form.querySelector('[data-action="customer-booking-back"]').textContent=step===1?'暂不预约':'上一步';
   updateAppointmentAvailability(form,ctx);
   const data=Object.fromEntries(new FormData(form));
+  const client=ctx.model._client(ctx.role.id),selectedAssessor=ctx.model.state.assessors.find(person=>person.id===data.assessorId),selectedTherapist=ctx.model.state.therapists.find(person=>person.id===data.principalId);
+  form.querySelector('.booking-client-summary').textContent=`${client.name}${data.assessorId?' · 本次评估师 '+(selectedAssessor?.name||'待核对'):''} · 治疗师 ${selectedTherapist?.name||'预约时选择'}`;
   form.querySelector('[data-booking-summary]').innerHTML=requestSummary({...data,clientId:ctx.role.id},ctx);
 }
 

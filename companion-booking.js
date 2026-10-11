@@ -1,7 +1,7 @@
-import {keyedAssessmentFields} from './operations-ui.js?v=20261011-operations-closed-loop-8b';
-import {registerClientChoiceSource,refreshClientChoiceSource} from './client-search.js?v=20261011-operations-closed-loop-8b';
-import { hourTimeField } from './hour-picker.js?v=20261011-operations-closed-loop-8b';
-import { receptionStores } from './reception.js?v=20261011-operations-closed-loop-8b';
+import {keyedAssessmentFields} from './operations-ui.js?v=20261012-identity-flow-9';
+import {registerClientChoiceSource,refreshClientChoiceSource} from './client-search.js?v=20261012-identity-flow-9';
+import { hourTimeField } from './hour-picker.js?v=20261012-identity-flow-9';
+import { receptionStores } from './reception.js?v=20261012-identity-flow-9';
 
 const limit = 20;
 function clients(ctx) { return ctx.model.visibleClients(ctx.role); }

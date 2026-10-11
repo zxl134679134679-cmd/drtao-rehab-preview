@@ -1,5 +1,5 @@
-import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261011-operations-closed-loop-8b';
-import {bookingAvailability} from './booking-availability.js?v=20261011-operations-closed-loop-8b';
+import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261012-identity-flow-9';
+import {bookingAvailability} from './booking-availability.js?v=20261012-identity-flow-9';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const appointmentFields=['id','clientId','storeId','date','time','principalId','project','status','assessorId','assessmentTime','initialAssessmentRequired'];
 const safeAppointment=row=>clone(Object.fromEntries(appointmentFields.map(key=>[key,row[key]])));
@@ -8,8 +8,7 @@ function day(value){const date=required(value,'预约日期',10),stamp=Date.pars
 function hour(value){const time=required(value,'开始时间',5);if(!/^([01]\d|2[0-3]):(00|30)$/.test(time))throw new Error('请选择整点或半点开始时间');return time;}
 function authorize(model,input,row,role){
  if(role?.type==='customer'){if(input.clientId!==role.id)throw new Error('仅能为客户本人预约');model._client(role.id);}
- else if(role?.type==='manager')model._managerBookingActor(role,input.clientId,input.storeId,row.principalId);
- else model._bookingActor(role,input.clientId,input.storeId);
+ else model._newBookingActor(role,input.clientId,input.storeId);
  const store=model._store(input.storeId);if(store.active===false)throw new Error('该门店已停用');
  const person=model._therapist(row.principalId);
  if(!model.bookingTherapistAllowed(person.id,input.clientId,input.storeId))throw new Error('此康复师没有客户在本店的服务权限，请联系门店安排');

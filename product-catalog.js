@@ -1,6 +1,6 @@
 class ApiError extends Error { constructor(status,code,message){super(message);this.status=status;this.code=code;} }
 const denied=()=>new ApiError(403,'PERMISSION_DENIED','您没有当前门店的商品权限');
-import {assertManageStore,canManageStore,isRootBoss,ownerStoreIdsForState as ownerStoreIds} from './franchise-scope.js?v=20261011-operations-closed-loop-8b';
+import {assertManageStore,canManageStore,isRootBoss,ownerStoreIdsForState as ownerStoreIds} from './franchise-scope.js?v=20261012-identity-flow-9';
 
 export const SERVICE_IDS=Object.freeze(['rehabilitation','cryotherapy','iastm','deep-stretch']);
 const templates=[['annual','年卡','annual'],['half-year','半年卡','half-year'],['cryo','超低温冷疗','service'],['iastm','筋膜刀','service'],['stretch','深度拉伸放松治疗','service'],['equipment','器械','equipment']];

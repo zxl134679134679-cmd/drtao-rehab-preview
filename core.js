@@ -1,10 +1,10 @@
-import { initializeOperationsWorkflow, operationsEnabled, bindingCommand, isSameStagedVisit, firstVisit, saveAssessmentSchedule, assertAssessmentBooking, serviceReadiness, registerServiceGroup, revokeServiceGroup, configureReceptionDuty, receptionDutyFor, receptionDutyRows, cancellationAssignment, refreshReceptionEscalations, workflowBlockersView } from './operations-workflow.js?v=20261011-operations-closed-loop-8b';
-import {assertApprovedAmount,assertPurchasedService,purchasedNetReceived,syncPurchasedActivation,purchaseCommands,purchaseView} from './package-purchase.js?v=20261011-operations-closed-loop-8b';
-import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261011-operations-closed-loop-8b';
-import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261011-operations-closed-loop-8b';
-import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-operations-closed-loop-8b';
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-operations-closed-loop-8b';
-import { assertScheduleAvailability } from './schedules.js?v=20261011-operations-closed-loop-8b';
+import { initializeOperationsWorkflow, operationsEnabled, bindingCommand, isSameStagedVisit, firstVisit, saveAssessmentSchedule, assertAssessmentBooking, serviceReadiness, registerServiceGroup, revokeServiceGroup, configureReceptionDuty, receptionDutyFor, receptionDutyRows, cancellationAssignment, refreshReceptionEscalations, workflowBlockersView } from './operations-workflow.js?v=20261012-identity-flow-9';
+import {assertApprovedAmount,assertPurchasedService,purchasedNetReceived,syncPurchasedActivation,purchaseCommands,purchaseView} from './package-purchase.js?v=20261012-identity-flow-9';
+import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261012-identity-flow-9';
+import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261012-identity-flow-9';
+import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261012-identity-flow-9';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261012-identity-flow-9';
+import { assertScheduleAvailability } from './schedules.js?v=20261012-identity-flow-9';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -962,6 +962,7 @@ export class DemoModel {
       for (const key of ['closed', 'closedByRefundId', 'closedAt', 'closedReason']) delete pack[key];
       Object.assign(pack, copy(before)); restored = true;
     }
+    if (target.packageId) syncPurchasedActivation(staged,target.packageId,target.date,role);
     staged._log('refund_voided', { refundId: target.id, receiptId: target.receiptId, reason: why, amountMinor: target.amountMinor,
       ...(target.packageId ? { packageId: target.packageId, packageAction: target.packageAction, restoredPackageClosure: restored } : {}) }, role);
     this.state = staged.state; this.sequence = staged.sequence;

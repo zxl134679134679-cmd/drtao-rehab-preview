@@ -1,6 +1,6 @@
-import {amountExecutions as executions} from './amount-capability.js?v=20261011-operations-closed-loop-8b';
-import {catalogProductSnapshot} from './product-catalog.js?v=20261011-operations-closed-loop-8b';
-import {isRootBoss,canApproveStore,assertManageStore} from './franchise-scope.js?v=20261011-operations-closed-loop-8b';
+import {amountExecutions as executions} from './amount-capability.js?v=20261012-identity-flow-9';
+import {catalogProductSnapshot} from './product-catalog.js?v=20261012-identity-flow-9';
+import {isRootBoss,canApproveStore,assertManageStore} from './franchise-scope.js?v=20261012-identity-flow-9';
 const clone=v=>JSON.parse(JSON.stringify(v)),plain=v=>v&&typeof v==='object'&&!Array.isArray(v);
 const text=(v,label,max=1000)=>{if(typeof v!=='string'||!v.trim()||v.trim().length>max)throw new Error(`请核对${label}`);return v.trim();};
 const integer=(v,label,min=0,max=1000000000)=>{if(!Number.isSafeInteger(v)||v<min||v>max)throw new Error(`请核对${label}`);return v;};
@@ -81,7 +81,8 @@ export function approvedPurchaseSettlement(m,p,r){const parent=m.state.receipts.
 export function purchasedNetReceived(m,packageId){const receipts=m.state.receipts.filter(r=>r.packageId===packageId&&r.status==='valid'),ids=new Set(receipts.map(r=>r.id));return receipts.reduce((sum,r)=>sum+r.amountMinor,0)-m.state.refunds.filter(r=>r.status==='valid'&&ids.has(r.receiptId)).reduce((sum,r)=>sum+r.amountMinor,0);}
 export function syncPurchasedActivation(m,packageId,receivedOn,role){
  const pack=m.state.packages.find(p=>p.id===packageId);if(!pack?.purchaseId||pack.activationPolicy!=='paid')return pack;const net=purchasedNetReceived(m,packageId);
- if(pack.activationStatus!=='active'&&net>=pack.amountMinor){pack.activationStatus='active';pack.validFrom=receivedOn;pack.expiresOn=purchaseExpiry(receivedOn,pack.productSnapshot);pack.activatedAt=m._timestamp();pack.activationReceivedMinor=net;}
+ const paidOn=m.state.receipts.filter(r=>r.packageId===packageId&&r.status==='valid').map(r=>r.date).sort().at(-1);
+ if(pack.activationStatus!=='active'&&!pack.closed&&net>=pack.amountMinor&&paidOn){pack.activationStatus='active';pack.validFrom=paidOn;pack.expiresOn=purchaseExpiry(paidOn,pack.productSnapshot);pack.activatedAt=m._timestamp();pack.activationReceivedMinor=net;}
  if(pack.activationStatus==='active'&&net>=pack.amountMinor&&!pack.closed&&m.packageRemaining(pack.id)>0&&pack.validFrom<=m.today&&m.today<pack.expiresOn){for(const task of m.state.tasks.filter(t=>t.type==='billing_setup'&&t.clientId===pack.clientId&&t.storeId===pack.storeId&&t.status==='pending'))Object.assign(task,{status:'completed',completionReason:'本店购买权益已实际付清且可用',completedAt:m._timestamp(),completedBy:role?.id||'boss',completedRole:role?.type||'boss'});}
  return pack;
 }
