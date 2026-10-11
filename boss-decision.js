@@ -1,6 +1,6 @@
 // Boss-only, deterministic guidance over existing records. No writes, AI calls,
 // inferred cash, commission calculations or synthetic resolution records.
-import { dailyOperationsSummary } from './daily-operations.js?v=20261011-assessor-reception-cancel-3';
+import { dailyOperationsSummary } from './daily-operations.js?v=20261011-suzhou-owner-edit-5';
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const money = value => `¥${Number(value).toLocaleString('zh-CN',{minimumFractionDigits:2,maximumFractionDigits:2})}`;
 const methods = {wechat:'微信',alipay:'支付宝',cash:'现金',bank:'银行'};
@@ -23,7 +23,17 @@ function helpers(model) {
 function indexedClosings(model,role,stores,today) {
  model._financeActor(role);
  const key=(storeId,date)=>JSON.stringify([storeId,date]);
- const indexed=new Map([...stores].map(storeId=>[key(storeId,today),{storeId,date:today,latest:null,expectedMinor:Object.fromEntries(Object.keys(methods).map(m=>[m,0])),fingerprints:[]}]));
+ // Empty stores awaiting personnel setup are manageable, but are not
+ // assumed to be trading. Existing business/closing evidence always remains.
+ const operating=storeId=>{
+  const state=model.state,store=state.stores.find(row=>row.id===storeId);
+  const personnel=store?.active!==false&&(
+   state.therapists.some(row=>row.active!==false&&row.storeId===storeId)||
+   (state.frontDesks||[]).some(row=>row.active!==false&&row.storeIds?.includes(storeId))||
+   (state.storeManagers||[]).some(row=>row.active!==false&&row.storeId===storeId));
+  return personnel||['receipts','refunds','services','cashClosings'].some(kind=>(state[kind]||[]).some(row=>row.storeId===storeId))||state.appointments.some(row=>row.storeId===storeId&&row.arrivalAt);
+ };
+ const indexed=new Map([...stores].filter(operating).map(storeId=>[key(storeId,today),{storeId,date:today,latest:null,expectedMinor:Object.fromEntries(Object.keys(methods).map(m=>[m,0])),fingerprints:[]}]));
  for(const row of model.state.cashClosings||[]){
   if(!stores.has(row.storeId)||row.date>today)continue;
   const k=key(row.storeId,row.date);
@@ -74,7 +84,7 @@ function cashPriority(model,role,stores,today,x) {
  }
  for(const storeId of stores){
   const s=closings.today(storeId);
-  if(['missing','submitted'].includes(s.status)&&!rows.some(r=>r.kind==='closing'&&r.storeId===storeId&&r.date===today))rows.push(x.evidence('closing-check',{storeId,date:today,submittedBy:s.record?.submittedBy},s.status==='missing'?'今日尚未填写营业日结，营业结束时核对真实流水':'前台已提交，待老板核对并确认','cash-closing',JSON.stringify({storeId,date:today}),s.expectedTotal));
+  if(s&&['missing','submitted'].includes(s.status)&&!rows.some(r=>r.kind==='closing'&&r.storeId===storeId&&r.date===today))rows.push(x.evidence('closing-check',{storeId,date:today,submittedBy:s.record?.submittedBy},s.status==='missing'?'今日尚未填写营业日结，营业结束时核对真实流水':'前台已提交，待老板核对并确认','cash-closing',JSON.stringify({storeId,date:today}),s.expectedTotal));
  }
  const critical=rows.some(r=>['closing','package','receipt-link','platform-pending'].includes(r.kind));
  return {id:'cash',title:'把收款录入核对清楚',status:critical?'attention':rows.length?'check':'normal',count:rows.length,summary:critical?`${rows.length} 条记录需核对，先查差额与套餐关联` : rows.length?`${rows.length} 家门店日结待核对或确认`:'当前已登记的今日与历史日结均已确认',nextStep:'前台对照微信、支付宝、现金和银行真实流水；老板核对差异。这里只能发现记录差异，无法判断是否漏收或漏录，不自动补钱。',evidence:rows};

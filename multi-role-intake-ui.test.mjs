@@ -46,7 +46,7 @@ test('actual app dispatch refuses manager intake, existing appointment edits, as
   const m=fixture(),role=roles.manager,source=await readFile(new URL('./app.js',import.meta.url),'utf8');
   const start=source.indexOf('function buildDialog('),end=source.indexOf('\nfunction draftKey(',start);
   assert.ok(start>=0&&end>start);
-  const scope={workflowTypes,workflowDialog,role,model:m,customerBookingTypes:new Set(),receptionIntakeDialog:reception.receptionIntakeDialog,managerDialog,scheduleDialog, personnelDialog,ctx:()=>ctx(m,role)};
+  const scope={assertBoss:()=>m._boss(role),workflowTypes,workflowDialog,role,model:m,customerBookingTypes:new Set(),receptionIntakeDialog:reception.receptionIntakeDialog,managerDialog,scheduleDialog, personnelDialog,ctx:()=>ctx(m,role)};
   vm.runInNewContext(source.slice(start,end)+'\nglobalThis.open=buildDialog;',scope);
   for(const type of ['reception-create-client','paper-intake-create','appointment-edit','record-receipt','reset'])assert.throws(()=>scope.open(type,'c1'),/店长|权限/);
 });

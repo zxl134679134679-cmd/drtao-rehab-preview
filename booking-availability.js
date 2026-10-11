@@ -1,4 +1,4 @@
-import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261011-assessor-reception-cancel-3';
+import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261011-suzhou-owner-edit-5';
 
 const minutes = time => Number(time.slice(0,2))*60+Number(time.slice(3));
 const pending = row => ['confirmed','reschedule_requested','pending_reassignment'].includes(row.status);
@@ -49,6 +49,12 @@ export function updateAppointmentAvailability(form,ctx) {
     select.innerHTML=`<option value="">${eligible.length?'选择本店服务康复师':'当天暂无合资格本店康复师'}</option>${eligible.map(person=>`<option value="${esc(person.id)}"${person.id===selected?' selected':''}>${esc(person.name)}</option>`).join('')}`;
     select.value=selected;data.principalId=selected;
   }
+  if(['appointment-create','appointment-edit'].includes(type)&&(ctx.role.type!=='manager'||form.dataset.staffReception==='true')){
+    const select=form.elements.principalId,eligible=customerBookingTherapists(model,data.clientId,storeId,date),previous=select.value;
+    const selected=eligible.find(person=>person.id===previous)?.id||'';
+    select.innerHTML=`<option value="">${eligible.length?'选择服务康复师':'本店人员与排班待配置，暂不可约'}</option>${eligible.map(person=>`<option value="${esc(person.id)}"${person.id===selected?' selected':''}>${esc(person.name)}</option>`).join('')}`;
+    select.value=selected;data.principalId=selected;
+  }
   const people=type==='appointment-batch'?[...form.querySelectorAll('[data-booking-member]')].map(row=>({principalId:row.querySelector('[data-booking-principal]').value,clientId:row.querySelector('[data-booking-client]').value})):
     [{principalId:old?.principalId||data.principalId,clientId:type==='customer-booking'?ctx.role.id:old?.clientId||data.clientId||''}];
   let note=form.querySelector('[data-booking-availability]');
@@ -67,7 +73,7 @@ export function updateAppointmentAvailability(form,ctx) {
     timeSelect.value=keep?previous:'';
     timeSelect.disabled=!complete||!available.length;
   }
-  if(!complete)note.innerHTML='<p>先选客户、门店、日期和康复师，再选班内时间。</p>';
+  if(!complete)note.innerHTML=storeId&&!model.state.therapists.some(person=>person.active!==false&&person.storeId===storeId)?'<p>本店人员与已确认排班待配置，暂不可预约。请联系老板配置。</p>':'<p>先选客户、门店、日期和康复师，再选班内时间；休息或未排班时不能安排预约。</p>';
   else {
     const summaries=people.map(person=>{
       const row=scheduleStatus(model,person.principalId,date),name=model.state.therapists.find(t=>t.id===person.principalId)?.name||'康复师';

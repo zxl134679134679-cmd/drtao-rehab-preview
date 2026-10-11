@@ -1,8 +1,8 @@
-import { renderCashClosingSummary } from './cash.js?v=20261011-assessor-reception-cancel-3';
+import { renderCashClosingSummary } from './cash.js?v=20261011-suzhou-owner-edit-5';
 /* Store managers supervise local work with read-only store access. */
-import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261011-assessor-reception-cancel-3';
-import { renderBookingInbox } from './customer-ui.js?v=20261011-assessor-reception-cancel-3';
-import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-assessor-reception-cancel-3';
+import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261011-suzhou-owner-edit-5';
+import { renderBookingInbox } from './customer-ui.js?v=20261011-suzhou-owner-edit-5';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-suzhou-owner-edit-5';
 const CHANNELS = {direct:'门店收款',douyin:'抖音',meituan:'美团',other_platform:'其他平台'};
 const METHODS = {wechat:'微信',alipay:'支付宝',cash:'现金',bank:'银行转账'};
 const PURPOSES = {package:'套餐',renewal:'续费',single:'单次服务',other:'其他',platform_settlement:'平台结算'};
@@ -53,7 +53,7 @@ function businessDate(stamp) {
 function between(value,from,to) { return Boolean(value) && (!from || value >= from) && (!to || value <= to); }
 
 function heading(x,title,description) {
-  return `<div class="page-head"><div><span class="eyebrow">${x.esc(x.all.store.name)} · 店长工作台</span><h1>${x.esc(title)}</h1><p class="muted">${x.esc(description)}</p><p class="meta">店长可协同两店预约确认与到店接待，记录确认本人承担的评估；经营资料仍仅本店监管只读；可直接取消或审批本店预约，调整已有安排须原有权限。</p></div><div class="action-row">${x.tag(`${x.all.manager.name} · 监管查看`,'green')}</div></div>`;
+  return `<div class="page-head"><div><span class="eyebrow">${x.esc(x.all.store.name)} · 店长工作台</span><h1>${x.esc(title)}</h1><p class="muted">${x.esc(description)}</p><p class="meta">店长可协同各店预约确认与到店接待，记录确认本人承担的评估；经营资料仍仅本店监管只读；可直接取消或审批本店预约，已有安排修改由老板处理。</p></div><div class="action-row">${x.tag(`${x.all.manager.name} · 监管查看`,'green')}</div></div>`;
 }
 function periodFilter(x) {
   return `<form class="filters" data-form="manager-filters"><label class="field"><span>开始日期</span><input type="date" name="from" value="${x.esc(x.snapshot.from || '')}"></label><label class="field"><span>结束日期</span><input type="date" name="to" value="${x.esc(x.snapshot.to || '')}"></label><button class="btn btn-primary" type="submit">查看</button>${x.button('全部时间','manager-clear-filters','','btn-quiet')}</form>`;
@@ -77,7 +77,7 @@ function bookingInbox(ctx,x) {
 }
 function appointmentsPage(ctx) {
   const x=helpers(ctx),rows=scheduled(x.all.appointments.filter(row=>row.date>=x.today&&PENDING_APPOINTMENTS.has(row.status)));
-  return `<div class="manager-dashboard">${heading(x,'本店预约','核对客户申请与已确认的本店安排。')}<section class="ease-work-main"><div class="section-head"><h2>今天及之后的预约</h2>${x.tag(`${rows.length} 次`)}</div><div class="ease-service-list">${rows.length?rows.map(row=>appointmentCard(x,row)).join(''):x.empty('本店暂无今天或之后的待服务预约。')}</div></section><p class="meta">预约确认与接待请使用两店协同入口；经营资料仅本店监管只读。</p></div>`;
+  return `<div class="manager-dashboard">${heading(x,'本店预约','核对客户申请与已确认的本店安排。')}<section class="ease-work-main"><div class="section-head"><h2>今天及之后的预约</h2>${x.tag(`${rows.length} 次`)}</div><div class="ease-service-list">${rows.length?rows.map(row=>appointmentCard(x,row)).join(''):x.empty('本店暂无今天或之后的待服务预约。')}</div></section><p class="meta">预约确认与接待请使用各店协同入口；经营资料仅本店监管只读。</p></div>`;
 }
 function overview(ctx) {
   const x = helpers(ctx);

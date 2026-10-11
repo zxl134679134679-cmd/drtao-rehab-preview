@@ -82,3 +82,10 @@ test('a full refund after confirmation displays the current ledger difference wh
  assert.match(cash.renderCashClosingSummary(ctx(m,front)),/核对差额 ¥25,200\.00/);assert.ok(!html.includes('data-action="cash-closing-confirm"'));
  assert.deepEqual(m.state,before,'UI must not rewrite the historical confirmed snapshot');
 });
+
+test('frontdesk may fill first closing but saved closing exposes only read-only details and directs changes to boss',()=>{
+ const m=fixture(),id=JSON.stringify({storeId:'a',date:m.today});assert.match(cash.cashDialog('cash-closing',id,ctx(m,front)).html,/data-form="cash-closing"/);
+ m.saveCashClosing({storeId:'a',date:m.today,version:0,actualWechat:'0',actualAlipay:'0',actualCash:'0',actualBank:'0',notes:'前台首次核对',requestId:'first-ui'},front);
+ const readonly=cash.cashDialog('cash-closing',id,ctx(m,front)).html;assert.doesNotMatch(readonly,/data-form="cash-closing"/);assert.match(readonly,/已保存.*老板.*修改|修改.*老板/);assert.match(readonly,/前台首次核对/);
+ assert.match(cash.cashDialog('cash-closing',id,ctx(m,boss)).html,/name="version" value="1"/);
+});

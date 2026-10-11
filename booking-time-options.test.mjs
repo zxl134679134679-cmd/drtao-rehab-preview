@@ -76,3 +76,5 @@ test('changed-request and reassignment states hold original starts, while ended 
  a.status='pending_reassignment';update(b,m);assert.deepEqual(options(b),['09:00','11:00']);
  for(const status of ['cancelled','no_show','completed']){a.status=status;update(b,m);assert.deepEqual(options(b),['09:00','09:30','10:00','10:30','11:00']);}
 });
+
+test('switching a staff booking to unconfigured Suzhou removes the old principal and all time choices',()=>{const m=fixture(),b=boundary();update(b,m);assert.ok(options(b).length);b.form.elements.storeId.value='store-suzhou';update(b,m);assert.equal(b.form.elements.principalId.value,'');assert.deepEqual(options(b),[]);assert.equal(b.submit.disabled,true);assert.match(b.note.innerHTML,/人员.*排班.*待配置.*不可预约/);});

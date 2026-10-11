@@ -61,3 +61,12 @@ test('historical issues do not hide todays independent unrecorded closing',()=>{
 test('indexed daily closing evidence matches core current snapshot after void and refund edits',()=>{
  const m=fixture();const a=receipt(m,{date:'2026-10-07',amount:'100'});m.saveCashClosing({storeId:'a',date:'2026-10-07',version:0,actualWechat:'100',actualAlipay:'0',actualCash:'0',actualBank:'0',notes:'旧账核对',requestId:'index-equality'},front);const refund=m.refundReceipt({receiptId:a.id,date:'2026-10-07',time:'11:00',amount:'20',reason:'实际退款',requestId:'index-refund'},boss);m.voidRefund(refund.id,'先核对原退款',boss);m.voidReceipt(a.id,'先核对原账',boss);const original=m.cashClosingSummary(boss,{storeId:'a',date:'2026-10-07'});const e=summary(m,boss,{storeId:'a'}).items[0].evidence.find(e=>e.kind==='closing'&&e.date==='2026-10-07');assert.match(e.label,/账目已变化/);assert.equal(e.amount,original.record.actualTotal-original.expectedTotal);
 });
+
+test('unconfigured Suzhou stays at zero but is not assigned a fictional daily closing obligation',()=>{
+ const m=fixture(),before=snapshot(m),s=summary(m),cash=s.items.find(item=>item.id==='cash');
+ assert.ok(s.storeIds.includes('store-suzhou'));assert.equal(s.comparison.today.net,0);assert.equal(cash.evidence.filter(row=>row.kind==='closing-check').length,2);assert.equal(cash.evidence.some(row=>row.storeId==='store-suzhou'),false);assert.equal(snapshot(m),before);
+ m.updateStore({id:'store-suzhou',name:'苏州店',address:'虚构核对地址',expectedVersion:0,reason:'验收地址',requestId:'sz-address'},boss);
+ assert.equal(summary(m,boss,{storeId:'store-suzhou'}).items[0].count,0,'name/address editing does not assert that an unstaffed store is operating');
+ m.state.receipts.push({id:'sz-test-receipt',clientId:'c1',storeId:'store-suzhou',date:m.today,time:'11:00',status:'valid',settlementStatus:'received',method:'wechat',channel:'direct',purpose:'single',amount:100,amountMinor:10000});
+ const actual=summary(m,boss,{storeId:'store-suzhou'}).items[0];assert.equal(actual.evidence.find(row=>row.kind==='closing-check')?.amount,100,'actual ledger activity always requires closing even before roster setup');
+});

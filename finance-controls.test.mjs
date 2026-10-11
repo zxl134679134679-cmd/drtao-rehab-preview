@@ -179,7 +179,7 @@ test('same closing submit is idempotent, edits preserve older records, stale ver
   assert.equal(m.state.cashClosings.length, size);
   unchanged(m, () => close(m, { actualWechat: '2999' }));
   unchanged(m, () => close(m, { version: 0, requestId: 'closing-stale' }));
-  const second = close(m, { version: 1, requestId: 'closing-edit', notes: '复核更新' });
+  const second = close(m, { version: 1, requestId: 'closing-edit', notes: '复核更新' },boss);
   assert.equal(second.version, 2);
   assert.equal(m.state.cashClosings.length, 2);
   assert.equal(m.cashClosingSummary(frontA, { storeId: 'a', date: m.today }).record.id, second.id);
@@ -191,7 +191,7 @@ test('confirmation requires the actual boss, exact zero differences and fresh le
   const first = close(m, { actualWechat: '2999', actualCash: '1' });
   assert.equal(m.cashClosingSummary(boss, { storeId: 'a', date: m.today }).record.differenceTotal, 0);
   unchanged(m, () => m.confirmCashClosing(first.id, { version: 1, requestId: 'confirm-offset' }, boss));
-  const current = close(m, { version: 1, requestId: 'closing-correct' });
+  const current = close(m, { version: 1, requestId: 'closing-correct' },boss);
   for (const role of [frontA, managerA, managerB, { type: 'therapist', id: 't1' }, { type: 'boss', id: 'fake' }]) unchanged(m, () => m.confirmCashClosing(current.id, { version: 2, requestId: 'confirm-denied' }, role));
   const confirmed = m.confirmCashClosing(current.id, { version: 2, requestId: 'confirm-1' }, boss);
   assert.equal(confirmed.status, 'confirmed');
@@ -206,7 +206,7 @@ test('closing read/write permissions enforce scoped identities even on read, rep
   for (const role of [frontB, managerB, { type: 'therapist', id: 't1' }, { type: 'customer', id: 'c1' }, { type: 'boss', id: 'fake' }]) unchanged(m, () => m.cashClosingSummary(role, { storeId: 'a', date: m.today }));
   assert.deepEqual(m.cashClosingRows(frontA, { date: m.today }).map(s => s.storeId), ['a']);
   assert.deepEqual(m.cashClosingRows(managerB, { date: m.today }).map(s => s.storeId), ['b']);
-  assert.deepEqual(m.cashClosingRows(boss, { date: m.today }).map(s => s.storeId), ['a', 'b']);
+  assert.deepEqual(m.cashClosingRows(boss, { date: m.today }).map(s => s.storeId), ['a', 'b','store-suzhou']);
   unchanged(m, () => close(m, {}, managerA));
   m.state.frontDesks.find(r => r.id === 'f1').active = false;
   unchanged(m, () => close(m));
@@ -265,4 +265,10 @@ test('cash closing summaries are detached and never expose replay keys or ledger
   read.record.actual.wechat = 0; read.expectedMinor.wechat = 0;
   assert.equal(m.cashClosingSummary(boss, { storeId: 'a', date: m.today }).record.actual.wechat, 3000);
   assert.equal(m.cashClosingSummary(boss, { storeId: 'a', date: m.today }).expectedMinor.wechat, 300000);
+});
+
+test('frontdesk first closing and its retry remain daily input; saved closing versions can only be amended by boss',()=>{
+ const m=model();receipt(m);const first=close(m),before=JSON.stringify([m.state,m.sequence]);assert.equal(close(m).id,first.id);assert.equal(JSON.stringify([m.state,m.sequence]),before);
+ for(const version of [0,1])unchanged(m,()=>close(m,{version,requestId:`front-amend-${version}`,notes:'试图改旧日结'}));
+ const second=close(m,{version:1,requestId:'boss-amend',notes:'老板核对并修正'},boss);assert.equal(second.version,2);assert.equal(m.state.cashClosings[0].id,first.id);assert.equal(m.state.cashClosings[0].notes,'核对商户账单');const after=JSON.stringify([m.state,m.sequence]);assert.equal(close(m,{version:1,requestId:'boss-amend',notes:'老板核对并修正'},boss).id,second.id);assert.equal(JSON.stringify([m.state,m.sequence]),after);
 });

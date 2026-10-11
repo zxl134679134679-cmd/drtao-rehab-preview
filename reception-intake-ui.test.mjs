@@ -101,7 +101,8 @@ test('booking directly from new intake keeps the client and store and defaults t
   assert.match(html,/name="project"[^>]*value="康复训练"/);
   m.transferClient(c.id,'t1','独立客户负责人分配',{type:'boss',id:'boss'});
   const saved=m.saveAppointment({clientId:c.id,storeId:'a',principalId:'t1',date:m.today,time:'17:30',project:'用户自选项目'},front);
-  const edited=staffDialog('appointment-edit',saved.id,context(m)).html;
+  assert.throws(()=>staffDialog('appointment-edit',saved.id,context(m)),/老板/);
+  const edited=staffDialog('appointment-edit',saved.id,{...context(m),role:{type:'boss',id:'boss'}}).html;
   assert.match(edited,/name="project"[^>]*value="用户自选项目"/,'编辑已有预约不能覆盖原项目');
 });
 

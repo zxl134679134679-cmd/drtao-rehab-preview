@@ -60,7 +60,7 @@ export function workflowDialog(type,id,{model,role}){
  if(type==='confirm-service-next-step'){
   const s=find(model,'services',id),c=s&&find(model,'clients',s.clientId);
   if(!s||s.status!=='valid'||!c||!s.nextStepSuggestion)throw new Error('本次服务没有可确认的下一步建议');
-  if(role.type==='boss')model._boss(role);else if(role.type!=='therapist'||c.ownerId!==role.id||!model.canSeeClient(role,c.id))throw new Error('请由客户负责人或老板确认下一步');
+  model._boss(role);
   return {title:'确认客户的下一步',html:form(type,`${hidden('serviceId',s.id)}<p><strong>${esc(c.name)}</strong> · ${esc(s.date)} ${esc(s.project)}</p><p class="meta">本次服务建议由 ${esc(name(model,'therapists',s.principalId))} 填写。确认后更新客户首页下一步，保留其他计划内容。</p>${textarea('客户接下来要做什么','nextStep',s.nextStepSuggestion,'required maxlength="500"')}`,'确认并更新客户下一步')};
  }
 }

@@ -113,7 +113,7 @@ test('forged, missing and customer actors cannot create or check clients', () =>
 
 test('intake authorization resolves actual role records and excludes stopped stores', () => {
   const model = newModel(), stores = api(model, 'receptionStoreIds');
-  assert.deepEqual(stores(boss), ['a', 'b']);
+  assert.deepEqual(stores(boss), ['a', 'b','store-suzhou']);
   assert.deepEqual(stores({ type: 'manager', id: 'm1', storeId: 'b', storeIds: ['b'] }), ['a']);
   assert.deepEqual(stores({ type: 'manager', id: 'm2' }), ['b']);
   assert.deepEqual(stores({ type: 'therapist', id: 't1', storeId: 'b', storeIds: ['b'] }), ['a']);
@@ -123,7 +123,7 @@ test('intake authorization resolves actual role records and excludes stopped sto
   model.state.frontDesks.find(row => row.id === 'f1').storeIds.push('b');
   assert.deepEqual(stores(frontdesk), ['a', 'b']);
   model.state.stores.find(row => row.id === 'a').active = false;
-  assert.deepEqual(stores(boss), ['b']); assert.deepEqual(stores(frontdesk), ['b']);
+  assert.deepEqual(stores(boss), ['b','store-suzhou']); assert.deepEqual(stores(frontdesk), ['b']);
   assert.deepEqual(stores({ type: 'manager', id: 'm1' }), []);
   assert.deepEqual(stores({ type: 'therapist', id: 't1' }), []);
 });

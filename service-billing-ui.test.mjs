@@ -66,7 +66,7 @@ test('a paid single service can be registered directly from its appointment card
 test('a paid single service under a reschedule request retains the original appointment registration entry',()=>{
  const {m}=fixture();m.state.packages=m.state.packages.filter(p=>p.clientId!=='c3');m.state.clients.find(c=>c.id==='c3').packageId='';
  const ap=m.state.appointments.find(a=>a.id==='a3');ap.status='reschedule_requested';ap.request={date:'2026-10-12',time:'14:30'};
- const card=appointmentCard(workHtml(m),'a3');assert.match(card,/确认改约/);
+ const card=appointmentCard(workHtml(m),'a3');assert.match(card,/老板核对/);assert.doesNotMatch(card,/data-action="appointment-edit"/);
  assert.match(card,/<button[^>]*data-action="register-appointment" data-id="a3"[^>]*>按原预约登记<\/button>/);
 });
 
@@ -76,8 +76,8 @@ test('out of store execution scope never crashes the work page or offers single 
  const ap=m.state.appointments.find(a=>a.id==='a3');ap.principalId='t4';
  const role={type:'therapist',id:'t4'};assert.throws(()=>m.availableSingleReceipts('c3','a',role),/门店|权限/);
  let card=appointmentCard(workHtml(m,role),'a3');assert.ok(card);assert.doesNotMatch(card,/data-action="register-appointment"/);
- ap.principalId='t1';ap.date='2026-10-12';card=appointmentCard(workHtml(m),'a3');assert.match(card,/调整安排/);assert.doesNotMatch(card,/data-action="register-appointment"/);
- ap.date=m.today;ap.status='pending_reassignment';card=appointmentCard(workHtml(m),'a3');assert.match(card,/重新安排/);assert.doesNotMatch(card,/data-action="register-appointment"/);
+ ap.principalId='t1';ap.date='2026-10-12';card=appointmentCard(workHtml(m),'a3');assert.match(card,/老板核对/);assert.doesNotMatch(card,/data-action="appointment-edit"/);assert.doesNotMatch(card,/data-action="register-appointment"/);
+ ap.date=m.today;ap.status='pending_reassignment';card=appointmentCard(workHtml(m),'a3');assert.match(card,/老板核对/);assert.doesNotMatch(card,/data-action="appointment-edit"/);assert.doesNotMatch(card,/data-action="register-appointment"/);
 });
 
 test('revoking a real single service promises performance reversal and retained payment without restoring package sessions',()=>{

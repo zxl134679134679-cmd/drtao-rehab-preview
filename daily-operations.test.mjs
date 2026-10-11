@@ -28,7 +28,7 @@ test('daily operations defaults to today and keeps seeded service performance se
   const m = model(), before = serial(m), view = summary(m);
   assert.equal(view.from, '2026-10-08'); assert.equal(view.to, '2026-10-08'); assert.equal(view.date, '2026-10-08');
   assert.equal(view.dayCount, 1); assert.equal(view.receptionScope, 'store-day-deduplicated');
-  assert.deepEqual(view.storeIds, ['a', 'b']);
+  assert.deepEqual(view.storeIds, ['a', 'b','store-suzhou']);
   assert.equal(view.income.net, 0); assert.equal(view.serviceCount, 1); assert.equal(view.consumedSessions, 1);
   assert.equal(view.receptionCount, 0); assert.equal(view.newClientCount, 0);
   assert.deepEqual(view.serviceIds, ['s1']);
@@ -121,7 +121,7 @@ test('a same-day customer received by both stores counts once in each store with
   arrive(m, otherStore.id, '2026-10-08T07:00:00.000Z', frontB);
   const view = summary(m);
   assert.equal(view.receptionCount, 2); assert.equal(view.receptionScope, 'store-day-deduplicated');
-  assert.deepEqual(view.stores.map(row => row.receptionCount), [1, 1]);
+  assert.deepEqual(view.stores.map(row => row.receptionCount), [1, 1, 0]);
 });
 
 test('new client files have separate per-front-desk counts and old archive migration never inflates new clients or arrivals', () => {

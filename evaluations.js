@@ -124,7 +124,7 @@ export function ensureEvaluations(model) {
   if (model.state.frontDeskEvaluations === undefined) model.state.frontDeskEvaluations = [];
   if (!Array.isArray(model.state.assessments) || !Array.isArray(model.state.frontDeskEvaluations)) throw new Error('评估记录数据无效，请重置示例后再试');
   const expectedNames = ['陈一诺', '许安然', '周沐', '赵清禾', '王星野', '顾清宁'];
-  const standardDemo = model.state.clients.length === 6 && model.state.stores.length === 2 &&
+  const standardDemo = model._usesPreviewSeed === true && model.state.clients.length === 6 && [2,3].includes(model.state.stores.length) &&
     expectedNames.every((name, index) => model.state.clients.some(row => row.id === `c${index + 1}` && row.name === name)) &&
     ['a', 'b'].every(id => model.state.stores.some(row => row.id === id)) &&
     ['t1', 't2'].every(id => model.state.therapists.some(row => row.id === id && row.active)) &&
@@ -157,6 +157,7 @@ export function latestConfirmedAssessment(model, role, clientId) {
 }
 
 export function recordAssessment(model, data, role) {
+  if(Object.hasOwn(data,'id'))throw new Error('此入口只允许新建记录，已有记录不能通过新建入口修改');
   ensureEvaluations(model);
   const requestId = text(data.requestId, '提交标识', 80);
   const clientId = text(data.clientId, '客户', 80), storeId = text(data.storeId, '评估门店', 80);

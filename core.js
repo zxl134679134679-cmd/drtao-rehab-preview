@@ -1,5 +1,5 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-assessor-reception-cancel-3';
-import { assertScheduleAvailability } from './schedules.js?v=20261011-assessor-reception-cancel-3';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-suzhou-owner-edit-5';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-suzhou-owner-edit-5';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -181,8 +181,9 @@ function seedState() {
     stores: [
       { id: 'a', name: '麦岛店', address: '青岛 · 麦岛店（详细地址待补充）' },
       { id: 'b', name: '崂山店', address: '青岛 · 崂山店（详细地址待补充）' },
+      { id: 'store-suzhou', name: '苏州店', address: '', profileVersion: 0, history: [] },
     ],
-    assessors: [{id:'tao',name:'王勤涛',accountRole:'boss',accountId:'boss',storeIds:['a','b']},{id:'m-chen-kang',name:'陈康',accountRole:'manager',accountId:'m-chen-kang',storeIds:['a']},{id:'t-qiu-zhen',name:'邱振',accountRole:'therapist',accountId:'t-qiu-zhen',storeIds:['a']},{id:'t-zou-zonglin',name:'邹宗霖',accountRole:'therapist',accountId:'t-zou-zonglin',storeIds:['a']},{id:'m-he-zanfeng',name:'何赞峰',accountRole:'manager',accountId:'m-he-zanfeng',storeIds:['b']},{id:'t-wu-wenpei',name:'武文沛',accountRole:'therapist',accountId:'t-wu-wenpei',storeIds:['b']}],
+    assessors: [{id:'tao',name:'王勤涛',accountRole:'boss',accountId:'boss',storeIds:['a','b','store-suzhou']},{id:'m-chen-kang',name:'陈康',accountRole:'manager',accountId:'m-chen-kang',storeIds:['a']},{id:'t-qiu-zhen',name:'邱振',accountRole:'therapist',accountId:'t-qiu-zhen',storeIds:['a']},{id:'t-zou-zonglin',name:'邹宗霖',accountRole:'therapist',accountId:'t-zou-zonglin',storeIds:['a']},{id:'m-he-zanfeng',name:'何赞峰',accountRole:'manager',accountId:'m-he-zanfeng',storeIds:['b']},{id:'t-wu-wenpei',name:'武文沛',accountRole:'therapist',accountId:'t-wu-wenpei',storeIds:['b']}],
     therapists: [
       { id: 't-qiu-zhen', name: '邱振', storeId: 'a', active: true },
       { id: 't-zou-zonglin', name: '邹宗霖', storeId: 'a', active: true },
@@ -286,7 +287,7 @@ export class DemoModel {
     this.state.appointmentBatches ??= [];
     this.state.storeManagers ??= [];
     this.state.cashClosings ??= [];
-    this.state.assessors ??= [{id:'tao',name:'王勤涛',accountRole:'boss',accountId:'boss',storeIds:['a','b']},{id:'m-chen-kang',name:'陈康',accountRole:'manager',accountId:'m-chen-kang',storeIds:['a']},{id:'t-qiu-zhen',name:'邱振',accountRole:'therapist',accountId:'t-qiu-zhen',storeIds:['a']},{id:'t-zou-zonglin',name:'邹宗霖',accountRole:'therapist',accountId:'t-zou-zonglin',storeIds:['a']},{id:'m-he-zanfeng',name:'何赞峰',accountRole:'manager',accountId:'m-he-zanfeng',storeIds:['b']},{id:'t-wu-wenpei',name:'武文沛',accountRole:'therapist',accountId:'t-wu-wenpei',storeIds:['b']}];
+    this.state.assessors ??= [{id:'tao',name:'王勤涛',accountRole:'boss',accountId:'boss',storeIds:['a','b','store-suzhou']},{id:'m-chen-kang',name:'陈康',accountRole:'manager',accountId:'m-chen-kang',storeIds:['a']},{id:'t-qiu-zhen',name:'邱振',accountRole:'therapist',accountId:'t-qiu-zhen',storeIds:['a']},{id:'t-zou-zonglin',name:'邹宗霖',accountRole:'therapist',accountId:'t-zou-zonglin',storeIds:['a']},{id:'m-he-zanfeng',name:'何赞峰',accountRole:'manager',accountId:'m-he-zanfeng',storeIds:['b']},{id:'t-wu-wenpei',name:'武文沛',accountRole:'therapist',accountId:'t-wu-wenpei',storeIds:['b']}];
     if (!Number.isSafeInteger(sequence) || sequence < 0) throw new Error('业务序列无效');
     const ids = collections.flatMap(key => this.state[key].map(row => row?.id));
     if (ids.some(id => typeof id !== 'string' || !id.trim())) throw new Error('业务状态包含无效记录标识');
@@ -547,7 +548,17 @@ export class DemoModel {
   }
   assessorRows(storeId) {
     this._store(storeId);
-    return this.state.assessors.filter(person=>person.storeIds?.includes(storeId)&&(()=>{try{this.assertAppointmentStaff({type:person.accountRole,id:person.accountId});return true;}catch{return false;}})());
+    const canonical = {tao:'boss','m-chen-kang':'manager','m-he-zanfeng':'manager','t-qiu-zhen':'therapist','t-zou-zonglin':'therapist','t-wu-wenpei':'therapist'};
+    return this.state.assessors.filter(person=>{
+      if(person.active===false||canonical[person.id]!==person.accountRole||person.accountId!==(person.id==='tao'?'boss':person.id))return false;
+      try {
+        this.assertAppointmentStaff({type:person.accountRole,id:person.accountId});
+        if(person.id==='tao')return true;
+        const collection=person.accountRole==='manager'?this.state.storeManagers:this.state.therapists;
+        const home={'m-chen-kang':'a','t-qiu-zhen':'a','t-zou-zonglin':'a','m-he-zanfeng':'b','t-wu-wenpei':'b'};
+        return home[person.id]===storeId&&person.storeIds?.includes(storeId)&&collection.some(row=>row.id===person.accountId&&row.storeId===storeId&&row.active!==false);
+      } catch {return false;}
+    });
   }
   isAssignedAssessor(role,assessorId,storeId) {
     return this.assessorRows(storeId).some(p=>p.id===assessorId&&p.accountRole===role?.type&&p.accountId===role?.id);
@@ -1008,6 +1019,7 @@ export class DemoModel {
     if (existing) return this._cashClosingRecord(existing, this._cashClosingLedger(storeId, date).ledgerFingerprint);
     if (date > this.today) throw new Error('不能提交尚未营业的未来日期对账');
     const current = this._latestCashClosing(storeId, date);
+    if(current)this._boss(role);
     if ((current?.version || 0) !== version) throw new Error('对账版本已更新，请重新打开并核对最新账目');
     const ledger = this._cashClosingLedger(storeId, date), stamp = this._timestamp(), staged = this._stageCashWrite(stamp);
     const row = { id: staged._id('cashClosing'), storeId, date, version: version + 1, status: 'submitted',
@@ -1030,7 +1042,7 @@ export class DemoModel {
     const inputKey = JSON.stringify({ id: row.id, version });
     if (this._latestCashClosing(row.storeId, row.date)?.id !== row.id || row.version !== version) throw new Error('对账版本已更新，请查看本日最新对账');
     const ledger = this._cashClosingLedger(row.storeId, row.date);
-    if (row.ledgerFingerprint !== ledger.ledgerFingerprint) throw new Error('营业账目已变化，请前台重新核对并提交');
+    if (row.ledgerFingerprint !== ledger.ledgerFingerprint) throw new Error('营业账目已变化，请联系老板重新核对并提交');
     if (!CASH_METHODS.every(method => row.actualMinor[method] === row.expectedMinor[method])) throw new Error('各收款方式仍有差额，请核对并处理后再确认');
     const existing = this._cashClosingExisting(requestId, role, 'confirm', inputKey);
     if (existing) return this._cashClosingRecord(existing, ledger.ledgerFingerprint);
@@ -1503,8 +1515,8 @@ export class DemoModel {
   }
 
   publishPlan(clientId, data, role) {
-    const client = this._staff(role, clientId);
-    if (role.type !== 'boss' && (client.assessorId || !this._therapist(role.id).legacy || client.ownerId !== role.id)) throw new Error('仅指定评估师涛博士或老板有权限发布计划');
+    this._boss(role);
+    const client = this._client(clientId);
     const next = {
       goal: required(data.goal, '康复目标'), phase: required(data.phase, '当前阶段'),
       nextStep: required(data.nextStep, '下一步安排'), planNotes: required(data.planNotes, '计划内容'),
@@ -1525,10 +1537,13 @@ export class DemoModel {
       }
       nextTask = { clientId, title: String(data.taskTitle).trim(), dueDate: validDate(data.dueDate), assigneeId, status: 'pending', type: 'plan' };
     }
+    const requestId = data.requestId === undefined ? '' : required(data.requestId,'提交标识',150), inputKey=JSON.stringify({clientId,next,nextTask});
+    const prior=requestId&&this.state.audit.find(row=>row.type==='plan_published'&&row.requestId===requestId&&row.actorId===role.id&&row.actorType===role.type);
+    if(prior){if(prior.inputKey!==inputKey)throw new Error('同一提交的计划内容发生变化，请重新打开');return client;}
     const before = copy(client);
     Object.assign(client, next, { planVersion: (client.planVersion || 1) + 1 });
     if (nextTask) this.state.tasks.push({ id: this._id('task'), ...nextTask });
-    this._log('plan_published', { clientId, before, after: copy(client) }, role);
+    this._log('plan_published', { clientId, before, after: copy(client),...(requestId?{requestId,inputKey}:{}) }, role);
     return client;
   }
 
@@ -1538,14 +1553,17 @@ export class DemoModel {
   }
 
   saveAppointment(data, role) {
-    if (data.id && role?.type==='therapist' && !this._therapist(role.id).legacy && data.principalId!==role.id) throw new Error('治疗师仅能调整本人服务预约');
     if (Object.hasOwn(data,'id') && !data.id) throw new Error('已有预约标识无效，不能作为新建预约提交');
+    if(Object.hasOwn(data,'id'))this._boss(role);
     const client = data.id?this._bookingActor(role,data.clientId,data.storeId):this._newBookingActor(role,data.clientId,data.storeId);
     const input = {
       clientId: client.id, date: validDate(data.date), time: validTime(data.time),
       storeId: required(data.storeId, '服务门店'), principalId: required(data.principalId, '服务康复师'),
       project: required(data.project, '服务项目'),
     };
+    const requestId=data.requestId===undefined?'':required(data.requestId,'提交标识',150),inputKey=JSON.stringify({id:data.id||null,...input});
+    const prior=requestId&&this.state.audit.find(row=>row.type==='appointment_saved'&&row.requestId===requestId&&row.actorId===role.id&&row.actorType===role.type);
+    if(prior){if(prior.inputKey!==inputKey)throw new Error('同一提交的预约内容发生变化，请重新打开');const row=this.state.appointments.find(a=>a.id===prior.appointmentId);if(!row)throw new Error('原预约记录不存在，请老板核对');return row;}
     if (input.date < this.today) throw new Error('不能预约过去的日期');
     this._store(input.storeId);
     this._therapist(input.principalId);
@@ -1575,7 +1593,7 @@ export class DemoModel {
     delete row.reassignmentReason;
     if (!existing) this.state.appointments.push(row);
     this.state.tasks.filter(item => item.appointmentId === row.id && item.type === 'reschedule').forEach(item => { item.status = 'completed'; });
-    this._log('appointment_saved', { appointmentId: row.id, clientId: client.id, before, after: copy(row) }, role, stamp);
+    this._log('appointment_saved', { appointmentId: row.id, clientId: client.id, before, after: copy(row),...(requestId?{requestId,inputKey}:{}) }, role, stamp);
     return row;
   }
 
@@ -1898,12 +1916,26 @@ export class DemoModel {
 
   addStore(data, role) {
     this._boss(role);
-    const name = required(data.name, '门店名称');
-    if (this.state.stores.some(item => item.name === name)) throw new Error('门店名称重复，请使用可区分的名称');
-    const row = { id: this._id('store'), name, address: required(data.address, '门店地址') };
-    this.state.stores.push(row);
-    this._log('store_added', { storeId: row.id, after: row }, role);
-    return row;
+    const input={name:required(data.name,'门店名称'),address:optionalText(data.address,'门店地址',500)},requestId=data.requestId===undefined?'':required(data.requestId,'提交标识',150),inputKey=JSON.stringify(input);
+    const prior=requestId&&this.state.audit.find(row=>row.type==='store_added'&&row.requestId===requestId&&row.actorId===role.id);
+    if(prior){if(prior.inputKey!==inputKey)throw new Error('同一提交的门店内容发生变化');return this._store(prior.storeId);}
+    if(this.state.stores.some(row=>row.name===input.name))throw new Error('门店名称重复，请使用可区分的名称');
+    const row={id:this._id('store'),...input,profileVersion:0,history:[]};
+    this.state.stores.push(row);this._log('store_added',{storeId:row.id,after:row,...(requestId?{requestId,inputKey}:{})},role);return row;
+  }
+
+  updateStore(data, role) {
+    this._boss(role);
+    const row=this._store(required(data.id,'门店标识',80)),input={name:required(data.name,'门店名称',80),address:optionalText(data.address,'门店地址',500)},expectedVersion=personnelVersion(data.expectedVersion),reason=required(data.reason,'修改原因',500),requestId=required(data.requestId,'提交标识',150),inputKey=JSON.stringify({id:row.id,...input,expectedVersion,reason});
+    const prior=this.state.audit.find(item=>item.type==='store_updated'&&item.requestId===requestId&&item.actorId===role.id&&item.actorType===role.type);
+    if(prior){if(prior.inputKey!==inputKey)throw new Error('同一提交的门店内容发生变化，请重新打开');return row;}
+    if(personnelVersion(row.profileVersion??0)!==expectedVersion)throw new Error('门店资料版本已更新，请重新打开核对');
+    if(this.state.stores.some(item=>item.id!==row.id&&item.name===input.name))throw new Error('门店名称重复，请使用可区分的名称');
+    if(row.name===input.name&&(row.address||'')===input.address)throw new Error('门店资料没有变化');
+    const before={name:row.name,address:row.address||''},stamp=this._timestamp();
+    const entry={before,after:copy(input),reason,changedBy:role.id,changedRole:role.type,changedAt:stamp,version:expectedVersion+1};
+    Object.assign(row,input,{profileVersion:expectedVersion+1,history:[...(row.history||[]),entry]});
+    this._log('store_updated',{storeId:row.id,before,after:copy(row),reason,requestId,inputKey},role,stamp);return row;
   }
 
   addTherapist(data, role) {

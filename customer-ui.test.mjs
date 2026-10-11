@@ -104,11 +104,11 @@ test('empty and exhausted customer states still present a booking entry with cle
   assert.match(app.open('customer-booking','c6').html,/申请不扣套餐次数、不收款/);
 });
 
-test('the real booking dialog offers the two stores and half-hour requested starts without claiming live slots', () => {
+test('the real booking dialog offers all three stores and half-hour requested starts without claiming live slots', () => {
   const app = appReader(fixture(),customer('c1'));
   const html = app.open('customer-booking','c1').html;
   assert.match(html,/麦岛店/); assert.match(html,/崂山店/);
-  assert.equal((html.match(/name="storeId"/g)||[]).length,2);
+  assert.equal((html.match(/name="storeId"/g)||[]).length,3);assert.match(html,/苏州店/);
   assert.match(html,/<option value="09:00"/); assert.match(html,/<option value="09:30"/);
   assert.match(html,/期望开始时间/); assert.match(html,/不表示实时空位/);
   assert.ok(!/实时可约|剩余空位|提交即确认/.test(html));

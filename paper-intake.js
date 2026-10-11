@@ -164,6 +164,7 @@ export function paperIntakeRows(model, role) {
 }
 
 export function savePaperIntake(model, data, role) {
+  if(Object.hasOwn(data,'id'))throw new Error('此入口只允许新建记录，已有记录不能通过新建入口修改');
   if(role?.type==='manager'&&!data.appointmentId)throw new Error('店长接待权限仅限今天已到店预约，请从预约填写本次接待表');
   const input = normalized(model, data, role), requestId = text(data.requestId, '接待提交标识', true, 100), inputKey = JSON.stringify(input);
   const prior = collection(model).find(row => row.requestId === requestId && row.createdBy === role.id && row.createdRole === role.type);

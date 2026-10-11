@@ -89,7 +89,8 @@ test('repeated submit returns the original group and cannot alter it with change
   assert.equal(m.state.appointments.find(a=>a.id===first[0].id).status,'confirmed');
   assert.equal(save(clone(data),frontA)[0].status,'confirmed');
   m.handleAppointmentCancellation(first[0].id,{decision:'approve',reason:'老板同意'},boss);
-  m.saveAppointment({ ...first[1], date: '2026-10-13', time: '16:00' }, frontA);
+  assert.throws(()=>m.saveAppointment({ ...first[1], date: '2026-10-13', time: '16:00' }, frontA),/老板/);
+  m.saveAppointment({ ...first[1], date: '2026-10-13', time: '16:00' }, boss);
   const afterCancel = snapshot(m);
   const afterIndividualChanges = save(clone(data), frontA);
   assert.equal(afterIndividualChanges[0].status, 'cancelled');

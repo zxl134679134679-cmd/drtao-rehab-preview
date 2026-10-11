@@ -1,11 +1,11 @@
-import { renderBossDecision } from './boss-decision.js?v=20261011-assessor-reception-cancel-3';
+import { renderBossDecision } from './boss-decision.js?v=20261011-suzhou-owner-edit-5';
 /* Employee and owner views for the in-memory review prototype. */
-import { renderScheduleSummary } from './schedules-ui.js?v=20261011-assessor-reception-cancel-3';
-import { renderPaperIntakeInbox } from './paper-intake.js?v=20261011-assessor-reception-cancel-3';
-import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-assessor-reception-cancel-3';
-import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261011-assessor-reception-cancel-3';
-import { hourTimeField } from './hour-picker.js?v=20261011-assessor-reception-cancel-3';
-import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261011-assessor-reception-cancel-3';
+import { renderScheduleSummary } from './schedules-ui.js?v=20261011-suzhou-owner-edit-5';
+import { renderPaperIntakeInbox } from './paper-intake.js?v=20261011-suzhou-owner-edit-5';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-suzhou-owner-edit-5';
+import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261011-suzhou-owner-edit-5';
+import { hourTimeField } from './hour-picker.js?v=20261011-suzhou-owner-edit-5';
+import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261011-suzhou-owner-edit-5';
 const TODAY = '2026-10-08';
 
 function h(ctx) {
@@ -183,8 +183,9 @@ function work(ctx) {
     }
     const canRegister = remaining > 0 || paidSingle;
     const register = x.action(overdue ? '补登记服务' : '登记本次服务', 'register-appointment', a.id, 'btn-primary', 'clipboard-text');
-    const primary = cancellationPending ? '<span class="ease-service-warning">取消待审批 / 处理，原时段保留</span>' : reassign ? x.action('重新安排', 'appointment-edit', a.id, 'btn-primary', 'calendar') : requested ? x.action('确认改约', 'appointment-edit', a.id, 'btn-primary', 'calendar') : kind === 'future' ? x.action('调整安排', 'appointment-edit', a.id, 'btn-outline', 'calendar') : canRegister ? register : x.action('查看套餐次数', 'package', a.clientId, 'btn-outline');
-    return `<article class="ease-service-card"><div class="ease-service-head"><div><span class="ease-service-time">${kind === 'today' ? x.esc(a.time) : `${x.date(a.date)} · ${x.esc(a.time)}`}</span><h3>${x.esc(x.client(a.clientId)?.name || '客户')}</h3></div>${x.tag(`${x.name('stores', a.storeId)}剩余 ${remaining} 次`, remaining <= 2 ? 'warn' : 'green')}</div><p class="ease-service-project">${x.esc(a.project)}</p>${a.arrivalAt?'<p class="ease-arrival-note">客户已到店 · 服务完成后请及时登记。</p>':''}<p class="meta">${x.esc(x.name('stores', a.storeId))} · 主康复师 ${x.esc(x.name('therapists', a.principalId))}${(a.participantIds || []).length ? ` · 协作 ${x.esc(a.participantIds.map(id => x.name('therapists', id)).join('、'))}` : ''}</p>${reassign ? '<p class="ease-service-warning">服务人员需要重新确认，请先选择在职且有权限的康复师。</p>' : requested ? `<div class="note"><strong>希望改至 ${x.date(a.request?.date)} ${x.esc(a.request?.time || '')}</strong><p>${x.esc(a.requestNote || a.request?.reason || '未填写说明')}</p><span class="meta">确认前仍保留上方原预约。</span></div>` : overdue ? '<p class="ease-service-warning">预约日期已过，请核实到店情况。</p>' : ''}${paidSingle ? '<p class="ease-service-warning">单次服务已收款，请在服务完成后登记，不扣套餐次数。</p>' : remaining === 0 ? '<p class="ease-service-warning">'+(hasPackage?'套餐次数已用完，请由老板核对后续套餐。':'尚未办理本店套餐，服务费用请先与门店核对。')+'</p>' : ''}<div class="ease-service-actions">${primary}${x.link('预约详情', 'appointment', a.id)}${x.link('客户档案', 'client-detail', a.clientId)}</div><details class="ease-service-options"><summary>更多操作${x.ico('chevron-right', 15)}</summary><div class="action-row">${!cancellationPending && requested && a.date <= TODAY && canRegister ? x.action('按原预约登记', 'register-appointment', a.id, 'btn-small btn-outline') : ''}${!cancellationPending && a.date <= TODAY && canConfirmArrival ? x.action('记录未到店', 'appointment-no-show', a.id, 'btn-small btn-outline') : ''}${!cancellationPending && !requested && !reassign && kind !== 'future' ? x.action('调整安排', 'appointment-edit', a.id, 'btn-small btn-outline') : ''}${cancellationPending?(ctx.model.cancellationPermissions(x.role,a).canHandle?x.action('处理取消申请','appointment-cancel-handle',a.id,'btn-small btn-outline'):''):x.action('取消预约', 'appointment-cancel', a.id, 'btn-small btn-quiet')}</div></details></article>`;
+    const editAction=(label,style,icon)=>x.role.type==='boss'?x.action(label,'appointment-edit',a.id,style,icon):'<span class="meta">已有安排调整请由老板核对</span>';
+    const primary = cancellationPending ? '<span class="ease-service-warning">取消待审批 / 处理，原时段保留</span>' : reassign ? editAction('重新安排','btn-primary','calendar') : requested ? editAction('确认改约','btn-primary','calendar') : kind === 'future' ? editAction('调整安排','btn-outline','calendar') : canRegister ? register : x.action('查看套餐次数', 'package', a.clientId, 'btn-outline');
+    return `<article class="ease-service-card"><div class="ease-service-head"><div><span class="ease-service-time">${kind === 'today' ? x.esc(a.time) : `${x.date(a.date)} · ${x.esc(a.time)}`}</span><h3>${x.esc(x.client(a.clientId)?.name || '客户')}</h3></div>${x.tag(`${x.name('stores', a.storeId)}剩余 ${remaining} 次`, remaining <= 2 ? 'warn' : 'green')}</div><p class="ease-service-project">${x.esc(a.project)}</p>${a.arrivalAt?'<p class="ease-arrival-note">客户已到店 · 服务完成后请及时登记。</p>':''}<p class="meta">${x.esc(x.name('stores', a.storeId))} · 主康复师 ${x.esc(x.name('therapists', a.principalId))}${(a.participantIds || []).length ? ` · 协作 ${x.esc(a.participantIds.map(id => x.name('therapists', id)).join('、'))}` : ''}</p>${reassign ? '<p class="ease-service-warning">服务人员需要重新确认，请先选择在职且有权限的康复师。</p>' : requested ? `<div class="note"><strong>希望改至 ${x.date(a.request?.date)} ${x.esc(a.request?.time || '')}</strong><p>${x.esc(a.requestNote || a.request?.reason || '未填写说明')}</p><span class="meta">确认前仍保留上方原预约。</span></div>` : overdue ? '<p class="ease-service-warning">预约日期已过，请核实到店情况。</p>' : ''}${paidSingle ? '<p class="ease-service-warning">单次服务已收款，请在服务完成后登记，不扣套餐次数。</p>' : remaining === 0 ? '<p class="ease-service-warning">'+(hasPackage?'套餐次数已用完，请由老板核对后续套餐。':'尚未办理本店套餐，服务费用请先与门店核对。')+'</p>' : ''}<div class="ease-service-actions">${primary}${x.link('预约详情', 'appointment', a.id)}${x.link('客户档案', 'client-detail', a.clientId)}</div><details class="ease-service-options"><summary>更多操作${x.ico('chevron-right', 15)}</summary><div class="action-row">${!cancellationPending && requested && a.date <= TODAY && canRegister ? x.action('按原预约登记', 'register-appointment', a.id, 'btn-small btn-outline') : ''}${!cancellationPending && a.date <= TODAY && canConfirmArrival ? x.action('记录未到店', 'appointment-no-show', a.id, 'btn-small btn-outline') : ''}${x.role.type==='boss' && !cancellationPending && !requested && !reassign && kind !== 'future' ? x.action('调整安排', 'appointment-edit', a.id, 'btn-small btn-outline') : ''}${cancellationPending?(ctx.model.cancellationPermissions(x.role,a).canHandle?x.action('处理取消申请','appointment-cancel-handle',a.id,'btn-small btn-outline'):''):x.action('取消预约', 'appointment-cancel', a.id, 'btn-small btn-quiet')}</div></details></article>`;
   };
   const tasks = w.tasks.map(t => {
     const ap = x.find('appointments', t.appointmentId);
@@ -318,9 +319,9 @@ function team(ctx) {
   const staffRow = (person, kind) => `<div class="row"><div class="row-main"><strong>${x.esc(person.name)}</strong>${contact(person)}<p class="meta">${x.esc(kind === 'frontdesk' ? (person.storeIds || []).map(id => x.name('stores', id)).join('、') : x.name('stores', person.storeId))} · ${kind === 'frontdesk' ? '前台' : '店长'} ${status(person)}</p></div><div class="action-row">${x.action('编辑资料', `edit-${kind}`, person.id, 'btn-small btn-outline')}${kind === 'frontdesk' ? x.action('工作记录', 'frontdesk-work', person.id, 'btn-small btn-quiet') : ''}${person.active !== false ? x.action('停用', `deactivate-${kind}`, person.id, 'btn-small btn-quiet') : ''}</div></div>`;
   return `<div class="personnel-page"><div class="page-head"><div><span class="eyebrow">老板工作台</span><h1>人员管理</h1><p class="muted">资料和权限由老板维护。新增时选好岗位和门店；已有人员点击“编辑资料”。</p></div><div class="action-row">${x.action('新增康复师', 'add-therapist', '', 'btn-primary', 'plus')}${x.action('新增前台', 'add-frontdesk', '', 'btn-outline', 'plus')}${x.action('新增店长', 'add-manager', '', 'btn-outline', 'plus')}</div></div>
     <section class="section card"><div class="section-head"><div><h2>康复师</h2><p class="muted">治疗师负责预约、服务与消课；评估由本店所选评估师承担，计划由王勤涛负责。停用后保留历史服务。</p></div><span class="muted">${x.state.therapists.filter(t => t.active !== false).length} 位在职</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>姓名 / 手机号</th><th>所属门店</th><th>负责客户</th><th>状态</th><th>操作</th></tr></thead><tbody>${x.state.therapists.map(t => `<tr><td data-label="康复师"><strong>${x.esc(t.name)}</strong>${contact(t)}</td><td data-label="所属门店">${x.esc(x.name('stores', t.storeId))}</td><td data-label="负责客户">${x.state.clients.filter(c => c.ownerId === t.id).length} 位</td><td data-label="状态">${status(t)}</td><td data-label="操作"><div class="action-row">${x.action('编辑资料', 'edit-therapist', t.id, 'btn-small btn-outline')}${x.link('业绩明细', 'therapist-performance', t.id)}${t.active !== false ? x.action('停用', 'deactivate-therapist', t.id, 'btn-small btn-quiet') : ''}</div></td></tr>`).join('')}</tbody></table>${!x.state.therapists.length ? '<p class="empty">还没有康复师，请点击“新增康复师”。</p>' : ''}</div></section>
-    <section class="section card"><div class="section-head"><div><h2>前台</h2><p class="muted">在授权门店建档、接待、预约和录入收款；排班只能申请调整。</p></div>${x.action('新增前台', 'add-frontdesk', '', 'btn-outline', 'plus')}</div><div class="line-list">${(x.state.frontDesks || []).map(person => staffRow(person, 'frontdesk')).join('') || '<p class="empty">还没有前台，请点击“新增前台”。</p>'}</div></section>
-    <section class="section card"><div class="section-head"><div><h2>店长</h2><p class="muted">监管查看本店客户、收入、排班与员工工作，只读。其他业务由对应工作人员办理，人员和权限由老板调整。</p></div>${x.action('新增店长', 'add-manager', '', 'btn-outline', 'plus')}</div><div class="line-list">${(x.state.storeManagers || []).map(person => staffRow(person, 'manager')).join('') || '<p class="empty">还没有店长，请点击“新增店长”。</p>'}</div></section>
-    <section class="section"><div class="section-head"><div><h2>门店</h2><p class="muted">${x.state.stores.length} 家门店 · 新店也在这里统一管理</p></div>${x.action('新增门店', 'add-store', '', 'btn-outline', 'plus')}</div><div class="client-grid">${x.state.stores.map(s => `<article class="card person-card"><span class="eyebrow">${x.ico('map-pin', 18)} 服务门店</span><h2>${x.esc(s.name)}</h2><p class="muted">${x.esc(s.address || '地址待完善')}</p><div class="meta">${x.state.therapists.filter(t => t.storeId === s.id && t.active !== false).length} 位康复师 · ${s.active === false ? '已停用' : '营业中'}</div></article>`).join('')}</div></section>
+    <section class="section card"><div class="section-head"><div><h2>前台</h2><p class="muted">本店授权建档和录入收款；可协同各店新约课、确认和到店接待。取消须老板或本店店长批准；排班仅申请。</p></div>${x.action('新增前台', 'add-frontdesk', '', 'btn-outline', 'plus')}</div><div class="line-list">${(x.state.frontDesks || []).map(person => staffRow(person, 'frontdesk')).join('') || '<p class="empty">还没有前台，请点击“新增前台”。</p>'}</div></section>
+    <section class="section card"><div class="section-head"><div><h2>店长</h2><p class="muted">本店经营监管只读；可协同各店新约课、确认、到店与本次初访、本人评估，并可取消本店预约和审批本店前台取消。资料及已有记录修改由老板处理。</p></div>${x.action('新增店长', 'add-manager', '', 'btn-outline', 'plus')}</div><div class="line-list">${(x.state.storeManagers || []).map(person => staffRow(person, 'manager')).join('') || '<p class="empty">还没有店长，请点击“新增店长”。</p>'}</div></section>
+    <section class="section"><div class="section-head"><div><h2>门店</h2><p class="muted">${x.state.stores.length} 家门店 · 新店也在这里统一管理</p></div>${x.action('新增门店', 'add-store', '', 'btn-outline', 'plus')}</div><div class="client-grid">${x.state.stores.map(s => `<article class="card person-card"><span class="eyebrow">${x.ico('map-pin', 18)} 服务门店</span><h2>${x.esc(s.name)}</h2><p class="muted">${x.esc(s.address || '地址待配置')}</p><div class="meta">${x.state.therapists.filter(t => t.storeId === s.id && t.active !== false).length} 位康复师 · ${s.active === false ? '已停用' : x.state.therapists.some(t=>t.storeId===s.id&&t.active!==false)?'人员已配置':'待配置人员与排班'}</div><div class="action-row">${x.action('编辑门店资料','edit-store',s.id,'btn-small btn-outline')}</div></article>`).join('')}</div></section>
     <section class="section card"><div class="section-head"><div><h2>旧档案迁入</h2><p class="muted">录入客户、负责人和期初剩余次数。历史已使用次数不自动计入新系统消费业绩。</p></div>${x.action('录入一位客户', 'import-opening', '', 'btn-outline', 'plus')}</div></section></div>`;
 }
 
@@ -328,14 +329,19 @@ function assertPersonnelBoss(ctx) {
   if (ctx.role?.type !== 'boss' || ctx.role.id !== 'boss') throw new Error('人员资料和权限仅老板可以维护');
 }
 
-const personnelTypes = new Set(['add-therapist', 'add-frontdesk', 'add-manager', 'edit-therapist', 'edit-frontdesk', 'edit-manager']);
+const personnelTypes = new Set(['add-therapist', 'add-frontdesk', 'add-manager', 'edit-therapist', 'edit-frontdesk', 'edit-manager', 'edit-store']);
 
 // Profile fields retain the same employee id; editing a name never reallocates
 // historical services, receipts or appointments to a new person.
 export function personnelDialog(type, id, ctx) {
   if (!personnelTypes.has(type)) return null;
   assertPersonnelBoss(ctx);
-  const x = h(ctx), editing = type.startsWith('edit-'), kind = type.replace(/^(?:add|edit)-/, '');
+  const x = h(ctx);
+  if(type==='edit-store'){
+    const store=x.find('stores',id);if(!store)throw new Error('门店不存在，请重新打开管理页面');
+    return {title:'编辑门店资料',html:`<form data-form="edit-store"><input type="hidden" name="id" value="${x.esc(store.id)}"><input type="hidden" name="expectedVersion" value="${store.profileVersion??0}"><p class="muted">门店标识保留，修改名称和地址不迁移人员、预约或历史记录。未配置地址可留空。</p><div class="form-grid"><label class="field"><span>门店名称</span><input name="name" value="${x.esc(store.name)}" required maxlength="80"></label><label class="field span-all"><span>门店地址（可选）</span><textarea name="address" maxlength="500">${x.esc(store.address||'')}</textarea></label><label class="field span-all"><span>修改原因</span><textarea name="reason" required maxlength="500"></textarea></label></div><details class="note"><summary>原资料与历史修改</summary>${(store.history||[]).map(row=>`<p>${x.esc(row.changedAt)} · ${x.esc(row.changedBy)} · ${x.esc(row.reason)}</p><p>原资料：${x.esc(row.before.name)} / ${x.esc(row.before.address||'地址待配置')} → ${x.esc(row.after.name)} / ${x.esc(row.after.address||'地址待配置')}</p>`).join('')||'<p>暂无修改历史。</p>'}</details><div class="dialog-footer"><button class="btn btn-primary" type="submit">保存门店资料</button>${x.action('返回','close-dialog','','btn-quiet')}</div></form>`};
+  }
+  const editing = type.startsWith('edit-'), kind = type.replace(/^(?:add|edit)-/, '');
   const collection = { therapist: 'therapists', frontdesk: 'frontDesks', manager: 'storeManagers' }[kind];
   const label = { therapist: '康复师', frontdesk: '前台', manager: '店长' }[kind];
   const person = editing ? x.find(collection, id) : null;
@@ -350,9 +356,9 @@ export function personnelDialog(type, id, ctx) {
     ? `<fieldset class="field span-all"><legend>授权门店（至少选一家）</legend><div class="checkbox-grid">${stores.map(store => `<label class="check"><input type="checkbox" name="storeIds" value="${x.esc(store.id)}"${bound.includes(store.id) ? ' checked' : ''}><span>${x.esc(storeLabel(store))}</span></label>`).join('')}</div><span class="meta">前台只能接待和处理已授权门店的工作。</span></fieldset>`
     : `<label class="field"><span>${kind === 'manager' ? '负责门店' : '所属门店'}</span><select name="storeId" required><option value=""${person?.storeId ? '' : ' selected'}>请选择门店</option>${stores.map(store => `<option value="${x.esc(store.id)}"${person?.storeId === store.id ? ' selected' : ''}>${x.esc(storeLabel(store))}</option>`).join('')}</select></label>`;
   const permissions = {
-    therapist: '查看本人预约与主服务、协作服务，登记实际服务和查看本人业绩；可协同两店预约与接待，记录确认本人承担的评估；计划由王勤涛发布。',
-    frontdesk: '在授权门店建档、接待、安排预约及录入收款；可以查看排班、申请调整。退款和更正由老板处理。',
-    manager: '负责一家门店的监管查看，只读。不能建档、编辑已有预约、取消、消课、收款、改排班或确认日结；客户私人评价仅老板可查看。',
+    therapist: '查看本人预约与主服务、协作服务，登记实际服务和查看本人业绩；可协同各店新建预约与接待，记录确认本人承担的评估；已保存计划仅老板修改。',
+    frontdesk: '在授权门店建档、录入收款；可协同各店新约课、确认、到店和本次初访。取消须老板或本店店长批准；可查看排班和申请调整。已保存资料、预约改约、退款和更正由老板处理。',
+    manager: '本店经营监管只读；可协同各店新约课、确认、到店与本次初访及本人评估，可取消本店预约或审批前台取消。不能编辑已有预约、建档、消课、收款、改排班或确认日结；客户私人评价仅老板可查看。',
   }[kind];
   const statusField = editing
     ? `<label class="field"><span>人员状态</span><select name="active" required><option value="true"${person.active !== false ? ' selected' : ''}>使用中</option><option value="false"${person.active === false ? ' selected' : ''}>已停用</option></select><span class="meta">停用后不能再使用该身份；重新选择“使用中”可恢复。</span></label>`
@@ -386,6 +392,7 @@ export function renderStaff(ctx) {
 }
 
 export function staffDialog(type, id, ctx) {
+  if(['appointment-edit','edit-plan','edit-store'].includes(type))assertPersonnelBoss(ctx);
   if (ctx.role.type === 'manager') {
     ctx.model.managerStoreId(ctx.role);
     throw new Error('店长仅有本店监管只读权限，录入请由前台或老板处理');
@@ -435,7 +442,7 @@ export function staffDialog(type, id, ctx) {
 
   if (type === 'edit-plan') {
     if (!c) return null;
-    if(x.role.type==='therapist'&&(!x.find('therapists',x.role.id)?.legacy||c.assessorId))throw new Error('康复计划由评估师涛博士制定和发布');
+    if(x.role.type==='therapist'&&(!x.find('therapists',x.role.id)?.legacy||c.assessorId))throw new Error('已有康复计划仅老板可以修改');
     return {title: `更新${c.name}的康复计划`, html: form('edit-plan', `${hidden('clientId', c.id)}<p class="muted">用客户能理解的语言说明目标、当前进展和下一步。套餐次数不能代替康复进展。</p><div class="form-grid">${input('康复目标', 'goal', c.goal, 'text', 'required maxlength="80"')}${input('当前阶段', 'phase', c.phase, 'text', 'required maxlength="60"')}${textarea('计划安排', 'planNotes', c.planNotes, 'required')}${textarea('下一步', 'nextStep', c.nextStep, 'required')}${textarea('本次评估后的进展说明', 'progressSummary', c.progress?.summary || '', 'placeholder="没有完成评估时可留空，客户会看到待更新状态"')}${textarea('居家建议', 'homeAdvice', c.homeAdvice || '', 'required placeholder="只填写本次评估后适用于该客户的建议"')}<div class="span-all"><h3>安排一个下一步任务（可选）</h3></div>${input('待办事项', 'taskTitle', '', 'text', 'maxlength="80"')}${select('负责人', 'assigneeId', [{id:'boss',name:'王勤涛'},...active], c.assessorId?'boss':c.ownerId)}${input('计划日期', 'dueDate', '2026-10-10', 'date')}</div>`, '保存计划并更新客户页面')};
   }
 
@@ -460,7 +467,7 @@ export function staffDialog(type, id, ctx) {
   }
 
   if (type === 'add-store') {
-    return {title: '新增门店', html: form('add-store', `<p class="muted">新店使用同一套客户档案，服务记录会标记实际服务门店。</p><div class="form-grid">${input('门店名称', 'name', '', 'text', 'required maxlength="30" placeholder="例如：C店 · 市北"')}${textarea('门店地址', 'address', '', 'required maxlength="120"')}</div>`, '新增门店')};
+    return {title: '新增门店', html: form('add-store', `<p class="muted">新店使用同一套客户档案，服务记录会标记实际服务门店。</p><div class="form-grid">${input('门店名称', 'name', '', 'text', 'required maxlength="30" placeholder="例如：C店 · 市北"')}${textarea('门店地址（可选，待配置可留空）', 'address', '', 'maxlength="500"')}</div>`, '新增门店')};
   }
 
   if (type === 'transfer-client') {
