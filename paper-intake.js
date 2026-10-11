@@ -1,4 +1,4 @@
-import {INITIAL_CASE_VERSION, INITIAL_CASE_FIELDS, normalizeInitialCase, projectInitialCase, renderInitialCaseFields, renderInitialCaseDetail, paperIntakeChoices, paperChoiceOptions, caseIsMinor} from './paper-case-form.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {INITIAL_CASE_VERSION, INITIAL_CASE_FIELDS, normalizeInitialCase, projectInitialCase, renderInitialCaseFields, renderInitialCaseDetail, paperIntakeChoices, paperChoiceOptions, caseIsMinor} from './paper-case-form.js?v=20261011-customer-search-layout-7a';
 /* Client-stated reception information. This module never makes a diagnosis or authorizes treatment. */
 const clone = value => JSON.parse(JSON.stringify(value));
 export const PAPER_SAFETY_QUESTIONS = Object.freeze([

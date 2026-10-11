@@ -1,6 +1,6 @@
-import {catalogView,SERVICE_IDS} from './product-catalog.js?v=20261011-combination-approval-franchise-paper-search-7';
-import {purchaseView,approvedPurchaseReceipt} from './package-purchase.js?v=20261011-combination-approval-franchise-paper-search-7';
-import {isOperatingOwner,canApproveStore,assertManageStore} from './franchise-scope.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {catalogView,SERVICE_IDS} from './product-catalog.js?v=20261011-customer-search-layout-7a';
+import {purchaseView,approvedPurchaseReceipt} from './package-purchase.js?v=20261011-customer-search-layout-7a';
+import {isOperatingOwner,canApproveStore,assertManageStore} from './franchise-scope.js?v=20261011-customer-search-layout-7a';
 const intentStatus={submitted:'待门店核对',quoted:'待金额审批',consumed:'已登记'};
 const commandLabel={'record-receipt':'实际收款','record-single-receipt':'单次实际收款','settle-receipt':'平台到账金额'};
 const services={rehabilitation:'康复训练',cryotherapy:'超低温冷疗',iastm:'筋膜刀','deep-stretch':'深度拉伸放松治疗'};

@@ -1,12 +1,12 @@
-import {normalizeClientName} from './client-search.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { renderBossDecision } from './boss-decision.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {normalizeClientName} from './client-search.js?v=20261011-customer-search-layout-7a';
+import { renderBossDecision } from './boss-decision.js?v=20261011-customer-search-layout-7a';
 /* Employee and owner views for the in-memory review prototype. */
-import { renderScheduleSummary } from './schedules-ui.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { renderPaperIntakeInbox } from './paper-intake.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { hourTimeField } from './hour-picker.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { renderScheduleSummary } from './schedules-ui.js?v=20261011-customer-search-layout-7a';
+import { renderPaperIntakeInbox } from './paper-intake.js?v=20261011-customer-search-layout-7a';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-customer-search-layout-7a';
+import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261011-customer-search-layout-7a';
+import { hourTimeField } from './hour-picker.js?v=20261011-customer-search-layout-7a';
+import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261011-customer-search-layout-7a';
 const TODAY = '2026-10-08';
 
 function h(ctx) {

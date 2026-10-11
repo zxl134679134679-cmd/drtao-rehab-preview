@@ -1,7 +1,7 @@
-import {normalizeClientName} from './client-search.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { renderPaperIntakeList } from './paper-intake.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { renderReceptionAssessments } from './evaluations.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {normalizeClientName} from './client-search.js?v=20261011-customer-search-layout-7a';
+import { renderPaperIntakeList } from './paper-intake.js?v=20261011-customer-search-layout-7a';
+import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261011-customer-search-layout-7a';
+import { renderReceptionAssessments } from './evaluations.js?v=20261011-customer-search-layout-7a';
 
 export function receptionStores(ctx) {
   const account=ctx.model.state.frontDesks.find(r=>r.id===ctx.role.id&&r.active!==false);

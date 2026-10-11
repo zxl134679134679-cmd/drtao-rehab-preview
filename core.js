@@ -1,9 +1,9 @@
-import {assertApprovedAmount,assertPurchasedService,purchaseCommands,purchaseView} from './package-purchase.js?v=20261011-combination-approval-franchise-paper-search-7';
-import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { assertScheduleAvailability } from './schedules.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {assertApprovedAmount,assertPurchasedService,purchaseCommands,purchaseView} from './package-purchase.js?v=20261011-customer-search-layout-7a';
+import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261011-customer-search-layout-7a';
+import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261011-customer-search-layout-7a';
+import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-customer-search-layout-7a';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-customer-search-layout-7a';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-customer-search-layout-7a';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });

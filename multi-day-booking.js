@@ -1,5 +1,5 @@
-import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261011-combination-approval-franchise-paper-search-7';
-import {bookingAvailability} from './booking-availability.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261011-customer-search-layout-7a';
+import {bookingAvailability} from './booking-availability.js?v=20261011-customer-search-layout-7a';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const appointmentFields=['id','clientId','storeId','date','time','principalId','project','status'];
 const safeAppointment=row=>clone(Object.fromEntries(appointmentFields.map(key=>[key,row[key]])));

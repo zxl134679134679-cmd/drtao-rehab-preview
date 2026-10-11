@@ -1,6 +1,6 @@
-import {registerClientChoiceSource,refreshClientChoiceSource} from './client-search.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { hourTimeField } from './hour-picker.js?v=20261011-combination-approval-franchise-paper-search-7';
-import { receptionStores } from './reception.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {registerClientChoiceSource,refreshClientChoiceSource} from './client-search.js?v=20261011-customer-search-layout-7a';
+import { hourTimeField } from './hour-picker.js?v=20261011-customer-search-layout-7a';
+import { receptionStores } from './reception.js?v=20261011-customer-search-layout-7a';
 
 const limit = 20;
 function clients(ctx) { return ctx.model.visibleClients(ctx.role); }
