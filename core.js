@@ -1,10 +1,10 @@
-import { initializeOperationsWorkflow, operationsEnabled, bindingCommand, isSameStagedVisit, firstVisit, saveAssessmentSchedule, assertAssessmentBooking, serviceReadiness, registerServiceGroup, revokeServiceGroup, configureReceptionDuty, receptionDutyFor, receptionDutyRows, cancellationAssignment, refreshReceptionEscalations, workflowBlockersView } from './operations-workflow.js?v=20261011-operations-closed-loop-8';
-import {assertApprovedAmount,assertPurchasedService,purchasedNetReceived,syncPurchasedActivation,purchaseCommands,purchaseView} from './package-purchase.js?v=20261011-operations-closed-loop-8';
-import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261011-operations-closed-loop-8';
-import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261011-operations-closed-loop-8';
-import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-operations-closed-loop-8';
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-operations-closed-loop-8';
-import { assertScheduleAvailability } from './schedules.js?v=20261011-operations-closed-loop-8';
+import { initializeOperationsWorkflow, operationsEnabled, bindingCommand, isSameStagedVisit, firstVisit, saveAssessmentSchedule, assertAssessmentBooking, serviceReadiness, registerServiceGroup, revokeServiceGroup, configureReceptionDuty, receptionDutyFor, receptionDutyRows, cancellationAssignment, refreshReceptionEscalations, workflowBlockersView } from './operations-workflow.js?v=20261011-operations-closed-loop-8b';
+import {assertApprovedAmount,assertPurchasedService,purchasedNetReceived,syncPurchasedActivation,purchaseCommands,purchaseView} from './package-purchase.js?v=20261011-operations-closed-loop-8b';
+import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261011-operations-closed-loop-8b';
+import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261011-operations-closed-loop-8b';
+import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-operations-closed-loop-8b';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-operations-closed-loop-8b';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-operations-closed-loop-8b';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });

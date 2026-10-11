@@ -1,13 +1,13 @@
-import {initialAssessmentFields,serviceGroupFields,purchasedCardDetails} from './operations-ui.js?v=20261011-operations-closed-loop-8';
-import {normalizeClientName} from './client-search.js?v=20261011-operations-closed-loop-8';
-import { renderBossDecision } from './boss-decision.js?v=20261011-operations-closed-loop-8';
+import {initialAssessmentFields,serviceGroupFields,purchasedCardDetails} from './operations-ui.js?v=20261011-operations-closed-loop-8b';
+import {normalizeClientName} from './client-search.js?v=20261011-operations-closed-loop-8b';
+import { renderBossDecision } from './boss-decision.js?v=20261011-operations-closed-loop-8b';
 /* Employee and owner views for the in-memory review prototype. */
-import { renderScheduleSummary } from './schedules-ui.js?v=20261011-operations-closed-loop-8';
-import { renderPaperIntakeInbox } from './paper-intake.js?v=20261011-operations-closed-loop-8';
-import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-operations-closed-loop-8';
-import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261011-operations-closed-loop-8';
-import { hourTimeField } from './hour-picker.js?v=20261011-operations-closed-loop-8';
-import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261011-operations-closed-loop-8';
+import { renderScheduleSummary } from './schedules-ui.js?v=20261011-operations-closed-loop-8b';
+import { renderPaperIntakeInbox } from './paper-intake.js?v=20261011-operations-closed-loop-8b';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-operations-closed-loop-8b';
+import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261011-operations-closed-loop-8b';
+import { hourTimeField } from './hour-picker.js?v=20261011-operations-closed-loop-8b';
+import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261011-operations-closed-loop-8b';
 const TODAY = '2026-10-08';
 
 function h(ctx) {

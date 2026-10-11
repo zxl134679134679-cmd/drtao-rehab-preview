@@ -1,4 +1,4 @@
-import {operationsEnabled,reviewedByAssessor} from './operations-workflow.js?v=20261011-operations-closed-loop-8';
+import {operationsEnabled,reviewedByAssessor} from './operations-workflow.js?v=20261011-operations-closed-loop-8b';
 /* Assessment records and employee reviews for the fictional in-memory preview. */
 const clone = value => JSON.parse(JSON.stringify(value));
 const CONCLUSIONS = Object.freeze({ met: '符合要求', improve: '需改进', unobserved: '未观察' });

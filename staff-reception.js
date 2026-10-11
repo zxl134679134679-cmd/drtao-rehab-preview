@@ -1,8 +1,8 @@
-import {initialAssessmentFields} from './operations-ui.js?v=20261011-operations-closed-loop-8';
+import {initialAssessmentFields} from './operations-ui.js?v=20261011-operations-closed-loop-8b';
 // A shared reception queue grants basic appointment access, never chart/finance access.
-import {hourTimeField} from './hour-picker.js?v=20261011-operations-closed-loop-8';
-import {paperIntakeDialog} from './paper-intake.js?v=20261011-operations-closed-loop-8';
-import {assessmentRows} from './evaluations.js?v=20261011-operations-closed-loop-8';
+import {hourTimeField} from './hour-picker.js?v=20261011-operations-closed-loop-8b';
+import {paperIntakeDialog} from './paper-intake.js?v=20261011-operations-closed-loop-8b';
+import {assessmentRows} from './evaluations.js?v=20261011-operations-closed-loop-8b';
 export function renderStaffReception(ctx){
  const {model,role,esc}=ctx;model.assertAppointmentStaff(role);
  const name=(kind,id)=>model.state[kind]?.find(p=>p.id===id)?.name||'历史人员';

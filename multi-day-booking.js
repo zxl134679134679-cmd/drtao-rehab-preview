@@ -1,5 +1,5 @@
-import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261011-operations-closed-loop-8';
-import {bookingAvailability} from './booking-availability.js?v=20261011-operations-closed-loop-8';
+import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261011-operations-closed-loop-8b';
+import {bookingAvailability} from './booking-availability.js?v=20261011-operations-closed-loop-8b';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const appointmentFields=['id','clientId','storeId','date','time','principalId','project','status','assessorId','assessmentTime','initialAssessmentRequired'];
 const safeAppointment=row=>clone(Object.fromEntries(appointmentFields.map(key=>[key,row[key]])));

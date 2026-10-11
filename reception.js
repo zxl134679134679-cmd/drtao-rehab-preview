@@ -1,7 +1,7 @@
-import {normalizeClientName} from './client-search.js?v=20261011-operations-closed-loop-8';
-import { renderPaperIntakeList } from './paper-intake.js?v=20261011-operations-closed-loop-8';
-import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261011-operations-closed-loop-8';
-import { renderReceptionAssessments } from './evaluations.js?v=20261011-operations-closed-loop-8';
+import {normalizeClientName} from './client-search.js?v=20261011-operations-closed-loop-8b';
+import { renderPaperIntakeList } from './paper-intake.js?v=20261011-operations-closed-loop-8b';
+import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261011-operations-closed-loop-8b';
+import { renderReceptionAssessments } from './evaluations.js?v=20261011-operations-closed-loop-8b';
 
 export function receptionStores(ctx) {
   const account=ctx.model.state.frontDesks.find(r=>r.id===ctx.role.id&&r.active!==false);

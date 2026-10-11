@@ -1,6 +1,6 @@
-import {initialAssessmentFields,purchasedCardDetails} from './operations-ui.js?v=20261011-operations-closed-loop-8';
-import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261011-operations-closed-loop-8';
-import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-operations-closed-loop-8';
+import {initialAssessmentFields,purchasedCardDetails} from './operations-ui.js?v=20261011-operations-closed-loop-8b';
+import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261011-operations-closed-loop-8b';
+import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-operations-closed-loop-8b';
 
 export const customerBookingTypes = new Set(['customer-booking', 'customer-booking-detail', 'customer-booking-cancel', 'customer-booking-confirm', 'customer-booking-resolve', 'customer-booking-accept']);
 const statusLabels={pending:'待门店确认',confirmed:'申请已处理',cancelled:'申请已取消',reschedule_suggested:'门店建议 · 待您接受',rejected:'无法安排',expired:'申请已过期',suggestion_accepted:'已接受建议 · 新申请待确认'};

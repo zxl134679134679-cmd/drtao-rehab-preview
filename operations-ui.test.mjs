@@ -3,6 +3,10 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {DemoModel,ensureFranchisePreviewExamples} from './core.js';
+import {ensureSchedules} from './schedules.js';
+import {savePaperIntake,reviewPaperIntake,paperIntakeDialog} from './paper-intake.js';
+import {recordAssessment,confirmAssessment,evaluationDialog} from './evaluations.js';
+import {bossDecisionDialog} from './boss-decision.js';
 const api=await import('./operations-ui.js').catch(error=>{if(error.code==='ERR_MODULE_NOT_FOUND')return {};throw error;});
 const ctx=(model,role={type:'boss',id:'boss'})=>({model,role,filters:{storeId:'a'},esc:value=>String(value??'')});
 test('operations queue gives owners scoped binding actions and real current blockers without duplicating notices',()=>{
@@ -40,4 +44,57 @@ test('actual photo action rechecks current access on the resolved group evidence
  const source=await readFile(new URL('./app.js',import.meta.url),'utf8'),start=source.indexOf("    if (action === 'service-photo')"),end=source.indexOf("    if (action === 'customer-booking-back')",start),head={id:'head',visitId:'visit',clientId:'c3',storeId:'a',appointmentId:'ap',evidenceServiceId:'head',evidencePhotos:[{id:'photo',dataUrl:'PRIVATE'}]},detail={...head,id:'detail',evidenceServiceId:'head',evidencePhotos:[]};
  let shown=false;const scope={action:'service-photo',id:'detail',target:{dataset:{photoId:'photo'}},assertService:()=>detail,role:{type:'therapist',id:'t-qiu-zhen'},model:{state:{services:[head,detail]},canSeeEvidence:(_r,id)=>id==='detail'},serviceEvidenceOwner:api.serviceEvidenceOwner,showPhoto:()=>{shown=true;},name:()=>'',date:()=>''};
  vm.runInNewContext(`globalThis.open=()=>{${source.slice(start,end)}};`,scope);assert.throws(()=>scope.open(),/权限/);assert.equal(shown,false);
+});
+
+const hq={type:'boss',id:'boss'},selectedManager={type:'manager',id:'m-chen-kang'},localOwner={type:'franchise_owner',id:'current-owner-a'},actualFront={type:'frontdesk',id:'f1'};
+function actualClinicalVisit(selected='m-chen-kang'){
+ const m=new DemoModel({now:()=> '2026-10-08T09:00:00.000Z'}).initializeOperationsWorkflow();ensureSchedules(m);
+ m.state.appointments=[];m.state.assessments=[];m.state.frontDeskEvaluations=[];m.state.paperIntakes=[];
+ m._client('c3').ownerId='t-qiu-zhen';m.state.packages.find(p=>p.id==='p3').storeId='a';
+ m.state.franchiseOwners.push({id:localOwner.id,name:'本店经营老板测试',active:true,storeIds:['a']});
+ m.saveAssessmentSchedule({assessorId:selected,storeId:'a',date:m.today,startTime:'09:00',endTime:'19:00',reason:'本人实际确认评估出诊',requestId:'queue-assessor-shift'},hq);
+ const appointment=m.saveAppointment({clientId:'c3',storeId:'a',date:m.today,time:'12:00',assessorId:selected,assessmentTime:'12:00',principalId:'t-qiu-zhen',project:'本次康复',requestId:'queue-appointment'},actualFront);
+ m.recordArrival(appointment.id,{requestId:'queue-arrival'},actualFront);
+ const paper=savePaperIntake(m,{clientId:'c3',storeId:'a',appointmentId:appointment.id,assessorId:selected,formVersion:'initial_case_v2',initialCase:{},requestId:'queue-paper'},actualFront);
+ const review=()=>reviewPaperIntake(m,paper.id,{decision:'assessment',nextStep:'本人核对后安排本次评估',assigneeId:'t-qiu-zhen',dueDate:'2026-10-09',requestId:'queue-review'},selected==='tao'?hq:selectedManager);
+ const record=()=>recordAssessment(m,{clientId:'c3',storeId:'a',appointmentId:appointment.id,paperIntakeId:paper.id,assessorId:selected,date:m.today,time:'12:00',type:'initial',project:'实际评估',metricName1:'动作次数',metricValue1:'5',summary:'本次实际指标记录',requestId:'queue-assessment'},actualFront);
+ return {m,appointment,paper,review,record};
+}
+const clinicalCards=(html,label)=>[...html.matchAll(/<article class="record-item">([\s\S]*?)<\/article>/g)].map(match=>match[1]).filter(html=>html.includes('步骤 '+label));
+const hasAction=(html,type,id)=>html.includes('data-action="'+type+'" data-id="'+id+'"');
+for(const [name,role] of [['总部经营老板',hq],['当前本店加盟老板',localOwner]]){
+ test(`${name}对另一位实际评估师的待复核表只给原记录查看`,()=>{
+  const {m,paper}=actualClinicalVisit(),before=JSON.stringify(m.state),html=api.renderOperationsPanel(ctx(m,role)),cards=clinicalCards(html,'接待复核');
+  assert.equal(cards.length,1);assert.ok(hasAction(cards[0],'paper-intake-detail',paper.id));
+  assert.doesNotMatch(cards[0],/data-action="paper-intake-review"|data-action="paper-intake-create"/);
+  assert.throws(()=>paperIntakeDialog('paper-intake-review',paper.id,ctx(m,role)),/指定.*评估|本人|复核/);
+  assert.ok(paperIntakeDialog('paper-intake-detail',paper.id,ctx(m,role)).html);assert.equal(JSON.stringify(m.state),before);
+ });
+ test(`${name}对另一位本人尚未登记的评估只给本次接待查看`,()=>{
+  const {m,paper,review}=actualClinicalVisit();review();const html=api.renderOperationsPanel(ctx(m,role)),cards=clinicalCards(html,'本人评估确认');
+  assert.equal(cards.length,1);assert.ok(hasAction(cards[0],'paper-intake-detail',paper.id));
+  assert.doesNotMatch(cards[0],/data-action="staff-assessment-create"|data-action="assessment-confirm"/);
+  assert.ok(m.workflowBlockersView(role).some(row=>row.step==='assessment'),'真实未完成评估仍提示老板');
+ });
+ test(`${name}对另一位本人待确认评估只给实际评估详情`,()=>{
+  const {m,review,record}=actualClinicalVisit();review();const assessment=record(),before=JSON.stringify(m.state),html=api.renderOperationsPanel(ctx(m,role)),cards=clinicalCards(html,'本人评估确认');
+  assert.equal(cards.length,1);assert.ok(hasAction(cards[0],'assessment-detail',assessment.id));
+  assert.doesNotMatch(cards[0],/data-action="staff-assessment-create"|data-action="assessment-confirm"/);
+  assert.throws(()=>evaluationDialog('assessment-confirm',assessment.id,ctx(m,role)),/权限|确认/);
+  assert.ok(evaluationDialog('assessment-detail',assessment.id,ctx(m,role)).html);assert.equal(JSON.stringify(m.state),before);
+  const decisions=bossDecisionDialog('flow',ctx(m,hq)).html;assert.ok(hasAction(decisions,'assessment-detail',assessment.id));assert.doesNotMatch(decisions,/data-action="assessment-confirm"|data-action="paper-intake-review"/);
+ });
+}
+for(const [name,selected,role] of [['陈康本人','m-chen-kang',selectedManager],['王勤涛总部本人','tao',hq]])test(`${name}可从卡点完成复核、本人登记入口及确认前台代录评估`,()=>{
+ const {m,paper,review,record}=actualClinicalVisit(selected);
+ let cards=clinicalCards(api.renderOperationsPanel(ctx(m,role)),'接待复核');assert.ok(hasAction(cards[0],'paper-intake-review',paper.id));assert.match(paperIntakeDialog('paper-intake-review',paper.id,ctx(m,role)).html,/data-form="paper-intake-review"/);
+ review();cards=clinicalCards(api.renderOperationsPanel(ctx(m,role)),'本人评估确认');assert.ok(hasAction(cards[0],'staff-assessment-create','c3:a'));assert.match(evaluationDialog('assessment-create','c3',ctx(m,role)).html,/data-form="assessment-create"/);
+ const assessment=record();assert.equal(assessment.recordedRole,'frontdesk');assert.equal(assessment.recordedBy,actualFront.id);
+ cards=clinicalCards(api.renderOperationsPanel(ctx(m,role)),'本人评估确认');assert.ok(hasAction(cards[0],'assessment-confirm',assessment.id));assert.match(evaluationDialog('assessment-confirm',assessment.id,ctx(m,role)).html,/data-form="assessment-confirm"/);
+ assert.equal(confirmAssessment(m,assessment.id,role).status,'confirmed');assert.equal(clinicalCards(api.renderOperationsPanel(ctx(m,role)),'本人评估确认').length,0);
+});
+test('评估师停用后卡点回到原记录查看，不能显示本人确认入口',()=>{
+ const {m,review,record}=actualClinicalVisit('tao');review();const assessment=record();m.state.assessors.find(p=>p.id==='tao').active=false;
+ const cards=clinicalCards(api.renderOperationsPanel(ctx(m,hq)),'本人评估确认');assert.equal(cards.length,1);assert.ok(hasAction(cards[0],'assessment-detail',assessment.id));assert.doesNotMatch(cards[0],/data-action="assessment-confirm"/);
+ assert.throws(()=>confirmAssessment(m,assessment.id,hq),/权限|确认/);
 });
