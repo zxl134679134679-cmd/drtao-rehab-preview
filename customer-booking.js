@@ -1,7 +1,7 @@
 // Desired times are requests, not live availability or confirmed appointments.
 // The preview's existing appointment model remains the confirmation authority.
-import { assertScheduleAvailability } from './schedules.js?v=20261011-therapist-phone-package-owner-6';
-import { bookingAvailability } from './booking-availability.js?v=20261011-therapist-phone-package-owner-6';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { bookingAvailability } from './booking-availability.js?v=20261011-combination-approval-franchise-paper-search-7';
 const clone = value => JSON.parse(JSON.stringify(value));
 const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt', 'resolutionReason', 'resolvedBy', 'resolvedRole', 'resolvedAt', 'suggestedDate', 'suggestedTime', 'acceptedRequestId', 'acceptedBy', 'acceptedAt', 'sourceRequestId'];
 const publicRow = row => clone(Object.fromEntries(fields.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
@@ -27,6 +27,7 @@ function customer(model, role) {
 function isBoss(role) { return role?.type === 'boss' && role.id === 'boss'; }
 function reader(model, role) {
   if (isBoss(role)) return;
+  if (role?.type === 'franchise_owner') return model.ownerStoreIds(role);
   if (role?.type === 'customer') return customer(model, role);
   if (role?.type === 'frontdesk') return model._frontDesk(role.id);
   if (role?.type === 'manager') return model.managerStoreId(role);
@@ -34,6 +35,7 @@ function reader(model, role) {
   throw new Error('您没有查看预约申请的权限');
 }
 function confirmActor(model,row,role,confirmation=false) {
+ if(role?.type==='franchise_owner')return confirmation?model._newBookingActor(role,row.clientId,row.storeId):model.assertStoreOwner(role,[row.storeId]);
  if(confirmation)return model._newBookingActor(role,row.clientId,row.storeId);
  if(isBoss(role))return model._boss(role);
  if(role?.type==='frontdesk')return model._bookingActor(role,row.clientId,row.storeId);
@@ -87,7 +89,7 @@ export function ensureCustomerBooking(model) {
     if (row.status === 'confirmed') text(row.appointmentId, '已确认预约标识');
     if (['reschedule_suggested','rejected','expired','suggestion_accepted'].includes(row.status)) {
       text(row.resolutionReason,'处理原因',500); text(row.resolvedBy,'处理人');
-      if (!['boss','frontdesk','therapist','manager'].includes(row.resolvedRole) || !Number.isFinite(Date.parse(row.resolvedAt))) throw new Error('预约申请处理记录无效');
+      if (!['boss','frontdesk','therapist','manager','franchise_owner'].includes(row.resolvedRole) || !Number.isFinite(Date.parse(row.resolvedAt))) throw new Error('预约申请处理记录无效');
     }
     if (['reschedule_suggested','suggestion_accepted'].includes(row.status)) { date(row.suggestedDate); time(row.suggestedTime); }
     if (row.status === 'suggestion_accepted') { text(row.acceptedRequestId,'已接受申请标识'); if (row.acceptedBy !== row.clientId || !Number.isFinite(Date.parse(row.acceptedAt))) throw new Error('客户接受建议的记录无效'); }
@@ -146,7 +148,8 @@ export function customerBookingRows(model, role) {
   if (model.isUiProjection === true) return model.customerBookingRows(role);
   reader(model, role);
   ensureCustomerBooking(model);
-  return model.state.bookingRequests.filter(row => role.type!=='customer'||row.clientId===role.id).map(publicRow);
+  const stores=role.type==='franchise_owner'?model.ownerStoreIds(role):null;
+  return model.state.bookingRequests.filter(row => (role.type!=='customer'||row.clientId===role.id)&&(!stores||stores.includes(row.storeId))).map(publicRow);
 }
 
 export function confirmCustomerBooking(model, id, role) {
@@ -169,6 +172,7 @@ export function confirmCustomerBooking(model, id, role) {
 }
 
 export function customerBookingConfirmation(model, id, role) {
+  if(model.isUiProjection===true)return model.customerBookingConfirmation(role,id);
   const visible = customerBookingRows(model, role).find(row => row.id === id);
   if (!visible) throw new Error('您没有查看该预约申请的权限');
   const row = request(model, id);
@@ -186,6 +190,7 @@ export function customerBookingConfirmation(model, id, role) {
 }
 
 export function customerBookingHandling(model,id,role) {
+  if(model.isUiProjection===true)return model.customerBookingHandling(role,id);
   const visible=customerBookingRows(model,role).find(row=>row.id===id);
   if(!visible)throw new Error('您没有查看该预约申请的权限');
   if(visible.status!=='pending'&&!(visible.status==='reschedule_suggested'&&visible.suggestedDate<model.today))return {canHandle:false,reason:'申请已处理或仍在等待客户接受'};

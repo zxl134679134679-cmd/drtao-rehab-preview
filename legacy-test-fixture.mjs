@@ -3,6 +3,8 @@
 import { DemoModel as ProductionModel } from './core.js';
 export { TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js';
 export class DemoModel extends ProductionModel {
+  // Historical cash regressions deliberately exercise their original pre-approval contract.
+  _amountApprovalRequired(){return false;}
   constructor(options = {}) {
     super(options);
     if (this._usesPreviewSeed) {

@@ -1,3 +1,4 @@
+import {validateClientSearchSelection} from './client-search.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
@@ -14,7 +15,7 @@ function runtime(role,type,data,failure=false){
  const calls=[],model=new DemoModel();
  for(const method of ['saveCashClosing','confirmCashClosing','linkReceiptPackage'])model[method]=(...args)=>{calls.push({method,args});return {id:'closing-test',storeId:'a',date:model.today,version:1,status:method==='confirmCashClosing'?'confirmed':'submitted',differenceTotal:0,actualTotal:300};};
  const form={dataset:{form:type},isConnected:true,data,reportValidity:()=>true,querySelector:()=>null,querySelectorAll:()=>[]};
- const scope={model,role,TODAY:model.today,document:{addEventListener:(name,callback)=>{if(name==='submit')scope.submit=callback;}},FormData:FakeData,dialogContext:{key:'financial-form',requestId:'finance-integration-key'},drafts:new Map(),sheet:{open:true},$:(selector)=>selector==='#network-toggle'?scope.network:null,network:{checked:failure},setTimeout:callback=>{callback();return 1;},saveDraft(){},updateEvidencePicker(){},advanceCustomerBookingForm:()=>true,render(){scope.rendered=true;},showSuccess(title,html){scope.success=title;scope.successHtml=html;},formError(form,message){scope.error=message;},assertBoss(){model._boss(role);},esc:s=>String(s??''),name:()=> '麦岛店',money:s=>String(s),pair:(a,b)=>a+b,button:()=>'',ctx:()=>({model,role}),customerCtx:()=>({model,role})};
+ const scope={validateClientSearchSelection,model,role,TODAY:model.today,document:{addEventListener:(name,callback)=>{if(name==='submit')scope.submit=callback;}},FormData:FakeData,dialogContext:{key:'financial-form',requestId:'finance-integration-key'},drafts:new Map(),sheet:{open:true},$:(selector)=>selector==='#network-toggle'?scope.network:null,network:{checked:failure},setTimeout:callback=>{callback();return 1;},saveDraft(){},updateEvidencePicker(){},advanceCustomerBookingForm:()=>true,render(){scope.rendered=true;},showSuccess(title,html){scope.success=title;scope.successHtml=html;},formError(form,message){scope.error=message;},assertBoss(){model._boss(role);},esc:s=>String(s??''),name:()=> '麦岛店',money:s=>String(s),pair:(a,b)=>a+b,button:()=>'',ctx:()=>({model,role}),customerCtx:()=>({model,role})};
  scope.toast=()=>{};scope.closeDialog=()=>{};
  for(const name of ['updateReceptionIntakeChoices','updatePaperIntakeForm','updateScheduleForm','updateAppointmentAvailability'])scope[name]=()=>{};
  const start=source.indexOf("document.addEventListener('submit', async event =>"),end=source.indexOf('\nfunction exportPreview',start);

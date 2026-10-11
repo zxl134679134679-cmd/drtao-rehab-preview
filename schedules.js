@@ -35,6 +35,7 @@ function activeStore(model, storeId) {
 function actorStores(model, role) {
   let ids;
   if (role?.type === 'boss') { model._boss(role); ids = model.state.stores.map(row => row.id); }
+  else if (role?.type === 'franchise_owner') ids=model.ownerStoreIds(role);
   else if (role?.type === 'manager') ids = [model.managerStoreId(role)];
   else if (role?.type === 'frontdesk') ids = model.frontDeskStoreIds(role);
   else if (role?.type === 'therapist') ids = [model._therapist(role.id).storeId];
@@ -52,7 +53,7 @@ function initialized(model) {
 function writable(model, role, row, before, mode) {
   if (mode === 'request') {
     if (role?.type !== 'frontdesk') throw new Error('仅授权前台可提交排班调整申请');
-  } else if (role?.type !== 'boss') throw new Error('仅老板可确认修改排班');
+  } else if (!['boss','franchise_owner'].includes(role?.type)) throw new Error('仅老板可确认修改排班');
   const stores = actorStores(model, role), therapist = model._therapist(row.therapistId);
   activeStore(model, therapist.storeId); activeStore(model, row.storeId);
   if (!stores.includes(row.storeId) || (before.storeId && !stores.includes(before.storeId))) throw new Error('没有原排班或目标门店权限');
@@ -137,7 +138,7 @@ export function scheduleRows(model, role, filters = {}) {
   return (model.state.staffSchedules || []).filter(row => stores.includes(row.storeId) && model.state.therapists.some(t => t.id === row.therapistId && t.active === true) && (role.type !== 'therapist' || row.therapistId === role.id) && (!filters.storeId || row.storeId === filters.storeId) && (!filters.date || row.date === filters.date) && (!filters.therapistId || row.therapistId === filters.therapistId)).map(scheduleProjection);
 }
 export function saveSchedule(model, data, role) {
-  if (role?.type !== 'boss') throw new Error('仅老板可确认修改排班');
+  if (!['boss','franchise_owner'].includes(role?.type)) throw new Error('仅老板可确认修改排班');
   initialized(model); const input = inputSchedule(model, data), before = currentSchedule(model, input.therapistId, input.date);
   writable(model, role, input, before, 'save');
   const inputKey = JSON.stringify(input), previous = replay(priorOperation(model, role, input.requestId), 'save', inputKey);
@@ -158,7 +159,7 @@ export function requestScheduleChange(model, data, role) {
   commit(model, staged); return requestProjection(row);
 }
 export function decideScheduleChange(model, changeId, data, role) {
-  if (role?.type !== 'boss') throw new Error('仅老板可审批排班申请');
+  if (!['boss','franchise_owner'].includes(role?.type)) throw new Error('仅老板可审批排班申请');
   initialized(model); const row = model.state.scheduleChangeRequests.find(r => r.id === changeId); if (!row) throw new Error('排班调整申请不存在');
   const before = currentSchedule(model, row.therapistId, row.date); writable(model, role, row.after, row.before, 'approve');
   if (row.date < model.today) throw new Error('不能审批过去日期的排班调整');
@@ -179,12 +180,12 @@ export function scheduleRequestRows(model, role) {
   return (model.state.scheduleChangeRequests || []).filter(row => stores.includes(row.storeId) && model.state.therapists.some(t => t.id === row.therapistId && t.active === true) && (role.type !== 'therapist' || row.therapistId === role.id)).map(requestProjection);
 }
 export function bossScheduleNotifications(model, role) {
-  if (role?.type !== 'boss' || role.id !== 'boss') return [];
-  return (model.state.scheduleNotifications || []).map(noticeProjection);
+  if (!['boss','franchise_owner'].includes(role?.type)||role.type==='boss'&&role.id!=='boss') return [];
+  const stores=actorStores(model,role);return (model.state.scheduleNotifications || []).filter(row=>stores.includes(row.storeId)).map(noticeProjection);
 }
 export function markScheduleNotificationRead(model, noticeId, role) {
-  model._boss(role); initialized(model); const notice = model.state.scheduleNotifications.find(row => row.id === noticeId); if (!notice) throw new Error('排班通知不存在');
-  if (!notice.readAt) { const stamp = model._timestamp(); notice.readAt = stamp; notice.readBy = 'boss'; }
+  initialized(model); const notice = model.state.scheduleNotifications.find(row => row.id === noticeId); if (!notice) throw new Error('排班通知不存在'); model.assertStoreOwner(role,[notice.storeId]);
+  if (!notice.readAt) { const stamp = model._timestamp(); notice.readAt = stamp; notice.readBy = role.id; }
   return noticeProjection(notice);
 }
 export function assertScheduleAvailability(model, input) {

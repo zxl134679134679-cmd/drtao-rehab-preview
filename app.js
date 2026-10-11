@@ -1,25 +1,30 @@
-import {renderStaffReception,staffReceptionDialog,updateAssessorChoices,restoreAssessorDraft} from './staff-reception.js?v=20261011-therapist-phone-package-owner-6';
-import { bossDecisionDialog } from './boss-decision.js?v=20261011-therapist-phone-package-owner-6';
-import {saveMultiDayBooking} from './multi-day-booking.js?v=20261011-therapist-phone-package-owner-6';
-import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261011-therapist-phone-package-owner-6';
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261011-therapist-phone-package-owner-6';
-import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261011-therapist-phone-package-owner-6';
-import { renderManager, managerDialog } from './manager.js?v=20261011-therapist-phone-package-owner-6';
-import { hourTimeField } from './hour-picker.js?v=20261011-therapist-phone-package-owner-6';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261011-therapist-phone-package-owner-6';
-import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261011-therapist-phone-package-owner-6';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261011-therapist-phone-package-owner-6';
-import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261011-therapist-phone-package-owner-6';
+import {mountClientSearch,handleClientSearchInput,validateClientSearchSelection} from './client-search.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {renderPurchasePanel,purchaseDialog,purchaseLinesFromForm} from './package-purchase-ui.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {approvedPurchaseReceipt,approvedPurchaseSettlement} from './package-purchase.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {renderFranchiseManagement,renderFranchiseDashboard,franchiseDialog} from './franchise-ui.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {INITIAL_CASE_FIELDS,updatePaperIntakeSearch,paperIntakeSelection} from './paper-case-form.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {renderStaffReception,staffReceptionDialog,updateAssessorChoices,restoreAssessorDraft} from './staff-reception.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { bossDecisionDialog } from './boss-decision.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {saveMultiDayBooking} from './multi-day-booking.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { renderManager, managerDialog } from './manager.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { hourTimeField } from './hour-picker.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261011-combination-approval-franchise-paper-search-7';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261011-therapist-phone-package-owner-6';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261011-therapist-phone-package-owner-6';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261011-combination-approval-franchise-paper-search-7';
 
-import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261011-therapist-phone-package-owner-6';
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, amendPaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261011-combination-approval-franchise-paper-search-7';
 
-import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261011-therapist-phone-package-owner-6';
-import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261011-therapist-phone-package-owner-6';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261011-therapist-phone-package-owner-6';
-import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261011-therapist-phone-package-owner-6';
+import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261011-combination-approval-franchise-paper-search-7';
 
 // Keep operations on the displayed example day. Real systems use server time.
 function previewTimestamp() {
@@ -50,7 +55,7 @@ const main = $('#app-main');
 const sheet = $('#sheet');
 const photoViewer = $('#photo-viewer');
 const esc = value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
-const find = (kind, id) => model.projectForRole(model.state[kind].find(row => row.id === id),role);
+const find = (kind, id) => model.projectForRole((role.type==='franchise_owner'?model.franchiseState(role)[kind]||[]:model.state[kind]).find(row => row.id === id),role);
 const name = (kind, id) => id === 'boss' ? '老板' : find(kind, id)?.name || (kind==='therapists'&&!id?'预约时选择':'待安排');
 const icon = (name, size = 20, extra = '') => `<img class="icon ${extra}" src="assets/icons/${name}.svg" width="${size}" height="${size}" alt="" aria-hidden="true">`;
 const money = amount => `¥${Number(amount || 0).toLocaleString('zh-CN', {maximumFractionDigits: 2})}`;
@@ -65,8 +70,8 @@ const form = (type, html, submit) => `<form data-form="${type}">${html}<p class=
 const pair = (label, value) => `<div class="detail-pair"><span class="muted">${label}</span><strong class="detail-value">${esc(value)}</strong></div>`;
 const ctx = () => ({model:model.uiModel(role), role, view, filters, esc, icon, fmt: {money, date}, ui: {}});
 const customerCtx = () => ({...ctx(),ui:{button,link,name,pair,field,hourTimeField,form,hidden,clientServices,appointments,reviewFor,selectedStoreId:role.type==='customer'?(preferences.get('store:'+role.id)||find('clients',role.id)?.storeId):''}});
-const clientServices = id => model.serviceRows({clientId: id}).filter(s=>role.type!=='therapist'||find('therapists',role.id)?.legacy||s.principalId===role.id||(s.participantIds||[]).includes(role.id));
-const appointments = id => model.state.appointments.filter(a => a.clientId === id && a.date >= TODAY && ['confirmed','reschedule_requested'].includes(a.status)).sort((a,b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
+const clientServices = id => model.serviceRows({clientId: id}).filter(s=>role.type!=='franchise_owner'||model.isStoreOwner(role,[s.storeId])).filter(s=>role.type!=='therapist'||find('therapists',role.id)?.legacy||s.principalId===role.id||(s.participantIds||[]).includes(role.id));
+const appointments = id => model.state.appointments.filter(a => (role.type!=='franchise_owner'||model.isStoreOwner(role,[a.storeId]))&&a.clientId === id && a.date >= TODAY && ['confirmed','reschedule_requested'].includes(a.status)).sort((a,b) => `${a.date}${a.time}`.localeCompare(`${b.date}${b.time}`));
 const reviewFor = id => model.reviewRows(role).find(r => r.serviceId === id);
 const currentClient = () => find('clients', role.id);
 const canEditPlan = client => role.type === 'boss' && role.id === 'boss';
@@ -75,7 +80,7 @@ function assertClient(id) {
   return find('clients', id);
 }
 function assertBoss() { if (role.type !== 'boss' || role.id !== 'boss') throw new Error('此操作仅老板可使用'); }
-function assertStaff() { if (!['boss','therapist'].includes(role.type)) throw new Error('此操作仅工作人员可使用'); }
+function assertStaff() { if(role.type==='franchise_owner'){model.ownerStoreIds(role);return;}if (!['boss','therapist'].includes(role.type)) throw new Error('此操作仅工作人员可使用'); }
 function assertService(id) {
   if(role.type==='frontdesk')throw new Error('前台只查看接待信息，服务明细由客户、康复师和老板查看');
   const s = find('services', id);
@@ -95,22 +100,23 @@ function toast(message) {
 }
 
 function roleOptions() {
-  $('#role-select').innerHTML = `<optgroup label="客户端">${model.state.clients.map(c => `<option value="customer:${c.id}">${esc(c.name)} · 客户 · ${esc(name('stores', c.storeId))}</option>`).join('')}</optgroup><optgroup label="治疗师端">${model.state.therapists.filter(t => t.active).map(t => `<option value="therapist:${t.id}">${esc(t.name)} · ${esc(name('stores', t.storeId))}</option>`).join('')}</optgroup><optgroup label="前台端">${(model.state.frontDesks||[]).filter(f=>f.active!==false).map(f=>`<option value="frontdesk:${esc(f.id)}">${esc(f.name)} · 前台</option>`).join('')}</optgroup><optgroup label="店长端">${model.state.storeManagers.filter(m=>m.active).map(m=>`<option value="manager:${esc(m.id)}">${esc(m.name)} · ${esc(name('stores',m.storeId))}</option>`).join('')}</optgroup><optgroup label="管理端"><option value="boss:boss">王勤涛 · 评估师 / 老板 · 所有门店</option></optgroup>`;
+  $('#role-select').innerHTML = `<optgroup label="客户端">${model.state.clients.map(c => `<option value="customer:${c.id}">${esc(c.name)} · 客户 · ${esc(name('stores', c.storeId))}</option>`).join('')}</optgroup><optgroup label="治疗师端">${model.state.therapists.filter(t => t.active).map(t => `<option value="therapist:${t.id}">${esc(t.name)} · ${esc(name('stores', t.storeId))}</option>`).join('')}</optgroup><optgroup label="前台端">${(model.state.frontDesks||[]).filter(f=>f.active!==false).map(f=>`<option value="frontdesk:${esc(f.id)}">${esc(f.name)} · 前台</option>`).join('')}</optgroup><optgroup label="店长端">${model.state.storeManagers.filter(m=>m.active).map(m=>`<option value="manager:${esc(m.id)}">${esc(m.name)} · ${esc(name('stores',m.storeId))}</option>`).join('')}</optgroup><optgroup label="加盟端">${(model.state.franchiseOwners||[]).filter(f=>f.active===true).map(f=>`<option value="franchise_owner:${esc(f.id)}">${esc(f.name)} · 加盟老板</option>`).join('')}</optgroup><optgroup label="管理端"><option value="boss:boss">王勤涛 · 评估师 / 老板 · 所有门店</option></optgroup>`;
   $('#role-select').value = `${role.type}:${role.id}`;
 }
 function switchRole(value, targetView) {
   closeDialog();
   const [type, id] = value.split(':');
   if (customerShare && type !== 'customer') return;
-  if(!['customer','therapist','boss','frontdesk','manager'].includes(type))return;
+  if(!['customer','therapist','boss','frontdesk','manager','franchise_owner'].includes(type))return;
   if (type === 'customer' && !find('clients', id)) return;
   if (type === 'therapist' && !find('therapists', id)?.active) return;
   if (type === 'boss' && id !== 'boss') return;
   if(type==='frontdesk'&&!model.state.frontDesks?.some(f=>f.id===id&&f.active!==false))return;
   if(type==='manager'&&!model.state.storeManagers.some(m=>m.id===id&&m.active))return;
+  if(type==='franchise_owner'&&!model.isStoreOwner({type,id},model.state.franchiseOwners?.find(f=>f.id===id)?.storeIds))return;
   role = {type, id};
   if (window.matchMedia('(max-width: 760px)').matches) $('.preview-controls').open = false;
-  view = targetView || (type === 'customer' ? 'home' : type === 'boss' ? 'overview' : type==='frontdesk'?'reception':type==='manager'?'manager-overview':'work');
+  view = targetView || (type === 'customer' ? 'home' : ['boss','franchise_owner'].includes(type) ? 'overview' : type==='frontdesk'?'reception':type==='manager'?'manager-overview':'work');
   filters = {storeId: '', therapistId: '', from: '', to: '', query: ''};
   if (type === 'boss') { filters.from = TODAY; filters.to = TODAY; }
   if(type==='frontdesk')filters={...filters,storeId:receptionStores(ctx())[0]?.id||'',from:TODAY,to:TODAY};
@@ -118,7 +124,7 @@ function switchRole(value, targetView) {
   render(true);
 }
 function navigation() {
-  const items = role.type === 'customer' ? [['home','预约','calendar'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','今日','home'],['therapist-appointments','预约','calendar'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['reception-assessments','评估','chart-bar'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:role.type==='manager'?[['manager-overview','今日','home'],['manager-appointments','预约','calendar'],['manager-clients','客户','users'],['manager-records','经营','chart-bar']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','人员管理','users']];
+  const items = role.type==='franchise_owner'?[['overview','经营','chart-bar'],['schedules','排班','calendar']]:role.type === 'customer' ? [['home','预约','calendar'],['records','服务记录','clipboard-text'],['profile','我的','user']] : role.type === 'therapist' ? [['work','今日','home'],['therapist-appointments','预约','calendar'],['clients','客户','users'],['performance','业绩','chart-bar']] : role.type==='frontdesk'?[['reception','接待','home'],['reception-assessments','评估','chart-bar'],['cash','收款','clipboard-text'],['reception-clients','客户','users']]:role.type==='manager'?[['manager-overview','今日','home'],['manager-appointments','预约','calendar'],['manager-clients','客户','users'],['manager-records','经营','chart-bar']]:[['overview','概览','chart-bar'],['clients','客户','users'],['performance','业绩','clipboard-text'],['team','人员管理','users']];
   if(['boss','frontdesk'].includes(role.type))items.push(['schedules',role.type==='therapist'?'我的排班':'排班','calendar']);
   return items.map(([key,label,ico]) => `<button class="nav-item ${view === key ? 'active' : ''}" data-action="nav" data-id="${key}" ${view === key ? 'aria-current="page"' : ''}>${icon(ico === 'home' && view === key ? 'home-filled' : ico,25)}<span class="nav-label">${label}</span></button>`).join('');
 }
@@ -128,10 +134,12 @@ function render(resetScroll = false) {
   $('#app-window').className = `app-window ${customer ? 'customer-mode' : 'staff-mode'}`;
   const resetControl=$('[data-action="reset"]');
   if(resetControl)resetControl.hidden=role.type==='manager';
-  const label = customer ? name('clients', role.id) : role.type === 'boss' ? '老板管理' : role.type==='frontdesk'?`${name('frontDesks',role.id)} · 前台`:role.type==='manager'?`${name('storeManagers',role.id)} · 店长`:`${name('therapists', role.id)} · 康复师`;
+  const label = role.type==='franchise_owner'?`${name('franchiseOwners',role.id)} · 加盟老板`:customer ? name('clients', role.id) : role.type === 'boss' ? '老板管理' : role.type==='frontdesk'?`${name('frontDesks',role.id)} · 前台`:role.type==='manager'?`${name('storeManagers',role.id)} · 店长`:`${name('therapists', role.id)} · 康复师`;
   $('#app-header').innerHTML = `<div class="app-brand"><img class="brand-logo" src="assets/brand-logo.png" alt="涛博士 Dr.Tao 运动康复" width="146" height="56"></div><div class="customer-head"><span class="header-name">${esc(label)}</span>${customer ? `<button class="capsule" data-action="mini-info" aria-label="小程序预览说明">${icon('dots',20)}<span></span>${icon('circle-dot',20)}</button>` : '<span class="tag tag-green">工作端</span>'}</div>`;
   const staffHome=['work','overview','reception','manager-overview'].includes(view);
-  main.innerHTML = customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : view==='schedules'?renderSchedulePage(ctx()):`${renderStaffReception(ctx())}${renderBookingInbox(customerCtx())}${role.type==='manager'?renderManager(ctx()):`${view==='work'?assessmentInbox():''}${renderStaff(ctx())}`}${staffHome?renderScheduleInbox(ctx())+(role.type==='therapist'&&view==='work'?'':renderScheduleSummary(ctx())):''}`;
+  main.innerHTML = role.type==='franchise_owner'?(view==='schedules'?renderSchedulePage(ctx()):renderFranchiseDashboard(ctx())):customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : view==='schedules'?renderSchedulePage(ctx()):`${renderStaffReception(ctx())}${renderBookingInbox(customerCtx())}${role.type==='manager'?renderManager(ctx()):`${view==='work'?assessmentInbox():''}${renderStaff(ctx())}${view==='team'?renderFranchiseManagement(ctx()):''}`}${staffHome?renderScheduleInbox(ctx())+(role.type==='therapist'&&view==='work'?'':renderScheduleSummary(ctx())):''}`;
+  if(role.type!=='therapist')main.insertAdjacentHTML('afterbegin',renderPurchasePanel(ctx()));
+  mountClientSearch(main,ctx());
   const supervision=main.querySelector('.manager-supervision');
   if(supervision)supervision.open=!window.matchMedia('(max-width: 760px)').matches;
   $('#bottom-nav').innerHTML = navigation();
@@ -173,7 +181,7 @@ function packageRecord(pack) {
   const rows = clientServices(pack.clientId).filter(s => s.packageId === pack.id);
   const used = pack.openingUsed + rows.filter(s=>s.status==='valid').reduce((sum,s)=>sum+s.sessions,0);
   const finance = role.type==='boss' && pack.storeId ? model.packageFinance(pack.id,role) : null;
-  return `<h3>${esc(pack.name)}</h3>${pack.serviceContent?`<h3>服务内容</h3><p>${esc(pack.serviceContent)}</p>`:''}${pack.description?`<h3>套餐说明</h3><p>${esc(pack.description)}</p>`:''}${role.type==='boss'?button('编辑套餐内容','update-package-content',pack.id,'btn-outline')+(pack.metadataHistory?.length?`<details><summary>套餐内容修改历史</summary>${pack.metadataHistory.map(row=>`<div class="note"><p>${esc(row.changedAt)} · ${esc(row.changedBy==='boss'?'老板':row.changedBy)} · 第 ${esc(row.version)} 版</p><p>原因：${esc(row.reason)}</p><p>原名称：${esc(row.before.name)}</p><p>原服务内容：${esc(row.before.serviceContent||'未填写')}</p><p>原说明：${esc(row.before.description||'未填写')}</p><p>改为：${esc(row.after.name)} · ${esc(row.after.serviceContent||'未填写')} · ${esc(row.after.description||'未填写')}</p></div>`).join('')}</details>`:''):''}${pack.closed?'<p class="notice">套餐已结束，未用次数暂停使用，历史服务保留。</p>':''}<div class="detail-grid">${role.type === 'customer' ? '' : pair('套餐金额',money(pack.amount))}${pair('套餐总次数',`${pack.total} 次`)}${pair('剩余次数',`${balance} 次`)}${pair('已使用',`${used} 次`)}${pack.closed?pair('已结束未用次数',`${pack.total-used} 次`):''}</div>${finance?`<section class="note"><strong>本套餐收款核对</strong><div class="detail-grid">${pair('已关联到账',money(finance.received))}${pair('已关联退款',money(finance.refunded))}${pair('关联净收款',money(finance.netReceived))}${pair('套餐与收款差额',money(pack.amount-finance.netReceived))}${pair('平台待到账',money(finance.pending))}</div><p class="meta">${finance.status==='opening'?'历史套餐未自动追记收入，请按旧账核对。':finance.status==='unlinked'?'尚未关联收款，请登记已收款或从收款记录关联。':'仅统计本套餐已关联的收退款；与套餐金额的差额需核对，不自动认定为欠款。'}</p></section>`:''}<h3>次数变动记录</h3>${pack.openingUsed ? `<div class="row"><div><strong>期初纸质档案余额</strong><p class="meta">已核对迁入 ${pack.openingUsed} 次历史使用</p></div><span>−${pack.openingUsed} 次</span></div>` : ''}${rows.length ? rows.map(s => `<div class="row"><div><strong>${date(s.date)} · ${esc(s.project)}</strong><p class="meta">${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? '已完成' : pack.closed?'已撤销，套餐已结束':'已撤销，恢复原套餐 1 次'}</p></div>${link(s.status === 'valid' ? '−1 次' : '已冲回','service-detail',s.id)}</div>`).join('') : '<p class="muted">此套餐暂无新增服务记录。</p>'}`;
+  return `<h3>${esc(pack.name)}</h3>${pack.serviceContent?`<h3>服务内容</h3><p>${esc(pack.serviceContent)}</p>`:''}${pack.description?`<h3>套餐说明</h3><p>${esc(pack.description)}</p>`:''}${role.type==='boss'?button('编辑套餐内容','update-package-content',pack.id,'btn-outline')+(pack.metadataHistory?.length?`<details><summary>套餐内容修改历史</summary>${pack.metadataHistory.map(row=>`<div class="note"><p>${esc(row.changedAt)} · ${esc(row.changedBy==='boss'?'老板':row.changedBy)} · 第 ${esc(row.version)} 版</p><p>原因：${esc(row.reason)}</p><p>原名称：${esc(row.before.name)}</p><p>原服务内容：${esc(row.before.serviceContent||'未填写')}</p><p>原说明：${esc(row.before.description||'未填写')}</p><p>改为：${esc(row.after.name)} · ${esc(row.after.serviceContent||'未填写')} · ${esc(row.after.description||'未填写')}</p></div>`).join('')}</details>`:''):''}${pack.purchaseId?`<p class="meta">购入生效 ${esc(pack.validFrom)} · 到期 ${esc(pack.expiresOn)}（当日不可新消课）</p><p>可用项目：${esc((pack.allowedServiceIds||[]).map(id=>({rehabilitation:'康复训练',cryotherapy:'超低温冷疗',iastm:'筋膜刀','deep-stretch':'深度拉伸放松治疗'}[id]||id)).join('、'))}</p>`:''}${pack.closed?'<p class="notice">套餐已结束，未用次数暂停使用，历史服务保留。</p>':''}<div class="detail-grid">${role.type === 'customer' ? '' : pair('套餐金额',money(pack.amount))}${pair('套餐总次数',`${pack.total} 次`)}${pair('剩余次数',`${balance} 次`)}${pair('已使用',`${used} 次`)}${pack.closed?pair('已结束未用次数',`${pack.total-used} 次`):''}</div>${finance?`<section class="note"><strong>本套餐收款核对</strong><div class="detail-grid">${pair('已关联到账',money(finance.received))}${pair('已关联退款',money(finance.refunded))}${pair('关联净收款',money(finance.netReceived))}${pair('套餐与收款差额',money(pack.amount-finance.netReceived))}${pair('平台待到账',money(finance.pending))}</div><p class="meta">${finance.status==='opening'?'历史套餐未自动追记收入，请按旧账核对。':finance.status==='unlinked'?'尚未关联收款，请登记已收款或从收款记录关联。':'仅统计本套餐已关联的收退款；与套餐金额的差额需核对，不自动认定为欠款。'}</p></section>`:''}<h3>次数变动记录</h3>${pack.openingUsed ? `<div class="row"><div><strong>期初纸质档案余额</strong><p class="meta">已核对迁入 ${pack.openingUsed} 次历史使用</p></div><span>−${pack.openingUsed} 次</span></div>` : ''}${rows.length ? rows.map(s => `<div class="row"><div><strong>${date(s.date)} · ${esc(s.project)}</strong><p class="meta">${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? '已完成' : pack.closed?'已撤销，套餐已结束':'已撤销，恢复原套餐 1 次'}</p></div>${link(s.status === 'valid' ? '−1 次' : '已冲回','service-detail',s.id)}</div>`).join('') : '<p class="muted">此套餐暂无新增服务记录。</p>'}`;
 }
 function packageDialog(id,storeId='') {
   const c = assertClient(id);
@@ -192,7 +200,7 @@ function packageHistoryDialog(id) {
 }
 function appointmentHistoryDialog(id) {
   const client = assertClient(id);
-  const rows = model.state.appointments.filter(a => a.clientId === id && (role.type!=='therapist'||find('therapists',role.id)?.legacy||a.principalId===role.id||(a.participantIds||[]).includes(role.id))).sort((a,b)=>`${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
+  const rows = model.state.appointments.filter(a => (role.type!=='franchise_owner'||model.isStoreOwner(role,[a.storeId]))&&a.clientId === id && (role.type!=='therapist'||find('therapists',role.id)?.legacy||a.principalId===role.id||(a.participantIds||[]).includes(role.id))).sort((a,b)=>`${b.date}${b.time}`.localeCompare(`${a.date}${a.time}`));
   const labels = {confirmed:'已确认',reschedule_requested:'改约待确认',pending_reassignment:'服务人员待确认',completed:'已服务',cancelled:'已取消',no_show:'未到店'};
   return {title:role.type==='therapist'?`${client.name}的预约记录`:'预约记录',html:`${renderRequestHistory(customerCtx(),id)}<p class="muted">预约与实际服务分别记录；完成服务并登记后，才更新套餐次数和消费业绩。</p>${rows.map(a=>{
     const pending = ['confirmed','reschedule_requested','pending_reassignment'].includes(a.status);
@@ -307,7 +315,7 @@ photoViewer.addEventListener('close', () => {
 function clientDialog(id) {
   const c = assertClient(id);
   const next = appointments(id)[0];
-  return {title: `${c.name}的客户档案`, html: `<div class="detail-grid">${pair('负责康复师',name('therapists',c.ownerId))}${pair('所属门店',name('stores',c.storeId))}${role.type==='therapist'?'':pair('手机号',c.phone)}${pair(name('stores',c.storeId)+'剩余',`${model.remainingInStore(id,c.storeId)} 次`)}</div>${c.openingNotes ? `<div class="note"><strong>期初核对依据</strong><p>${esc(c.openingNotes)}</p></div>` : ""}<h3>${esc(c.goal)}</h3><p>${esc(c.phase)} · ${esc(c.nextStep)}</p><div class="action-row">${button('完整计划','plan',id,'btn-outline')}${button('评估记录','assessment-history',id,'btn-outline')}${button('登记评估数据','assessment-create',id,'btn-outline')}${button('套餐次数','package',id,'btn-outline')}${role.type==='boss'?button('办理本店套餐','create-store-package',id,'btn-outline')+button('指定各店执行师','assign-store-therapist',id,'btn-outline'):''}${button('预约记录','appointment-history',id,'btn-outline')}${role.type === 'boss' && c.packageId && !find('packages',c.packageId)?.closed && model.remaining(id) === 0 ? button('续接新套餐','renew-package',id,'btn-primary') : ''}${canEditPlan(c) ? button('更新计划','edit-plan',id,'btn-outline') : ''}</div><h3>下一次服务</h3>${next ? `<p>${date(next.date)} ${next.time} · ${esc(next.project)}</p><p class="meta">${esc(name('therapists',next.principalId))} · ${esc(name('stores',next.storeId))}</p><div class="action-row">${role.type==='boss'?button('改约','appointment-edit',next.id):''}${button('取消预约','appointment-cancel',next.id,'btn-quiet')}</div>` : '<p class="muted">暂无待服务安排</p>'}<div class="action-row">${button('登记已完成服务','register',id,'btn-primary','plus')}${button('安排下次服务','appointment-create',id,'btn-outline','calendar')}${button('与朋友一起预约','appointment-batch',id,'btn-outline')}</div><h3>服务历史</h3>${clientServices(id).map(s => `<div class="row"><div><strong>${date(s.date)} · ${esc(s.project)}</strong><p class="meta">${esc(name('therapists',s.principalId))} · ${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? '已完成' : '已撤销'}</p></div>${link('明细','service-detail',s.id)}</div>`).join('') || '<p class="muted">暂无新增服务记录</p>'}${role.type === 'boss' ? `<div class="action-row">${link('转交负责人','transfer-client',id)}${link('操作留痕','client-audit',id)}</div>` : ''}`};
+  return {title: `${c.name}的客户档案`, html: `<div class="detail-grid">${pair('负责康复师',name('therapists',c.ownerId))}${pair('所属门店',name('stores',c.storeId))}${role.type==='therapist'?'':pair('手机号',c.phone)}${pair(name('stores',c.storeId)+'剩余',`${model.remainingInStore(id,c.storeId)} 次`)}</div>${c.openingNotes ? `<div class="note"><strong>期初核对依据</strong><p>${esc(c.openingNotes)}</p></div>` : ""}<h3>${esc(c.goal)}</h3><p>${esc(c.phase)} · ${esc(c.nextStep)}</p><div class="action-row">${button('完整计划','plan',id,'btn-outline')}${button('评估记录','assessment-history',id,'btn-outline')}${role.type==='franchise_owner'?'':button('登记评估数据','assessment-create',id,'btn-outline')}${button('套餐次数','package',id,'btn-outline')}${role.type==='boss'?button('办理本店套餐','create-store-package',id,'btn-outline')+button('指定各店执行师','assign-store-therapist',id,'btn-outline'):''}${button('预约记录','appointment-history',id,'btn-outline')}${role.type === 'boss' && c.packageId && !find('packages',c.packageId)?.closed && model.remaining(id) === 0 ? button('续接新套餐','renew-package',id,'btn-primary') : ''}${canEditPlan(c) ? button('更新计划','edit-plan',id,'btn-outline') : ''}</div><h3>下一次服务</h3>${next ? `<p>${date(next.date)} ${next.time} · ${esc(next.project)}</p><p class="meta">${esc(name('therapists',next.principalId))} · ${esc(name('stores',next.storeId))}</p><div class="action-row">${role.type==='boss'?button('改约','appointment-edit',next.id):''}${button('取消预约','appointment-cancel',next.id,'btn-quiet')}</div>` : '<p class="muted">暂无待服务安排</p>'}<div class="action-row">${button('登记已完成服务','register',id,'btn-primary','plus')}${button('安排下次服务','appointment-create',id,'btn-outline','calendar')}${button('与朋友一起预约','appointment-batch',id,'btn-outline')}</div><h3>服务历史</h3>${clientServices(id).map(s => `<div class="row"><div><strong>${date(s.date)} · ${esc(s.project)}</strong><p class="meta">${esc(name('therapists',s.principalId))} · ${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? '已完成' : '已撤销'}</p></div>${link('明细','service-detail',s.id)}</div>`).join('') || '<p class="muted">暂无新增服务记录</p>'}${role.type === 'boss' ? `<div class="action-row">${link('转交负责人','transfer-client',id)}${link('操作留痕','client-audit',id)}</div>` : ''}`};
 }
 function appointmentDialog(id) {
   const c = currentClient();
@@ -362,13 +370,16 @@ function tourDialog() {
 const evaluationTypes = new Set(['assessment-create','assessment-history','assessment-detail','assessment-confirm','assessment-void','frontdesk-work','frontdesk-evaluate','frontdesk-evaluation-detail','frontdesk-evaluation-void']);
 const staffTypes = new Set(['register','edit-plan','appointment-create','appointment-edit','followup','add-store','add-therapist','add-frontdesk','transfer-client','import-opening','revoke-service','register-appointment','renew-package']);
 function buildDialog(type, id) {
+  if(role.type==='franchise_owner'&&['assessment-create','staff-assessment-create'].includes(type))throw new Error('加盟经营身份没有新建专业评估权限，请由指定评估师记录');
+  if(['catalog-configure','purchase-intent','purchase-quote','purchase-quote-intent','amount-decision','purchase-complete','amount-execute','equipment-receipt'].includes(type))return purchaseDialog(type,id,ctx());
+  if(type.startsWith('franchise-'))return franchiseDialog(type,id,ctx());
   if(['appointment-edit','edit-plan','edit-store','update-package-content'].includes(type))assertBoss();
   if(type==='update-package-content') {
     const pack=find('packages',id);if(!pack)throw new Error('套餐不存在');assertClient(pack.clientId);
     return {title:'编辑套餐内容',html:form(type,hidden('packageId',id)+hidden('expectedVersion',pack.metadataVersion??0)+'<p class="notice">仅修改名称、服务内容和说明。原价格、总次数、余额、归属和收退款记录保留。</p>'+field('套餐名称','name',pack.name,'text','required maxlength="80"')+textarea('服务内容','serviceContent',pack.serviceContent||'','maxlength="2000"')+textarea('套餐说明','description',pack.description||'','maxlength="2000"')+textarea('修改原因','reason','','required maxlength="500"'),'保存套餐内容')};
   }
   if(['staff-arrival','staff-intake-create','staff-appointment','staff-booking-create'].includes(type))return staffReceptionDialog(type,id,ctx());
-  if(type==='appointment-cancel'&&['boss','manager','frontdesk','therapist'].includes(role.type)){
+  if(type==='appointment-cancel'&&['boss','franchise_owner','manager','frontdesk','therapist'].includes(role.type)){
     const a=model.receptionAppointment(role,id);model.assertCancellationActor(role,a,{approval:role.type!=='frontdesk'&&a.cancellationRequest?.status==='pending'&&(a.cancellationRequest.needsApproval===true||a.cancellationRequest.source==='frontdesk')});
     if(role.type==='frontdesk')return workflowDialog('appointment-cancel-request',id,ctx());
     return {title:'取消预约',html:form('appointment-cancel',`${hidden('id',id)}<p>${esc(name('clients',a.clientId))} · ${date(a.date)} ${esc(a.time)}</p>${textarea('取消说明','reason','','required maxlength="500"')}<p class="notice">确认后取消本次预约并释放时间，不收款、不扣次、不退款。</p>`,'确认取消预约')};
@@ -387,7 +398,7 @@ function buildDialog(type, id) {
     if(type.startsWith('manager-'))return managerDialog(type,id,ctx());
     if(!['tour','mini-info','reception-client','paper-intake-detail','paper-intake-list'].includes(type))throw new Error('店长仅有本店监管只读权限，其他资料监管查看，请由对应工作人员处理');
   } else if(type.startsWith('manager-'))throw new Error('此页面仅店长可查看');
-  if(['paper-intake-create','paper-intake-detail','paper-intake-review','paper-intake-list'].includes(type))return paperIntakeDialog(type,id,ctx());
+  if(['paper-intake-create','paper-intake-detail','paper-intake-review','paper-intake-list','paper-intake-amend'].includes(type))return paperIntakeDialog(type,id,ctx());
   if(['reception-create-client','reception-client'].includes(type))return receptionIntakeDialog(type,id,ctx());
   if(type==='create-store-package') {
     assertBoss();const client=assertClient(id);
@@ -540,6 +551,7 @@ function openDialog(type,id = '') {
     if (collaborators && collaborators.querySelector('input:checked')) collaborators.open = true;
     updateEvidencePicker();
   }
+  mountClientSearch($('#sheet-body'),ctx());
   if (!sheet.open) { focusBeforeDialog = document.activeElement; sheet.showModal(); }
   $('#sheet-body').scrollTop = 0;
   // Focus the dialog heading to avoid opening a mobile keyboard on read-only views.
@@ -550,7 +562,7 @@ function openDialog(type,id = '') {
 async function loadLegacyDialog(context) {
   const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
   try {
-    const legacy=await import('./legacy.js?v=20261011-therapist-phone-package-owner-6');
+    const legacy=await import('./legacy.js?v=20261011-combination-approval-franchise-paper-search-7');
     if(!active())return;
     $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
     context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,
@@ -610,6 +622,7 @@ document.addEventListener('click', event => {
       if(action==='booking-add')addBookingMember(f,ctx());
       else removeBookingMember(target.closest('[data-booking-member]'),f,ctx());
       updateAppointmentAvailability(f,ctx());
+      mountClientSearch($('#sheet-body'),ctx());
       saveDraft(); return;
     }
     if (action === 'close-photo') return closePhoto();
@@ -647,7 +660,7 @@ document.addEventListener('click', event => {
     if(action==='reception-check-phone')return checkReceptionIntakePhone($('#sheet-body form'),true);
     if (action === 'close-dialog') return closeDialog();
     if (action === 'nav') {
-      const allowed = role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team','schedules'] : role.type==='frontdesk'?['reception','reception-assessments','cash','reception-clients','schedules']:role.type==='manager'?['manager-overview','manager-appointments','manager-clients','manager-records','manager-team','schedules']:['work','therapist-appointments','clients','performance','schedules'];
+      const allowed = role.type==='franchise_owner'?['overview','schedules']:role.type === 'customer' ? ['home','records','profile'] : role.type === 'boss' ? ['overview','clients','performance','team','schedules'] : role.type==='frontdesk'?['reception','reception-assessments','cash','reception-clients','schedules']:role.type==='manager'?['manager-overview','manager-appointments','manager-clients','manager-records','manager-team','schedules']:['work','therapist-appointments','clients','performance','schedules'];
       if (!allowed.includes(id)) throw new Error('该页面不可访问');
       closeDialog(); view = id; render(true); return;
     }
@@ -704,7 +717,9 @@ function checkReceptionIntakePhone(f,reportInvalid=false) {
   } catch(error){formError(f,error.message);}
 }
 document.addEventListener('input', event => {
+  if(handleClientSearchInput(event.target,ctx())){saveDraft();return;}
   const f=event.target.closest('form');
+  updatePaperIntakeSearch(f,ctx());
   updatePaperIntakeForm(f,ctx());
   updateScheduleForm(f,ctx());
   if(f?.dataset.form==='multi-day-booking'&&event.target.name==='project')updateMultiDayBookingForm(f,ctx());
@@ -715,13 +730,14 @@ document.addEventListener('input', event => {
 });
 document.addEventListener('change', event => {
   const intakeForm=event.target.closest('form');
+  updatePaperIntakeSearch(intakeForm,ctx(),false);
   updatePaperIntakeForm(intakeForm,ctx());
   updateScheduleForm(intakeForm,ctx());
   if(intakeForm?.dataset.form==='reception-create-client'){
     if(event.target.name==='phone')checkReceptionIntakePhone(intakeForm);
     else if(['storeId','ownerId'].includes(event.target.name))updateReceptionIntakeChoices(intakeForm,ctx());
   }
-  if (event.target.matches('[data-booking-client],[data-booking-principal]')) updateBookingMembers(event.target.closest('form'),ctx());
+  if (event.target.matches('[data-booking-client],[data-booking-principal]')||event.target.name==='storeId'&&event.target.closest('form')?.dataset.form==='appointment-batch') updateBookingMembers(event.target.closest('form'),ctx());
   if (['channel','settlementStatus','purpose'].includes(event.target.name)) updateCashFields(event.target.closest('form'),event.target.name);
   if (['channel','clientId','storeId','purpose','packageId'].includes(event.target.name)) updateCashPackageChoices(event.target.closest('form'),ctx());
   if (['clientId','storeId','packageId','previousPackageId','billingMode','receiptId'].includes(event.target.name)) updateServicePackageChoices(event.target.closest('form'),ctx());
@@ -793,10 +809,11 @@ document.addEventListener('submit', async event => {
   if (!f.dataset.form) return;
   event.preventDefault();
   if (f.dataset.busy === 'true' || f.dataset.succeeded === 'true') return;
-  if(role.type==='manager'&&!['manager-filters','manager-search','schedule-filters','cash-closing-select','customer-booking-confirm','record-arrival','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','appointment-create','appointment-cancel','appointment-cancel-handle'].includes(f.dataset.form)){formError(f,'店长仅有本店监管只读权限，业务录入请由前台或老板处理');return;}
+  if(role.type==='manager'&&!['amount-decision','manager-filters','manager-search','schedule-filters','cash-closing-select','customer-booking-confirm','record-arrival','paper-intake-select','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','appointment-create','appointment-cancel','appointment-cancel-handle'].includes(f.dataset.form)){formError(f,'店长仅有本店监管只读权限，业务录入请由前台或老板处理');return;}
   if(f.dataset.form==='import-opening-batch'){void dialogContext?.legacyController?.submit();return;}
   if(f.dataset.form==='customer-booking' && !advanceCustomerBookingForm(f,customerCtx())) {saveDraft();return;}
   if(f.dataset.form==='multi-day-booking'&&!advanceMultiDayBookingForm(f,ctx())){saveDraft();return;}
+  try{validateClientSearchSelection(f,ctx());}catch(error){formError(f,error.message);return;}
   if (!f.reportValidity()) return;
   const type = f.dataset.form;
   if(['appointment-edit','edit-plan','edit-store'].includes(type)&&!(role.type==='boss'&&role.id==='boss')){formError(f,'已有记录仅老板可以修改');return;}
@@ -827,9 +844,9 @@ document.addEventListener('submit', async event => {
     try{scheduleRows(model,role,{date:data.date,storeId:data.storeId});filters={...filters,scheduleDate:data.date,storeId:data.storeId||''};render();}catch(error){formError(f,error.message);}
     return;
   }
-  if(type==='paper-intake-select'){openDialog('paper-intake-create',data.clientId);return;}
+  if(type==='paper-intake-select'){try{const selection=paperIntakeSelection(model,role,data);openDialog('staff-intake-create',selection.appointmentId);}catch(error){formError(f,error.message);}return;}
   if(type==='cash-closing-select'){try{model.cashClosingSummary(role,{storeId:data.storeId,date:data.date});openDialog('cash-closing',JSON.stringify({storeId:data.storeId,date:data.date}));}catch(error){formError(f,error.message);}return;}
-  if(role.type==='manager'&&!['customer-booking-confirm','record-arrival','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','appointment-create','appointment-cancel','appointment-cancel-handle'].includes(type)) {formError(f,'店长经营监管只读，预约接待和本人评估以外的操作请由对应工作人员处理');return;}
+  if(role.type==='manager'&&!['amount-decision','customer-booking-confirm','record-arrival','paper-intake-select','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','appointment-create','appointment-cancel','appointment-cancel-handle'].includes(type)) {formError(f,'店长经营监管只读，预约接待和本人评估以外的操作请由对应工作人员处理');return;}
   if (type === 'filters') {
     if (data.from && data.to && data.from > data.to) { toast('开始日期不能晚于结束日期'); return; }
     filters = {...filters,...data}; render(); return;
@@ -851,7 +868,7 @@ document.addEventListener('submit', async event => {
       $('#network-toggle').checked = false;
       if(['add-therapist','add-frontdesk','add-manager','edit-therapist','edit-frontdesk','edit-manager','edit-store'].includes(type))throw new Error('模拟提交失败：人员资料和权限未改变，填写内容已保留，请重试。');
       if(['schedule-save','schedule-request','schedule-decision'].includes(type))throw new Error('模拟提交失败：填写内容已保留，排班和通知未改变，请重试。');
-      if (['reception-create-client','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','assessment-void','frontdesk-evaluate','frontdesk-evaluation-void'].includes(type)) throw new Error('模拟提交失败：记录未保存，填写内容已保留，请重试。');
+      if (['reception-create-client','paper-intake-select','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','assessment-void','frontdesk-evaluate','frontdesk-evaluation-void'].includes(type)) throw new Error('模拟提交失败：记录未保存，填写内容已保留，请重试。');
       throw new Error(['record-receipt','settle-receipt','refund-receipt','void-receipt','void-refund','link-receipt-package','cash-closing','cash-closing-confirm'].includes(type)?'模拟提交失败：内容已保留，收支、套餐和日结未改变，请重试。':type==='record-arrival'?'模拟提交失败：到店状态未改变，请重试。':'模拟提交失败：内容已保留，未扣次数，请重试。');
     }
     let result;
@@ -877,7 +894,7 @@ document.addEventListener('submit', async event => {
       showSuccess(titles[type],details);return;
     }
     if(['link-receipt-package','cash-closing','cash-closing-confirm'].includes(type)) {
-      if(type==='link-receipt-package')assertBoss();
+      if(type==='link-receipt-package'&&role.type!=='franchise_owner')assertBoss();
       result=type==='link-receipt-package'?model.linkReceiptPackage({...data,requestId:context.requestId},role):type==='cash-closing'?model.saveCashClosing({...data,requestId:context.requestId},role):model.confirmCashClosing(data.id,{version:data.version,requestId:context.requestId},role);
       drafts.delete(context.key);f.dataset.succeeded='true';render();
       const closing=type!=='link-receipt-package',difference=Number(result.differenceTotal || 0),hasDifference=Object.values(result.difference||{}).some(value=>value!==0)||difference!==0;
@@ -885,7 +902,7 @@ document.addEventListener('submit', async event => {
     }
     if(type==='edit-store'){result=model.updateStore({...data,requestId:context.requestId},role);drafts.delete(context.key);f.dataset.succeeded='true';render();showSuccess('门店资料已更新',`<h3>${esc(result.name)}</h3><p>${esc(result.address||'地址待配置')}</p><p class="notice">门店标识与历史业务归属保留，修改原因和原资料已留底。</p>`);return;}
     if(['add-therapist','add-frontdesk','add-manager','edit-therapist','edit-frontdesk','edit-manager'].includes(type)) {
-      model._boss(role);
+      if(role.type==='franchise_owner')model.ownerStoreIds(role);else model._boss(role);
       if(!['true','false'].includes(data.active))throw new Error('请选择有效的人员状态');
       const editing=type.startsWith('edit-'), kind=type.replace(/^(?:add|edit)-/,'');
       const input={...data,active:data.active==='true',requestId:context.requestId,...(kind==='frontdesk'?{storeIds:fd.getAll('storeIds')}:{})};
@@ -908,8 +925,47 @@ document.addEventListener('submit', async event => {
       drafts.delete(context.key);f.dataset.succeeded='true';render();
       showSuccess('新客户档案已保存',receptionIntakeSuccess(result,ctx()));return;
     }
+    if(['catalog-configure','purchase-intent','purchase-quote','amount-decision','purchase-complete','amount-execute'].includes(type)){
+      let command,payload;
+      if(type==='catalog-configure'){command='configure-catalog-product';payload={productId:data.productId,storeId:data.storeId,expectedVersion:Number(data.expectedVersion),name:data.name,serviceContent:data.serviceContent||'',description:data.description||'',priceMinor:Math.round(Number(data.price)*100),allowedServiceIds:fd.getAll('allowedServiceIds'),active:data.active==='true',reason:data.reason};if(data.unitQuantity!==undefined)payload.unitQuantity=Number(data.unitQuantity);else{payload.totalSessions=Number(data.totalSessions);payload[data.termUnit==='days'?'validityDays':'validityMonths']=Number(data.validityMonths);}}
+      else if(type==='purchase-intent'){command='submit-purchase-intent';payload={storeId:data.storeId,lines:purchaseLinesFromForm(fd)};}
+      else if(type==='purchase-quote'){command='submit-purchase-quote';payload={storeId:data.storeId,lines:purchaseLinesFromForm(fd),amountMinor:Math.round(Number(data.amount)*100),businessRecipient:data.businessRecipient?{type:data.businessRecipient.split(':')[0],id:data.businessRecipient.split(':').slice(1).join(':')}:null,reason:data.reason,...(data.intentId?{intentId:data.intentId}:data.clientId?{clientId:data.clientId}:{})};}
+      else if(type==='amount-decision'){command='approve-amount-application';payload={applicationId:data.applicationId,expectedVersion:Number(data.expectedVersion),decision:data.decision,reason:data.reason};}
+      else if(type==='purchase-complete'){command='complete-approved-purchase';payload={applicationId:data.applicationId,expectedVersion:Number(data.expectedVersion),reason:data.reason,...(data.existingClientId?{existingClientId:data.existingClientId}:{newClient:{name:data.newName,phone:data.newPhone,age:Number(data.newAge)}})};}
+      else {command='execute-approved-amount';payload={applicationId:data.applicationId,expectedVersion:Number(data.expectedVersion)};}
+      result=model.purchaseCommand(command,payload,role,context.requestId);drafts.delete(context.key);f.dataset.succeeded='true';render();showSuccess(type==='catalog-configure'?'商品配置已保存':type==='purchase-intent'?'本人组合意愿已提交':type==='amount-decision'?'金额审批结果已保存':type==='purchase-quote'?'金额已提交待任一审批':'已批准业务正式登记成功','<p>查看当前业务状态；本次审批或购买登记不代表实际到账，旧记录保持原值。</p>');return;
+    }
+    if(['record-receipt','settle-receipt','equipment-receipt'].includes(type)&&role.type==='frontdesk'&&model._amountApprovalRequired()){
+      const {approvalReason,...input}=data,payload={...input,requestId:context.requestId};
+      if(type==='settle-receipt'?!approvedPurchaseSettlement(model,payload,role):!approvedPurchaseReceipt(model,payload,role)){
+        const storeId=type==='settle-receipt'?model.state.receipts.find(r=>r.id===data.id)?.storeId:data.storeId;
+        result=model.purchaseCommand('submit-amount-application',{storeId,command:type==='settle-receipt'?'settle-receipt':'record-receipt',payload,reason:approvalReason||data.notes||'本次实际金额核对'},role,context.requestId);
+        drafts.delete(context.key);f.dataset.succeeded='true';render();showSuccess('金额已提交，待本店任一授权人审批','<p>原资料已冻结，尚未登记到账、套餐次数或计提。批准后从待正式登记卡执行。</p>');return;
+      }
+      result=type==='settle-receipt'?model.settleReceipt(data.id,payload,role):model.recordReceipt(payload,role);drafts.delete(context.key);f.dataset.succeeded='true';render();showSuccess('原购买额度内实际收款已登记','<p>精确关联原购买行；器械实收不产生康复扣次或治疗师服务计提。</p>');return;
+    }
+    if(type.startsWith('franchise-')){
+      const payload={...data,requestId:context.requestId};
+      if(type==='franchise-owner-create'){payload.storeIds=fd.getAll('storeIds');result=model.addFranchiseOwner(payload,role);}
+      else if(type==='franchise-owner-edit'){payload.storeIds=fd.getAll('storeIds');result=model.updateFranchiseOwner(payload,role);}
+      else if(type==='franchise-edit-store')result=model.updateStore(payload,role);
+      else if(type==='franchise-package-content')result=model.updatePackageContent(payload,role);
+      else if(type==='franchise-edit-appointment')result=model.saveAppointment(payload,role);
+      else if(type==='franchise-cash-closing')result=model.saveCashClosing(payload,role);
+      else if(type==='franchise-plan')result=model.publishPlan(data.clientId,{...payload,progress:model._client(data.clientId).progress},role);
+      else if(type==='franchise-revoke-service')result=model.revokeService(data.id,data.reason,role);
+      else throw new Error('当前加盟业务入口不存在');
+      drafts.delete(context.key);f.dataset.succeeded='true';render();showSuccess('当前授权范围内资料已保存','<p>真实经办身份和原记录历史已保留。</p>');return;
+    }
+    if(type==='paper-intake-amend'){
+      const initialCase=Object.fromEntries(INITIAL_CASE_FIELDS.filter(k=>!['recordNumber','visitDate','name','phone'].includes(k)).map(k=>[k,['sources','medicalHistory'].includes(k)?fd.getAll(k):data[k]||'']));
+      result=amendPaperIntake(model,{id:data.id,expectedVersion:data.expectedVersion,initialCase,reason:data.reason,requestId:context.requestId},role);
+      drafts.delete(context.key);f.dataset.succeeded='true';render();showSuccess('初诊资料已更正','<p>原值及修改原因已留存；客户、门店、预约和评估师保持原值。</p>'+button('查看初诊资料','paper-intake-detail',result.id,'btn-primary'));return;
+    }
     if(type==='paper-intake-create'||type==='paper-intake-review') {
-      result=type==='paper-intake-create'?savePaperIntake(model,{...data,requestId:context.requestId},role):reviewPaperIntake(model,data.id,{...data,requestId:context.requestId},role);
+      if(type==='paper-intake-create'&&data.formVersion==='initial_case_v2'&&role.type==='therapist'&&data.phone!=null&&data.phone!=='')throw new Error('康复师不能填写客户手机号，请由老板核对主档');
+      const payload=data.formVersion==='initial_case_v2'?{formVersion:data.formVersion,clientId:data.clientId,storeId:data.storeId,appointmentId:data.appointmentId,assessorId:data.assessorId,initialCase:Object.fromEntries(INITIAL_CASE_FIELDS.filter(k=>!['recordNumber','visitDate','name','phone'].includes(k)).map(k=>[k,['sources','medicalHistory'].includes(k)?fd.getAll(k):data[k]||''])),requestId:context.requestId}:{...data,requestId:context.requestId};
+      result=type==='paper-intake-create'?savePaperIntake(model,payload,role):reviewPaperIntake(model,data.id,{...data,requestId:context.requestId},role);
       drafts.delete(context.key);f.dataset.succeeded='true';render();
       showSuccess(type==='paper-intake-create'?'接待表已保存，待指定评估师复核':'本次复核与下一步已保存',`<h3>${esc(name('clients',result.clientId))} · ${esc(name('stores',result.storeId))}</h3><p class="meta">本次接待 ${esc(result.date)} ${esc(result.time)} · 评估师 ${esc(name(result.assessorId?'assessors':'therapists',result.assessorId||find('clients',result.clientId).ownerId))}</p><p class="notice">${type==='paper-intake-create'?'记录了客户本次自述，请交给本次所选评估师核对。尚未形成专业评估结论。':esc(result.review.nextStep)}</p><p>本次保存不收款、不扣次数。</p>${button('查看本次接待表','paper-intake-detail',result.id,'btn-primary')}${type==='paper-intake-review'&&result.review.taskId?button('查看下一步待办','task-detail',result.review.taskId,'btn-outline'):''}`);return;
     }
@@ -951,7 +1007,7 @@ document.addEventListener('submit', async event => {
       showSuccess('本次服务已登记',`<h3>${esc(name('clients',result.clientId))} · ${esc(result.project)}</h3>${serviceResultSummary(result,ctx())}<div class="action-row">${button('查看服务明细','service-detail',result.id,'btn-outline')}${button('安排下一次服务','appointment-create',result.clientId,'btn-outline')}${result.nextStepSuggestion&&canEditPlan(find('clients',result.clientId))?button('确认客户下一步','confirm-service-next-step',result.id,'btn-primary'):''}</div>`); return;
     }
     if (type === 'record-receipt' || type === 'settle-receipt' || type === 'refund-receipt') {
-      if(type==='refund-receipt')assertBoss();
+      if(type==='refund-receipt'&&role.type!=='franchise_owner')assertBoss();
       result = type === 'record-receipt' ? model.recordReceipt({...data,requestId:context.requestId},role) : type === 'settle-receipt' ? model.settleReceipt(data.id,{...data,requestId:context.requestId},role) : model.refundReceipt({...data,requestId:context.requestId},role);
       drafts.delete(context.key); f.dataset.succeeded='true'; render();
       const pending=result.status==='pending_settlement';
@@ -1020,20 +1076,22 @@ function exportPreview() {
   const cleanCash=row=>{const {inputKey,requestId,requestType,confirmRequestId,confirmInputKey,ledgerFingerprint,...safe}=row;return safe;};
   const frontStores=role.type==='frontdesk'?receptionStores(ctx()):[];
   const frontStoreIds=role.type==='frontdesk'?new Set(frontStores.map(s=>s.id)):null;
-  const data = role.type==='manager'?model.managerSnapshot(role):role.type === 'boss' ? {...state,audit:state.audit.map(cleanAudit),services:state.services.map(exportService),receipts:state.receipts.map(cleanCash),refunds:state.refunds.map(cleanCash)} : role.type==='frontdesk'?{
+  const {purchaseRequests,catalogRequests,...publicState}=state;
+  const data = role.type==='franchise_owner'?model.franchiseState(role):role.type==='manager'?model.managerSnapshot(role):role.type === 'boss' ? {...publicState,audit:state.audit.map(cleanAudit),services:state.services.map(exportService),receipts:state.receipts.map(cleanCash),refunds:state.refunds.map(cleanCash)} : role.type==='frontdesk'?{
     clients:state.clients.filter(c=>ids.has(c.id)).map(c=>({id:c.id,name:c.name,phone:c.phone,age:c.age,problem:c.problem,storeId:c.storeId,ownerId:c.ownerId,assessorId:c.assessorId,storeSessions:frontStores.map(store=>({storeId:store.id,storeName:store.name,remainingSessions:model.remainingInStore(c.id,store.id)}))})),
     appointments:state.appointments.filter(a=>frontStoreIds.has(a.storeId)).map(a=>({id:a.id,clientId:a.clientId,storeId:a.storeId,date:a.date,time:a.time,principalId:a.principalId,status:a.status,arrivalAt:a.arrivalAt,arrivalBy:a.arrivalBy})),
     receipts:state.receipts.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),refunds:state.refunds.filter(r=>frontStoreIds.has(r.storeId)).map(cleanCash),
     assessments:assessmentRows(model,role),frontDeskEvaluations:frontDeskEvaluationRows(model,role,role.id)
   } : {
     clients:model.visibleClients(role),
-    packages:state.packages.filter(p => ids.has(p.clientId)).map(p=>role.type==='customer'?{id:p.id,clientId:p.clientId,name:p.name,serviceContent:p.serviceContent||'',description:p.description||'',metadataVersion:p.metadataVersion??0,total:p.total,openingUsed:p.openingUsed,status:p.status,storeId:p.storeId,closed:p.closed===true,remaining:model.packageRemaining(p.id)}:p),
+    packages:state.packages.filter(p => ids.has(p.clientId)).map(p=>role.type==='customer'?{id:p.id,clientId:p.clientId,name:p.name,serviceContent:p.serviceContent||'',description:p.description||'',metadataVersion:p.metadataVersion??0,total:p.total,openingUsed:p.openingUsed,validFrom:p.validFrom,expiresOn:p.expiresOn,allowedServiceIds:p.allowedServiceIds,status:p.status,storeId:p.storeId,closed:p.closed===true,remaining:model.packageRemaining(p.id)}:p),
     services:state.services.filter(s => role.type==='therapist'&&!state.therapists.find(t=>t.id===role.id)?.legacy ? s.principalId===role.id || s.participantIds.includes(role.id) : ids.has(s.clientId) || (role.type === 'therapist' && (s.principalId === role.id || s.participantIds.includes(role.id)))).map(exportService),
     appointments:state.appointments.filter(a => ids.has(a.clientId)&&(role.type!=='therapist'||state.therapists.find(t=>t.id===role.id)?.legacy||a.principalId===role.id||(a.participantIds||[]).includes(role.id))),
     tasks:state.tasks.filter(t => ids.has(t.clientId) && (role.type === 'customer' ? ['plan','assessment','review','reschedule'].includes(t.type) : t.type !== 'review_followup' && t.assigneeId === role.id)),
     reviews:model.reviewRows(role),
     assessments:assessmentRows(model,role)
   };
+  if(role.type!=='therapist')Object.assign(data,model.purchaseView(role),model.catalogView(role));
   if(['boss','frontdesk','manager'].includes(role.type)){
     const allowedCashStores=new Set(role.type==='boss'?state.stores.map(s=>s.id):role.type==='manager'?[model.managerStoreId(role)]:[...frontStoreIds]);
     data.cashClosings=(state.cashClosings||[]).filter(row=>allowedCashStores.has(row.storeId)).map(cleanCash);
@@ -1050,7 +1108,8 @@ function exportPreview() {
 // A manual toggle stays in place while the viewport remains on the same side.
 const compactPreview = window.matchMedia('(max-width: 760px)');
 $('.preview-controls').open = !compactPreview.matches;
-compactPreview.addEventListener('change', event => { $('.preview-controls').open = !event.matches; const supervision=main.querySelector('.manager-supervision');if(supervision)supervision.open=!event.matches; });
+compactPreview.addEventListener('change', event => { $('.preview-controls').open = !event.matches; mountClientSearch(main,ctx());
+  const supervision=main.querySelector('.manager-supervision');if(supervision)supervision.open=!event.matches; });
 document.body.classList.toggle('customer-share', customerShare);
 $('#share-preview-note').hidden = !customerShare;
 if(previewEntry==='boss')switchRole('boss:boss');

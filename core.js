@@ -1,6 +1,9 @@
-import { customerBookingRows } from './customer-booking.js?v=20261011-therapist-phone-package-owner-6';
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-therapist-phone-package-owner-6';
-import { assertScheduleAvailability } from './schedules.js?v=20261011-therapist-phone-package-owner-6';
+import {assertApprovedAmount,assertPurchasedService,purchaseCommands,purchaseView} from './package-purchase.js?v=20261011-combination-approval-franchise-paper-search-7';
+import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-combination-approval-franchise-paper-search-7';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -366,6 +369,7 @@ export class DemoModel {
     }
     this._validateCashState();
     this._validateCashClosings();
+    this.state=initializeProductCatalog(this.state);
   }
 
   _validateCashState() {
@@ -402,6 +406,7 @@ export class DemoModel {
             ['storeId', 'channel', 'clientId', 'method'].some(key => row[key] !== parent[key]) || row.settlementStatus !== 'received' ||
             row.purpose !== 'platform_settlement' || `${row.date} ${row.time}` < `${parent.date} ${parent.time}` ||
             !parent.settlementReceiptIds?.includes(row.id)) throw new Error('平台到账子单与父单关联无效');
+        if(row.equipmentOrderId!==parent.equipmentOrderId)throw new Error('平台到账子单与原器械来源不一致');
         if (row.packageId !== parent.packageId) throw new Error('平台到账子单与原套餐关联不一致');
         if (row.status === 'valid' && (parent.status !== 'settled' || parent.settlementReceiptId !== row.id)) throw new Error('有效到账子单与父单结算状态不一致');
       }
@@ -512,6 +517,8 @@ export class DemoModel {
     if (!row || (active && !row.active)) throw new Error('请选择在职康复师');
     return row;
   }
+  _businessOwner(role,storeIds) { if(role?.type==='boss')return this._boss(role);this.assertStoreOwner(role,storeIds); }
+  _ownerClient(role,clientId) { const client=this._client(clientId);if(role?.type==='boss'){this._boss(role);return client;}const rows=[client,...this.state.packages.filter(p=>p.clientId===clientId),...this.state.services.filter(p=>p.clientId===clientId),...this.state.appointments.filter(p=>p.clientId===clientId)];this.assertStoreOwner(role,rows.map(r=>r.storeId));return client; }
   _boss(role) {
     if (role?.type !== 'boss' || role.id !== 'boss') throw new Error('仅老板有权限进行此操作');
   }
@@ -541,6 +548,7 @@ export class DemoModel {
     return [...this._frontDesk(role.id).storeIds];
   }
   assertAppointmentStaff(role) {
+    if(role?.type==='franchise_owner')return this.ownerStoreIds(role);
     if(role?.type==='boss')return this._boss(role);
     if(role?.type==='frontdesk')return this._frontDesk(role.id);
     if(role?.type==='manager')return this.managerStoreId(role);
@@ -566,11 +574,11 @@ export class DemoModel {
   }
   appointmentReceptionRows(role) {
     this.assertAppointmentStaff(role);
-    return this.projectForRole(this.state.appointments.map(a=>({id:a.id,clientId:a.clientId,clientName:this._client(a.clientId).name,phone:this._client(a.clientId).phone,storeId:a.storeId,date:a.date,time:a.time,principalId:a.principalId,status:a.status,arrivalAt:a.arrivalAt})), role);
+    return this.projectForRole(this.state.appointments.filter(a=>role.type!=='franchise_owner'||this.isStoreOwner(role,[a.storeId])).map(a=>({id:a.id,clientId:a.clientId,clientName:this._client(a.clientId).name,phone:this._client(a.clientId).phone,storeId:a.storeId,date:a.date,time:a.time,principalId:a.principalId,status:a.status,arrivalAt:a.arrivalAt})), role);
   }
   receptionAppointment(role,id,{arrived=false}={}) {
     this.assertAppointmentStaff(role);const a=this.state.appointments.find(a=>a.id===id);
-    if(!a)throw new Error('预约不存在');
+    if(!a)throw new Error('预约不存在');if(role?.type==='franchise_owner')this.assertStoreOwner(role,[a.storeId]);
     if(arrived&&(a.date!==this.today||!a.arrivalAt||a.cancellationRequest?.status==='pending'||!['confirmed','reschedule_requested'].includes(a.status)))throw new Error('先明确确认预约并确认今天实际到店，再填写本次接待表');
     return a;
   }
@@ -579,7 +587,8 @@ export class DemoModel {
     if (role?.type === 'boss') {
       this._boss(role);
       ids = this.state.stores.map(store => store.id);
-    } else if (role?.type === 'manager') ids = [this.managerStoreId(role)];
+    } else if(role?.type==='franchise_owner')ids=this.ownerStoreIds(role);
+    else if (role?.type === 'manager') ids = [this.managerStoreId(role)];
     else if (role?.type === 'frontdesk') ids = this.frontDeskStoreIds(role);
     else if (role?.type === 'therapist') ids = [this._therapist(role.id).storeId];
     else throw new Error('仅老板、在职店长、前台和康复师有权限新客户建档');
@@ -636,6 +645,7 @@ export class DemoModel {
     return this.projectForRole(client, role);
   }
   _cashActor(role, storeId, clientId) {
+    if(role?.type==='franchise_owner'){const ids=this.ownerStoreIds(role);if(storeId)this.assertStoreOwner(role,[storeId]);return ids;}
     if (role?.type === 'boss') return this._boss(role);
     if (role?.type !== 'frontdesk') throw new Error('仅老板和授权门店前台有权限登记收款或确认到账');
     const frontDesk = this._frontDesk(role.id);
@@ -645,7 +655,7 @@ export class DemoModel {
   }
   _managerBookingActor(role,clientId,storeId) { return this._newBookingActor(role,clientId,storeId); }
   _newBookingActor(role,clientId,storeId) {
-    this.assertAppointmentStaff(role);this._store(storeId);
+    this.assertAppointmentStaff(role);this._store(storeId);if(role?.type==='franchise_owner')this.assertStoreOwner(role,[storeId]);
     if(this._store(storeId).active===false)throw new Error('预约门店已停用');
     return this._client(clientId);
   }
@@ -657,6 +667,7 @@ export class DemoModel {
     return this._client(clientId);
   }
   _staff(role, clientId, storeId) {
+    if(role?.type==='franchise_owner'){this.assertStoreOwner(role,[storeId]);return this._client(clientId);}
     if (role?.type === 'boss') this._boss(role);
     else if (role?.type === 'therapist') {
       this._therapist(role.id);
@@ -697,6 +708,7 @@ export class DemoModel {
   _financeActor(role, storeId) {
     let stores;
     if (role?.type === 'boss') { this._boss(role); stores = this.state.stores.map(row => row.id); }
+    else if(role?.type==='franchise_owner')stores=this.ownerStoreIds(role);
     else if (role?.type === 'frontdesk') stores = this.frontDeskStoreIds(role);
     else if (role?.type === 'manager') stores = [this.managerStoreId(role)];
     else throw new Error('您没有查看套餐收款和营业对账的权限');
@@ -726,7 +738,7 @@ export class DemoModel {
   }
 
   linkReceiptPackage(data, role) {
-    this._boss(role);
+    this._businessOwner(role,[this.state.receipts.find(r=>r.id===data.receiptId)?.storeId,this.state.packages.find(r=>r.id===data.packageId)?.storeId]);
     const input = { receiptId: required(data.receiptId, '原收款标识', 80), packageId: required(data.packageId, '关联套餐', 80), reason: required(data.reason, '收款关联原因', 1000) };
     const requestId = required(data.requestId, '提交标识', 80), inputKey = JSON.stringify(input);
     const previous = this.state.audit.find(row => row.type === 'receipt_package_linked' && row.actorType === role.type && row.actorId === role.id && row.requestId === requestId);
@@ -767,7 +779,13 @@ export class DemoModel {
       remaining: this.packageRemaining(pack.id), closed: pack.closed === true, status: hasLink ? 'linked' : pack.createdBy || pack.renewedBy ? 'unlinked' : 'opening' };
   }
 
+  handoverOwners(storeId,role){this._financeActor(role,storeId);this._store(storeId);return [{id:'boss',name:'王勤涛',type:'boss'},...this.state.frontDesks.filter(f=>f.active===true&&f.storeIds.includes(storeId)).map(f=>({id:f.id,name:f.name,type:'frontdesk'})),...(this.state.franchiseOwners||[]).filter(f=>f.active===true&&this.isStoreOwner({type:'franchise_owner',id:f.id},[storeId])).map(f=>({id:f.id,name:f.name,type:'franchise_owner'}))];}
+  _amountApprovalRequired(){return true;}
+  purchaseCommand(command,payload,role,requestId){const run=purchaseCommands[command]||catalogCommands[command];if(!run)throw new Error('购买或审批命令不存在');return run(this,payload,role,requestId);}
+  catalogView(role){return catalogView(this,role);}
+  purchaseView(role){return purchaseView(this,role);}
   recordReceipt(data, role) {
+    assertApprovedAmount(this,role,'record-receipt',data);
     this._cashActor(role);
     const requestId = required(data.requestId, '提交标识', 80);
     const channel = data.channel ?? 'direct', settlementStatus = data.settlementStatus ?? 'received';
@@ -775,7 +793,7 @@ export class DemoModel {
     if (!['received', 'pending'].includes(settlementStatus)) throw new Error('请选择有效到账状态');
     if (channel === 'direct' && settlementStatus === 'pending') throw new Error('待结算状态仅适用于平台渠道');
     const purpose = required(data.purpose, '收款用途', 80), method = required(data.method, '收款方式', 80);
-    if (!['package', 'renewal', 'single', 'other', 'platform_settlement'].includes(purpose)) throw new Error('请选择有效收款用途');
+    if (!['package', 'renewal', 'single', 'equipment', 'other', 'platform_settlement'].includes(purpose)) throw new Error('请选择有效收款用途');
     if (purpose === 'platform_settlement' && channel === 'direct') throw new Error('平台结算用途须选择平台渠道');
     if (!['wechat', 'alipay', 'cash', 'bank'].includes(method)) throw new Error('请选择有效收款方式');
     const clientId = channel === 'direct' ? required(data.clientId, '客户', 80) : optionalText(data.clientId, '客户', 80);
@@ -789,6 +807,7 @@ export class DemoModel {
       settlementStatus, reference, amountMinor: minor, notes: optionalText(data.notes, '收款备注') };
     const packageId = optionalText(data.packageId, '关联套餐', 80);
     if (packageId) input.packageId = packageId;
+    if(data.equipmentOrderId){const order=(this.state.equipmentOrders||[]).find(o=>o.id===data.equipmentOrderId);if(!order||order.clientId!==input.clientId||order.storeId!==input.storeId||input.purpose!=='equipment'||input.packageId||data.singleOrderId)throw new Error('器械实收须关联原客户本店实物订单，不得记作康复消课');input.equipmentOrderId=order.id;}else if(input.purpose==='equipment')throw new Error('器械实收须选择原实物订单');
     const inputKey = JSON.stringify(input);
     const existing = this._financialExisting(requestId, role, 'receipt', inputKey);
     if (existing) return existing;
@@ -805,7 +824,7 @@ export class DemoModel {
   }
 
   refundReceipt(data, role) {
-    this._boss(role);
+    this._businessOwner(role,[this.state.receipts.find(r=>r.id===data.receiptId)?.storeId]);
     const requestId = required(data.requestId, '提交标识', 80);
     const receiptId = required(data.receiptId, '原收款标识', 80), minor = amountMinor(data.amount, '退款金额');
     const input = { receiptId, date: validDate(data.date), time: validTime(data.time), amountMinor: minor,
@@ -819,6 +838,7 @@ export class DemoModel {
       input.packageId = pack.id; input.packageAction = data.packageAction;
       input.packageReason = required(data.packageReason, '退款套餐处理原因', 1000);
     }
+    if(receipt?.equipmentOrderId)input.equipmentOrderId=receipt.equipmentOrderId;
     const inputKey = JSON.stringify(input), existing = this._financialExisting(requestId, role, 'refund', inputKey);
     if (existing) return existing;
     if (!receipt || receipt.status !== 'valid') throw new Error('只能从有效的已到账收款登记退款');
@@ -845,6 +865,7 @@ export class DemoModel {
   }
 
   settleReceipt(id, data, role) {
+    assertApprovedAmount(this,role,'settle-receipt',{...data,id});
     this._cashActor(role);
     const parentId = required(id, '待结算标识', 80), requestId = required(data.requestId, '提交标识', 80);
     const parent = this.state.receipts.find(row => row.id === parentId);
@@ -865,7 +886,7 @@ export class DemoModel {
       channel: parent.channel, purpose: 'platform_settlement', method: parent.method,
       settlementStatus: 'received', amount: minor / 100, status: 'valid', recordedBy: role.id, recordedRole: role.type,
       requestId, requestType: 'settlement', inputKey, createdAt: stamp, recordedAt: stamp };
-    if (parent.packageId) row.packageId = parent.packageId;
+    if (parent.packageId) row.packageId = parent.packageId;if(parent.equipmentOrderId)row.equipmentOrderId=parent.equipmentOrderId;
     this.state.receipts.push(row);
     parent.status = 'settled';
     parent.settlementReceiptId = row.id;
@@ -875,7 +896,7 @@ export class DemoModel {
   }
 
   voidReceipt(id, reason, role) {
-    this._boss(role);
+    this._businessOwner(role,[this.state.receipts.find(r=>r.id===id)?.storeId]);
     const why = required(reason, '撤销收款原因', 1000), row = this.state.receipts.find(item => item.id === id);
     if (!row) throw new Error('收款记录不存在');
     if (row.status === 'revoked') throw new Error('该收款已撤销，不能重复撤销');
@@ -895,7 +916,7 @@ export class DemoModel {
   }
 
   voidRefund(id, reason, role) {
-    this._boss(role);
+    this._businessOwner(role,[this.state.refunds.find(r=>r.id===id)?.storeId]);
     const why = required(reason, '撤销退款原因', 1000), row = this.state.refunds.find(item => item.id === id);
     if (!row) throw new Error('退款记录不存在');
     if (row.status === 'revoked') throw new Error('该退款已撤销，不能重复撤销');
@@ -1022,7 +1043,7 @@ export class DemoModel {
     if (existing) return this._cashClosingRecord(existing, this._cashClosingLedger(storeId, date).ledgerFingerprint);
     if (date > this.today) throw new Error('不能提交尚未营业的未来日期对账');
     const current = this._latestCashClosing(storeId, date);
-    if(current)this._boss(role);
+    if(current)this._businessOwner(role,[storeId]);
     if ((current?.version || 0) !== version) throw new Error('对账版本已更新，请重新打开并核对最新账目');
     const ledger = this._cashClosingLedger(storeId, date), stamp = this._timestamp(), staged = this._stageCashWrite(stamp);
     const row = { id: staged._id('cashClosing'), storeId, date, version: version + 1, status: 'submitted',
@@ -1037,7 +1058,7 @@ export class DemoModel {
   }
 
   confirmCashClosing(id, data, role) {
-    this._boss(role);
+    this._businessOwner(role,[this.state.cashClosings.find(r=>r.id===id)?.storeId]);
     const row = this.state.cashClosings.find(item => item.id === required(id, '对账记录标识', 80));
     if (!row) throw new Error('对账记录不存在');
     this._financeActor(role, row.storeId);
@@ -1107,7 +1128,7 @@ export class DemoModel {
   }
 
   updatePackageContent(data, role) {
-    this._boss(role);
+    this._businessOwner(role,[this.state.packages.find(r=>r.id===data?.packageId)?.storeId]);
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('请填写套餐内容');
     const allowed = new Set(['packageId', 'name', 'serviceContent', 'description', 'expectedVersion', 'reason', 'requestId']);
     if (Object.keys(data).some(key => !allowed.has(key))) throw new Error('仅能修改套餐名称、服务内容和说明，提交含非法字段');
@@ -1129,7 +1150,7 @@ export class DemoModel {
   }
 
   createStorePackage(data, role) {
-    this._boss(role);
+    this._businessOwner(role,[data?.storeId]);
     const client = this._client(data.clientId), store = this._store(required(data.storeId, '办卡门店', 80));
     const requestId = required(data.requestId, '提交标识', 80);
     const minor = amountMinor(data.amount), total = count(data.total, '套餐总次数');
@@ -1142,7 +1163,7 @@ export class DemoModel {
     }
     if (store.active === false) throw new Error('办卡门店已停用，请核对门店');
     const stamp = this._timestamp(), staged = this._stagePackageWrite(stamp);
-    const firstPackage = !client.packageId;
+    const firstPackage = !client.packageId;if(firstPackage&&role.type==='franchise_owner')this._ownerClient(role,client.id);
     const row = { id: staged._id('p'), clientId: client.id, storeId: store.id, name: input.name, amount: minor / 100, amountMinor: minor, total, openingUsed: 0, status: firstPackage ? 'current' : 'historical', createdBy: role.id, createdRole: role.type, createdAt: stamp, requestId, inputKey };
     staged.state.packages.push(row);
     if (firstPackage) staged._client(client.id).packageId = row.id;
@@ -1152,7 +1173,7 @@ export class DemoModel {
   }
 
   renewPackage(data, role) {
-    this._boss(role);
+    this._businessOwner(role,[this.state.packages.find(r=>r.id===(data?.previousPackageId||this._client(data?.clientId).packageId))?.storeId]);
     const client = this._client(data.clientId);
     const requestId = required(data.requestId, '提交标识', 80);
     const minor = amountMinor(data.amount), amount = minor / 100, total = count(data.total, '套餐总次数');
@@ -1177,7 +1198,7 @@ export class DemoModel {
     if (previous.closed === true) throw new Error('原套餐已结束，请另办新套餐，不能以剩余零次续费');
     if (this.packageRemaining(previous.id) !== 0) throw new Error('原套餐仍有剩余次数，请用完后再续套餐');
     const stamp = this._timestamp(), staged = this._stagePackageWrite(stamp);
-    const replacePrimary = previous.id === client.packageId;
+    const replacePrimary = previous.id === client.packageId;if(replacePrimary&&role.type==='franchise_owner')this._ownerClient(role,client.id);
     const row = { id: staged._id('p'), clientId: client.id, storeId, name: input.name, amount, amountMinor: minor, total, openingUsed: 0,
       status: replacePrimary ? 'current' : 'historical', previousPackageId: previous.id, renewedBy: role.id, reason: input.reason,
       requestId, inputKey, createdAt: stamp };
@@ -1190,7 +1211,7 @@ export class DemoModel {
   }
 
   activatePackage(packageId, reason, role) {
-    this._boss(role);
+    this._businessOwner(role,[this.state.packages.find(r=>r.id===packageId)?.storeId]);
     const why = required(reason, '切换使用套餐原因');
     const target = this.state.packages.find(item => item.id === packageId);
     if (!target) throw new Error('套餐不存在');
@@ -1198,6 +1219,7 @@ export class DemoModel {
     const client = this._client(target.clientId);
     if (target.status !== 'historical' || client.packageId === target.id) throw new Error('只能切换使用有余额的历史套餐');
     if (this.packageRemaining(target.id) <= 0) throw new Error('该历史套餐没有剩余次数');
+    if(role.type==='franchise_owner')this._ownerClient(role,client.id);
     const previousPackageId = client.packageId;
     this.state.packages.filter(item => item.clientId === client.id && item.status === 'current').forEach(item => { item.status = 'historical'; });
     target.status = 'current';
@@ -1269,8 +1291,9 @@ export class DemoModel {
   }
 
   assignStoreTherapist(data, role) {
-    this._boss(role);
+    this._businessOwner(role,[data?.storeId]);
     const client = this._client(required(data.clientId, '客户', 80)), storeId = required(data.storeId, '授权门店', 80);
+    if(role.type==='franchise_owner'&&!this.canSeeClient(role,client.id))throw new Error('客户不在当前加盟经营业务范围');
     this._store(storeId);
     const therapist = this._therapist(required(data.therapistId, '本店执行康复师', 80));
     if (therapist.storeId !== storeId) throw new Error('执行康复师须属于本店且在职');
@@ -1280,7 +1303,7 @@ export class DemoModel {
     target.storeTherapistIds = { ...(target.storeTherapistIds || {}), [storeId]: therapist.id };
     staged._log('client_store_therapist_assigned', { clientId: client.id, storeId, beforeTherapistId: beforeId, therapistId: therapist.id, ownerId: client.ownerId, reason }, role);
     this.state = staged.state; this.sequence = staged.sequence;
-    return target;
+    return role.type==='franchise_owner'?this.franchiseState(role).clients.find(row=>row.id===target.id):target;
   }
 
   _singleReceiptPurpose(receipt) {
@@ -1307,6 +1330,7 @@ export class DemoModel {
     const client = this.state.clients.find(item => item.id === clientId);
     if (!client) return false;
     if (role?.type === 'boss' && role.id === 'boss') return true;
+    if(role?.type==='franchise_owner'){try{const ids=this.ownerStoreIds(role);return ids.includes(client.storeId)||[...this.state.packages,...this.state.services,...this.state.appointments].some(r=>r.clientId===clientId&&r.storeId&&ids.includes(r.storeId));}catch{return false;}}
     if (role?.type === 'customer') return role.id === clientId;
     if (role?.type === 'manager') {
       try { return managerClientInStore(this, client, this.managerStoreId(role)); } catch { return false; }
@@ -1329,6 +1353,7 @@ export class DemoModel {
     const service = this.state.services.find(item => item.id === serviceId);
     const client = service && this.state.clients.find(item => item.id === service.clientId);
     if (!service || !client) return false;
+    if(role?.type==='franchise_owner')return this.isStoreOwner(role,[service.storeId]);
     if (role?.type === 'boss') return role.id === 'boss';
     if (role?.type === 'manager') {
       try { return service.storeId === this.managerStoreId(role); } catch { return false; }
@@ -1342,17 +1367,20 @@ export class DemoModel {
 
   projectForRole(value, role) {
     if (role?.type === 'boss' && role.id === 'boss') return value;
-    const hidden = new Set(['metadataHistory',...(role?.type === 'therapist' ? ['phone', 'clientPhone', 'customerPhone', 'phoneMasked', 'guardianPhone', 'emergencyPhone', 'inputKey', 'receptionInputKey', 'reviewInputKey', 'confirmInputKey'] : [])]);
+    const hidden = new Set(['metadataHistory','catalogRequests','purchaseRequests','sourceBasis',...(role?.type === 'therapist' ? ['phone', 'clientPhone', 'customerPhone', 'phoneMasked', 'guardianPhone', 'emergencyPhone', 'inputKey', 'receptionInputKey', 'reviewInputKey', 'confirmInputKey'] : [])]);
     const project = item => Array.isArray(item) ? item.map(project) : item && typeof item === 'object'
-      ? Object.fromEntries(Object.entries(item).filter(([key]) => !hidden.has(key)).map(([key, child]) => [key, project(child)])) : item;
+      ? Object.fromEntries(Object.entries(item).filter(([key,child]) => !hidden.has(key)&&!(role?.type==='therapist'&&key==='wechat'&&typeof child==='string'&&/^\+?\d{6,}$/.test(child.replace(/[\s()-]/g,'')))).map(([key, child]) => [key, project(child)])) : item;
     return project(value);
   }
   // The UI receives a read projection. Domain methods still validate and mutate
   // the original state, including saved guardian evidence used for review.
   customerBookingRows(role) { return customerBookingRows(this,role); }
+  customerBookingConfirmation(role,id) { return customerBookingConfirmation(this,id,role); }
+  customerBookingHandling(role,id) { return customerBookingHandling(this,id,role); }
   uiModel(role) {
+    if(role?.type==='franchise_owner')return Object.assign(Object.create(Object.getPrototypeOf(this)),this,{state:this.franchiseState(role),isUiProjection:true,customerBookingRows:r=>customerBookingRows(this,r),customerBookingConfirmation:(r,id)=>customerBookingConfirmation(this,id,r),customerBookingHandling:(r,id)=>customerBookingHandling(this,id,r)});
     if (role?.type !== 'therapist') return this;
-    const state = this.projectForRole(this.state, role), model = this;
+    const state = this.projectForRole(this.state, role), model = this;Object.assign(state,catalogView(this,role),purchaseView(this,role));
     return new Proxy(this, {get(target, key) {
       if (key === 'state') return state;
       if (key === 'isUiProjection') return true;
@@ -1362,6 +1390,7 @@ export class DemoModel {
   }
 
   visibleClients(role) {
+    if(role?.type==='franchise_owner')return this.franchiseState(role).clients;
     if (role?.type === 'manager') return this.managerSnapshot(role).clients;
     const clients = this.state.clients.filter(item => this.canSeeClient(role, item.id));
     if (role?.type === 'frontdesk') return clients.map(({ id, name, phone, age, problem, ownerId, assessorId, storeId, packageId }) => ({ id, name, phone, age, problem, ownerId, assessorId, storeId, packageId }));
@@ -1370,6 +1399,7 @@ export class DemoModel {
 
   reviewRows(role) {
     if (role?.type === 'boss' && role.id === 'boss') return this.state.reviews;
+    if(role?.type==='franchise_owner')return this.state.reviews.filter(r=>this.isStoreOwner(role,[this.state.services.find(s=>s.id===r.serviceId)?.storeId]));
     if (role?.type === 'customer' && this.state.clients.some(client => client.id === role.id)) {
       return this.state.reviews.filter(review => review.clientId === role.id);
     }
@@ -1402,6 +1432,7 @@ export class DemoModel {
       pendingAppointment(item.status) && item.date < this.today &&
       (role?.type !== 'frontdesk' || this.state.frontDesks.some(row => row.id === role.id && row.active && row.storeIds.includes(item.storeId))) &&
       (role?.type !== 'manager' || item.storeId === this.managerStoreId(role)) &&
+      (role?.type !== 'franchise_owner' || this.isStoreOwner(role,[item.storeId])) &&
       this.canSeeClient(role, item.clientId) && (role.type !== 'therapist' || item.principalId === role.id || (item.status === 'pending_reassignment' && this._client(item.clientId).ownerId === role.id)) &&
       (!filters.storeId || item.storeId === filters.storeId) &&
       (!filters.therapistId || item.principalId === filters.therapistId) &&
@@ -1431,6 +1462,7 @@ export class DemoModel {
       if (input.packageId) throw new Error('单次付费服务不能同时扣套餐次数');
       input.billingMode = 'single'; input.receiptId = required(data.receiptId, '单次已到账收款', 80); input.packageId = null;
     } else if (data.receiptId != null && data.receiptId !== '') throw new Error('套餐消课不能同时关联单次收款');
+    if(data.serviceOfferingId!=null&&data.serviceOfferingId!=='')input.serviceOfferingId=required(data.serviceOfferingId,'实际服务项目',80);
     const existing = this.state.services.find(item => item.requestId === requestId && item.recordedBy === role.id);
     if (existing) {
       if (!existing.inputKey) throw new Error('历史服务记录不能重复提交，请重新打开登记表');
@@ -1485,7 +1517,7 @@ export class DemoModel {
       pack = this.availablePackages(client.id, input.storeId).find(item => this.packageRemaining(item.id) > 0);
       if (!pack) throw new Error('本店没有可用套餐次数，请先核对办卡门店或办理本店套餐');
     }
-    if (billingMode === 'package') { value = this.nextServiceValue(pack.id); input.packageId = pack.id; }
+    if (billingMode === 'package') { assertPurchasedService(pack,input);if(pack.purchaseId){const paid=this.state.receipts.filter(r=>r.packageId===pack.id&&r.status==='valid'),ids=new Set(paid.map(r=>r.id)),net=paid.reduce((n,r)=>n+r.amountMinor,0)-this.state.refunds.filter(r=>r.status==='valid'&&ids.has(r.receiptId)).reduce((n,r)=>n+r.amountMinor,0);if(net<pack.amountMinor)throw new Error('新购权益须真实付清到账后才能登记服务');} value = this.nextServiceValue(pack.id); input.packageId = pack.id; }
     const inputKey = JSON.stringify(input);
     const recordedAt = this._timestamp();
     const row = {
@@ -1519,7 +1551,7 @@ export class DemoModel {
   }
 
   revokeService(id, reason, role) {
-    this._boss(role);
+    const source=this.state.services.find(r=>r.id===id);this._businessOwner(role,[source?.storeId,...(source?.appointmentSnapshots||[]).map(r=>this.state.appointments.find(a=>a.id===r.id)?.storeId),...(source?.taskSnapshots||[]).map(r=>this.state.tasks.find(a=>a.id===r.id)?.storeId)]);
     const why = required(reason, '撤销原因');
     const row = this.state.services.find(item => item.id === id);
     if (!row) throw new Error('服务记录不存在');
@@ -1561,7 +1593,7 @@ export class DemoModel {
   }
 
   publishPlan(clientId, data, role) {
-    this._boss(role);
+    this._ownerClient(role,clientId);
     const client = this._client(clientId);
     const next = {
       goal: required(data.goal, '康复目标'), phase: required(data.phase, '当前阶段'),
@@ -1600,7 +1632,7 @@ export class DemoModel {
 
   saveAppointment(data, role) {
     if (Object.hasOwn(data,'id') && !data.id) throw new Error('已有预约标识无效，不能作为新建预约提交');
-    if(Object.hasOwn(data,'id'))this._boss(role);
+    if(Object.hasOwn(data,'id'))this._businessOwner(role,[this.state.appointments.find(a=>a.id===data.id)?.storeId,data.storeId]);
     const client = data.id?this._bookingActor(role,data.clientId,data.storeId):this._newBookingActor(role,data.clientId,data.storeId);
     const input = {
       clientId: client.id, date: validDate(data.date), time: validTime(data.time),
@@ -1724,6 +1756,7 @@ export class DemoModel {
   }
 
   assertCancellationActor(role,row,{approval=false}={}) {
+    if(role?.type==='franchise_owner')return this.assertStoreOwner(role,[row.storeId]);
     if(role?.type==='boss')return this._boss(role);
     if(role?.type==='manager'){if(this.managerStoreId(role)!==row.storeId)throw new Error('仅本店店长有取消及审批权限');return;}
     if(approval)throw new Error('前台取消须老板或本店店长审批');
@@ -1906,7 +1939,7 @@ export class DemoModel {
   }
 
   updateTask(id, data, role) {
-    this._boss(role);
+    this._businessOwner(role,[this.state.tasks.find(r=>r.id===id)?.storeId]);
     const row = this.state.tasks.find(item => item.id === id);
     if (!row) throw new Error('待办事项不存在');
     if (row.status !== 'pending' || SPECIAL_TASK_TYPES.includes(row.type)) throw new Error('只能调整未完成的一般待办，关联预约或私评的待办须通过原流程处理');
@@ -1947,7 +1980,7 @@ export class DemoModel {
   }
 
   closeFollowup(reviewId, resolution, role) {
-    this._boss(role);
+    this._businessOwner(role,[this.state.services.find(s=>s.id===this.state.reviews.find(r=>r.id===reviewId)?.serviceId)?.storeId]);
     const row = this.state.reviews.find(item => item.id === reviewId);
     if (!row) throw new Error('反馈不存在');
     if (row.followupStatus !== 'pending') throw new Error('此反馈没有待处理跟进');
@@ -1960,6 +1993,13 @@ export class DemoModel {
     return row;
   }
 
+  ownerStoreIds(role) { return ownerStoreIds(this,role); }
+  assertStoreOwner(role,storeIds) { return assertStoreOwner(this,role,storeIds); }
+  isStoreOwner(role,storeIds) { try { this.assertStoreOwner(role,storeIds); return true; } catch { return false; } }
+  addFranchiseOwner(data,role) { return saveFranchiseOwner(this,data,role); }
+  updateFranchiseOwner(data,role) { return saveFranchiseOwner(this,data,role,true); }
+  franchiseState(role) { return franchiseState(this,role); }
+
   addStore(data, role) {
     this._boss(role);
     const input={name:required(data.name,'门店名称'),address:optionalText(data.address,'门店地址',500)},requestId=data.requestId===undefined?'':required(data.requestId,'提交标识',150),inputKey=JSON.stringify(input);
@@ -1967,11 +2007,11 @@ export class DemoModel {
     if(prior){if(prior.inputKey!==inputKey)throw new Error('同一提交的门店内容发生变化');return this._store(prior.storeId);}
     if(this.state.stores.some(row=>row.name===input.name))throw new Error('门店名称重复，请使用可区分的名称');
     const row={id:this._id('store'),...input,profileVersion:0,history:[]};
-    this.state.stores.push(row);this._log('store_added',{storeId:row.id,after:row,...(requestId?{requestId,inputKey}:{})},role);return row;
+    this.state.stores.push(row);this.state=initializeProductCatalog(this.state);this._log('store_added',{storeId:row.id,after:row,...(requestId?{requestId,inputKey}:{})},role);return row;
   }
 
   updateStore(data, role) {
-    this._boss(role);
+    this._businessOwner(role,[data?.id]);
     const row=this._store(required(data.id,'门店标识',80)),input={name:required(data.name,'门店名称',80),address:optionalText(data.address,'门店地址',500)},expectedVersion=personnelVersion(data.expectedVersion),reason=required(data.reason,'修改原因',500),requestId=required(data.requestId,'提交标识',150),inputKey=JSON.stringify({id:row.id,...input,expectedVersion,reason});
     const prior=this.state.audit.find(item=>item.type==='store_updated'&&item.requestId===requestId&&item.actorId===role.id&&item.actorType===role.type);
     if(prior){if(prior.inputKey!==inputKey)throw new Error('同一提交的门店内容发生变化，请重新打开');return row;}
@@ -2034,7 +2074,7 @@ export class DemoModel {
   }
 
   _writePersonnel(kind, operation, current, input, role, metadata = {}) {
-    this._boss(role);
+    this._businessOwner(role,[...(current?(kind==='frontdesk'?current.storeIds:[current.storeId]):[]),...(kind==='frontdesk'?input.storeIds||current?.storeIds||[]:[input.storeId||current?.storeId])]);
     const config = PERSONNEL_KINDS[kind], stamp = this._timestamp();
     const staged = Object.assign(Object.create(Object.getPrototypeOf(this)), this, { now: () => stamp, state: { ...this.state, [config.collection]: this.state[config.collection].map(copy), audit: [...this.state.audit] } });
     const existingIds = new Set(Object.values(staged.state).filter(Array.isArray).flatMap(rows => rows.map(row => row.id)));
@@ -2049,7 +2089,7 @@ export class DemoModel {
   }
 
   _addPersonnel(kind, data, role) {
-    this._boss(role);
+    this._businessOwner(role,kind==='frontdesk'?data?.storeIds:[data?.storeId]);
     const input = this._personnelInput(kind, data), requestId = data.requestId === undefined ? '' : required(data.requestId, '提交标识', 150), operation = `${kind}_added`, inputKey = JSON.stringify(input);
     const prior = this._personnelReplay(operation, requestId, inputKey, role); if (prior) return prior;
     this._assertPersonnelPhone(input.phone);
@@ -2064,7 +2104,7 @@ export class DemoModel {
   }
 
   _updatePersonnel(kind, data, role) {
-    this._boss(role);
+    const subject=this.state[PERSONNEL_KINDS[kind].collection].find(r=>r.id===data?.id);this._businessOwner(role,kind==='frontdesk'?[...(subject?.storeIds||[]),...(data?.storeIds||[])]:[subject?.storeId,data?.storeId]);
     const id = required(data?.id, '人员标识', 80), config = PERSONNEL_KINDS[kind], current = this.state[config.collection].find(row => row.id === id);
     if (!current) throw new Error(`${config.label}人员不存在，请重新打开人员管理`);
     const input = this._personnelInput(kind, data, current), expectedVersion = personnelVersion(data.expectedVersion), reason = required(data.reason, '修改原因', 500), requestId = required(data.requestId, '提交标识', 150);
@@ -2082,7 +2122,7 @@ export class DemoModel {
   }
 
   _deactivatePersonnel(kind, id, role) {
-    this._boss(role);
+    const subject=this.state[PERSONNEL_KINDS[kind].collection].find(r=>r.id===id);this._businessOwner(role,kind==='frontdesk'?subject?.storeIds:[subject?.storeId]);
     const config = PERSONNEL_KINDS[kind], row = this.state[config.collection].find(item => item.id === id && item.active === true);
     if (!row) throw new Error(`${config.label}不存在或已停用`);
     if (kind === 'therapist') this._assertTherapistWorkHandled(id, '停用');
@@ -2102,11 +2142,12 @@ export class DemoModel {
   }
 
   transferClient(clientId, newOwnerId, reason, role) {
-    this._boss(role);
+    this._ownerClient(role,clientId);if(role?.type==='franchise_owner')this.assertStoreOwner(role,[this._therapist(newOwnerId).storeId]);
     const client = this._client(clientId);
     this._therapist(newOwnerId);
     const why = required(reason, '转交原因');
     const oldOwnerId = client.ownerId;
+    if(role.type==='franchise_owner'){const affected=this.state.tasks.filter(item=>item.clientId===clientId&&item.assigneeId===oldOwnerId&&item.status==='pending');if(affected.length)this.assertStoreOwner(role,affected.map(item=>item.storeId));}
     if (oldOwnerId === newOwnerId) throw new Error('新负责人和当前负责人相同');
     client.ownerId = newOwnerId;
     this.state.tasks.filter(item => item.clientId === clientId && item.assigneeId === oldOwnerId && item.status === 'pending').forEach(item => { item.assigneeId = newOwnerId; });

@@ -1,4 +1,4 @@
-import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261011-therapist-phone-package-owner-6';
+import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261011-combination-approval-franchise-paper-search-7';
 
 const minutes = time => Number(time.slice(0,2))*60+Number(time.slice(3));
 const pending = row => ['confirmed','reschedule_requested','pending_reassignment'].includes(row.status);

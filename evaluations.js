@@ -63,6 +63,7 @@ function frontDesk(model, id, requireActive = true) {
 }
 function assertReader(model, role) {
   if (isBoss(role)) return;
+  if(role?.type==='franchise_owner'){model.ownerStoreIds(role);return;}
   if (role?.type === 'frontdesk') return frontDesk(model, role.id);
   if (role?.type === 'therapist') {
     const person = find(model, 'therapists', role.id, '康复师');
@@ -83,11 +84,13 @@ function assertAssessmentWriter(model, role, clientId, storeId) {
   if (!isBoss(role) && !['frontdesk', 'therapist','manager'].includes(role?.type)) throw new Error('评估资料仅前台、康复师或老板有权限登记');
   const client = assertClient(model, role, clientId);
   find(model, 'stores', storeId, '门店');
+  if(role.type==='franchise_owner')model.assertStoreOwner(role,[storeId]);
   if (role.type === 'frontdesk' && !frontDesk(model, role.id).storeIds.includes(storeId)) throw new Error('您没有此门店的评估登记权限');
   return client;
 }
 function canConfirm(model, role, row) {
   if (isBoss(role)) return true;
+  if(role?.type==='franchise_owner')return model.isStoreOwner(role,[row.storeId]);
   if (row.assessorId) return model.isAssignedAssessor(role,row.assessorId,row.storeId);
   if (role?.type !== 'therapist') return false;
   const person = model.state.therapists.find(item => item.id === role.id && item.active);
@@ -99,7 +102,7 @@ function canReadAssessment(model, role, row) {
   if (!model.canSeeClient(role, row.clientId)) return false;
   if (role.type === 'customer') return row.clientId === role.id && row.status === 'confirmed';
   if (role.type === 'frontdesk') return frontDesk(model, role.id).storeIds.includes(row.storeId);
-  return isBoss(role) || role.type === 'therapist';
+  return isBoss(role) || role.type==='franchise_owner'&&model.isStoreOwner(role,[row.storeId]) || role.type === 'therapist';
 }
 function originalOrder(rows) {
   return rows.slice().sort((a, b) => `${b.date || b.to || ''} ${b.time || ''} ${b.createdAt || ''}`.localeCompare(`${a.date || a.to || ''} ${a.time || ''} ${a.createdAt || ''}`) || b.id.localeCompare(a.id));
@@ -157,6 +160,7 @@ export function latestConfirmedAssessment(model, role, clientId) {
 }
 
 export function recordAssessment(model, data, role) {
+  if(role?.type==='franchise_owner')throw new Error('加盟经营身份没有新建专业评估权限，请由指定评估师记录');
   if(Object.hasOwn(data,'id'))throw new Error('此入口只允许新建记录，已有记录不能通过新建入口修改');
   ensureEvaluations(model);
   const requestId = text(data.requestId, '提交标识', 80);
@@ -218,7 +222,7 @@ export function confirmAssessment(model, id, role) {
 }
 
 export function voidAssessment(model, id, reason, role) {
-  assertBoss(role);
+  if(role?.type==='franchise_owner')model.assertStoreOwner(role,[model.state.assessments.find(a=>a.id===id)?.storeId]);else assertBoss(role);
   const row = getAssessment(model, id, role);
   const why = text(reason, '撤销原因', 1000);
   if (row.status === 'voided') throw new Error('此评估记录已撤销，不能重复撤销');
@@ -337,21 +341,21 @@ function metricsHtml(ctx, row) {
 }
 function assessmentCard(ctx, row, showClient = false, mode = 'list') {
   const x = ui(ctx);
-  return `<article class="evaluation-record"><div class="section-head"><div><h3>${showClient ? `${x.esc(x.name('clients', row.clientId))} · ` : ''}${x.esc(ASSESSMENT_TYPES[row.type])}</h3><p class="meta">${x.esc(row.date)} ${x.esc(row.time)} · ${x.esc(x.name('stores', row.storeId))}</p></div>${x.status(row)}</div><p><strong>${x.esc(row.project)}</strong></p>${metricsHtml(ctx, row)}<p class="evaluation-summary">${x.esc(row.summary)}</p><p class="meta">评估师 ${x.esc(x.name(row.assessorId?'assessors':'therapists', row.assessorId||row.therapistId))} · 录入 ${x.esc(x.actorName(row))}</p>${row.status === 'confirmed' ? `<p class="meta">确认 ${x.esc(x.accountName(row.confirmedRole,row.confirmedBy))} · ${x.esc(businessDate(row.confirmedAt))}</p>` : ''}${row.status === 'voided' ? `<p class="notice">撤销原因：${x.esc(row.voidReason)}。原数据保留供核对。</p>` : ''}${row.example ? '<p class="meta">虚构示例数据</p>' : ''}<div class="action-row">${mode === 'list' ? x.button('查看记录', 'assessment-detail', row.id) : ''}${mode !== 'confirm' && row.status === 'pending' && canConfirm(ctx.model, ctx.role, row) ? x.button('核对并确认', 'assessment-confirm', row.id, true) : ''}${mode !== 'confirm' && isBoss(ctx.role) && row.status !== 'voided' ? x.button('撤销错误记录', 'assessment-void', row.id) : ''}</div></article>`;
+  return `<article class="evaluation-record"><div class="section-head"><div><h3>${showClient ? `${x.esc(x.name('clients', row.clientId))} · ` : ''}${x.esc(ASSESSMENT_TYPES[row.type])}</h3><p class="meta">${x.esc(row.date)} ${x.esc(row.time)} · ${x.esc(x.name('stores', row.storeId))}</p></div>${x.status(row)}</div><p><strong>${x.esc(row.project)}</strong></p>${metricsHtml(ctx, row)}<p class="evaluation-summary">${x.esc(row.summary)}</p><p class="meta">评估师 ${x.esc(x.name(row.assessorId?'assessors':'therapists', row.assessorId||row.therapistId))} · 录入 ${x.esc(x.actorName(row))}</p>${row.status === 'confirmed' ? `<p class="meta">确认 ${x.esc(x.accountName(row.confirmedRole,row.confirmedBy))} · ${x.esc(businessDate(row.confirmedAt))}</p>` : ''}${row.status === 'voided' ? `<p class="notice">撤销原因：${x.esc(row.voidReason)}。原数据保留供核对。</p>` : ''}${row.example ? '<p class="meta">虚构示例数据</p>' : ''}<div class="action-row">${mode === 'list' ? x.button('查看记录', 'assessment-detail', row.id) : ''}${mode !== 'confirm' && row.status === 'pending' && canConfirm(ctx.model, ctx.role, row) ? x.button('核对并确认', 'assessment-confirm', row.id, true) : ''}${mode !== 'confirm' && (isBoss(ctx.role)||ctx.role.type==='franchise_owner'&&ctx.model.isStoreOwner(ctx.role,[row.storeId])) && row.status !== 'voided' ? x.button('撤销错误记录', 'assessment-void', row.id) : ''}</div></article>`;
 }
 
 export function renderAssessmentHistory(ctx, clientId) {
   const client = assertClient(ctx.model, ctx.role, clientId);
   const rows = assessmentRows(ctx.model, ctx.role, { clientId });
   const x = ui(ctx);
-  return `<section class="evaluation-section"><div class="section-head"><div><h2>${ctx.role.type === 'customer' ? '我的评估记录' : `${x.esc(client.name)}的评估记录`}</h2><p class="meta">逐次保存实际记录，确认后客户可查看。</p></div>${ctx.role.type !== 'customer' ? x.button('登记评估', 'assessment-create', clientId, true) : ''}</div><div class="evaluation-records">${rows.map(row => assessmentCard(ctx, row)).join('') || '<div class="empty">暂无可查看的评估记录。所选评估师核对并确认后，会显示在这里。</div>'}</div><p class="meta">记录评估资料不会扣套餐次数，也不改变收款与消费业绩。</p></section>`;
+  return `<section class="evaluation-section"><div class="section-head"><div><h2>${ctx.role.type === 'customer' ? '我的评估记录' : `${x.esc(client.name)}的评估记录`}</h2><p class="meta">逐次保存实际记录，确认后客户可查看。</p></div>${!['customer','franchise_owner'].includes(ctx.role.type) ? x.button('登记评估', 'assessment-create', clientId, true) : ''}</div><div class="evaluation-records">${rows.map(row => assessmentCard(ctx, row)).join('') || '<div class="empty">暂无可查看的评估记录。所选评估师核对并确认后，会显示在这里。</div>'}</div><p class="meta">记录评估资料不会扣套餐次数，也不改变收款与消费业绩。</p></section>`;
 }
 
 export function renderReceptionAssessments(ctx, storeId) {
   if (!isBoss(ctx.role) && ctx.role.type !== 'frontdesk') throw new Error('仅老板和授权前台可使用此门店评估登记入口');
   const rows = assessmentRows(ctx.model, ctx.role, { storeId });
   const x = ui(ctx), pending = rows.filter(row => row.status === 'pending');
-  return `<section class="evaluation-section"><div class="section-head"><div><h2>最近登记</h2><p class="meta">前台代录资料，由本次所选评估师核对后确认。</p></div>${x.button('登记评估', 'assessment-create', '', true)}</div><p class="meta">本店待确认 ${pending.length} 条 · 历史 ${rows.length} 条</p><div class="evaluation-records">${rows.map(row => assessmentCard(ctx, row, true)).join('') || '<div class="empty">本店暂无评估记录，可从客户名单开始登记。</div>'}</div></section>`;
+  return `<section class="evaluation-section"><div class="section-head"><div><h2>最近登记</h2><p class="meta">前台代录资料，由本次所选评估师核对后确认。</p></div>${x.button('登记评估', 'assessment-create', '', true)}</div><p class="meta">本店待确认 ${pending.length} 条 · 历史 ${rows.length} 条</p><div class="evaluation-records" data-client-search-list>${rows.map(row => assessmentCard(ctx, row, true)).join('') || '<div class="empty">本店暂无评估记录，可从客户名单开始登记。</div>'}</div></section>`;
 }
 
 function summaryHtml(ctx, summary, snapshot = false) {
@@ -398,7 +402,7 @@ export function evaluationDialog(type, id, ctx) {
       assertOccurred(model, row);
       return { title: '核对并确认评估', html: x.form(type, `${x.hidden('id', id)}${assessmentCard(ctx, row, true, 'confirm')}<p class="notice">请先核对上述原始数据。确认后客户能查看；此操作不修改康复计划、不扣次数。</p>`, '已核对 · 确认发布') };
     }
-    assertBoss(role);
+    if(role.type==='franchise_owner')model.assertStoreOwner(role,[row.storeId]);else assertBoss(role);
     if (row.status === 'voided') throw new Error('此评估记录已撤销');
     return { title: '撤销错误评估记录', html: x.form(type, `${x.hidden('id', id)}<p class="notice">撤销后客户不再看到此记录，原数据与确认历史保留；请重新登记正确资料。</p>${x.textarea('撤销原因', 'reason', 'required maxlength="1000"')}`, '保留原记录并撤销') };
   }

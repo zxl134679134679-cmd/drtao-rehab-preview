@@ -1,5 +1,5 @@
-import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261011-therapist-phone-package-owner-6';
-import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-therapist-phone-package-owner-6';
+import { updateAppointmentAvailability, bookingAvailability } from './booking-availability.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-combination-approval-franchise-paper-search-7';
 
 export const customerBookingTypes = new Set(['customer-booking', 'customer-booking-detail', 'customer-booking-cancel', 'customer-booking-confirm', 'customer-booking-resolve', 'customer-booking-accept']);
 const statusLabels={pending:'待门店确认',confirmed:'申请已处理',cancelled:'申请已取消',reschedule_suggested:'门店建议 · 待您接受',rejected:'无法安排',expired:'申请已过期',suggestion_accepted:'已接受建议 · 新申请待确认'};
@@ -44,7 +44,7 @@ function requestSummary(row, ctx) {
 function resolutionSummary(row,ctx) {
   if(!row.resolvedAt)return '';
   const {esc,ui:{name,pair},fmt:{date}}=ctx;
-  const kind={boss:'bosses',frontdesk:'frontDesks',therapist:'therapists'}[row.resolvedRole];
+  const kind={boss:'bosses',frontdesk:'frontDesks',therapist:'therapists',manager:'storeManagers',franchise_owner:'franchiseOwners'}[row.resolvedRole];
   const person=row.resolvedRole==='boss'?'老板':kind?name(kind,row.resolvedBy):'门店工作人员';
   const stamp=new Intl.DateTimeFormat('zh-CN',{timeZone:'Asia/Shanghai',month:'long',day:'numeric',hour:'2-digit',minute:'2-digit'}).format(new Date(row.resolvedAt));
   return `<div class="note"><strong>门店处理结果</strong><p>${esc(row.resolutionReason)}</p>${row.suggestedDate?`<p>建议时间：${date(row.suggestedDate)} ${esc(row.suggestedTime)}</p>`:''}${pair('处理人',person)}<p class="meta">处理时间 ${esc(stamp)}</p></div>`;
@@ -89,7 +89,7 @@ export function customerRequestDialog(type, id, ctx) {
 
 export function renderBookingInbox(ctx) {
   const { model, role, view, esc, fmt:{date}, ui:{button,name} } = ctx;
-  const entry = {boss:'overview',frontdesk:'reception',therapist:'work',manager:'manager-overview'}[role.type];
+  const entry = {boss:'overview',franchise_owner:'overview',frontdesk:'reception',therapist:'work',manager:'manager-overview'}[role.type];
   if (!entry || (view !== entry && !(role.type==='manager'&&view==='manager-appointments') && !(role.type==='therapist'&&view==='therapist-appointments'))) return '';
   const all=customerBookingRows(model,role);
   const rows=all.filter(row=>['pending','reschedule_suggested'].includes(row.status));
@@ -97,9 +97,9 @@ export function renderBookingInbox(ctx) {
   if (!rows.length&&!recent.length && role.type!=='manager') return '';
   const rowHtml = row => {
     const permission=customerBookingConfirmation(model,row.id,role),handling=customerBookingHandling(model,row.id,role);
-    return `<article class="booking-inbox-row"><div><strong>${esc(name('clients',row.clientId))} · ${date(row.date)} ${esc(row.time)}</strong><p class="meta">${esc(name('stores',row.storeId))} · 期望 ${esc(name('therapists',row.principalId))} · ${esc(statusLabels[row.status])}</p>${row.status==='reschedule_suggested'?`<p class="meta">建议 ${date(row.suggestedDate)} ${esc(row.suggestedTime)}，等待客户接受</p>`:''}${row.status==='pending'&&!permission.canConfirm?`<p class="meta">${esc(permission.reason)}</p>`:''}</div><div class="action-row">${permission.canConfirm?button('核对并确认','customer-booking-confirm',row.id,'btn-outline'):handling.canHandle?button('处理申请','customer-booking-resolve',row.id,'btn-outline'):''}${button('查看申请','customer-booking-detail',row.id,'btn-quiet')}</div></article>`;
+    return `<article class="booking-inbox-row" data-client-id="${esc(row.clientId)}"><div><strong>${esc(name('clients',row.clientId))} · ${date(row.date)} ${esc(row.time)}</strong><p class="meta">${esc(name('stores',row.storeId))} · 期望 ${esc(name('therapists',row.principalId))} · ${esc(statusLabels[row.status])}</p>${row.status==='reschedule_suggested'?`<p class="meta">建议 ${date(row.suggestedDate)} ${esc(row.suggestedTime)}，等待客户接受</p>`:''}${row.status==='pending'&&!permission.canConfirm?`<p class="meta">${esc(permission.reason)}</p>`:''}</div><div class="action-row">${permission.canConfirm?button('核对并确认','customer-booking-confirm',row.id,'btn-outline'):handling.canHandle?button('处理申请','customer-booking-resolve',row.id,'btn-outline'):''}${button('查看申请','customer-booking-detail',row.id,'btn-quiet')}</div></article>`;
   };
-  return `<section class="card booking-inbox"><div class="section-head"><h2>客户预约申请</h2><span class="tag ${rows.length?'tag-warn':''}">${rows.filter(row=>row.status==='pending').length} 条待确认${rows.some(row=>row.status==='reschedule_suggested')?' · 有建议待客户接受':''}</span></div><p class="meta">所有在职工作人员可核对并确认；拒绝或建议时间仍由原有权工作人员处理。申请不占位、不扣次、不记收款。</p>${rows.length?rows.slice(0,3).map(rowHtml).join(''):'<p class="empty">本店暂无待确认的预约申请。</p>'}${rows.length>3?`<details><summary>其余 ${rows.length-3} 条申请</summary>${rows.slice(3).map(rowHtml).join('')}</details>`:''}${recent.length?`<details><summary>最近处理结果 · ${recent.length} 条</summary>${recent.map(rowHtml).join('')}</details>`:''}</section>`;
+  return `<section class="card booking-inbox" data-client-search-list><div class="section-head"><h2>客户预约申请</h2><span class="tag ${rows.length?'tag-warn':''}">${rows.filter(row=>row.status==='pending').length} 条待确认${rows.some(row=>row.status==='reschedule_suggested')?' · 有建议待客户接受':''}</span></div><p class="meta">所有在职工作人员可核对并确认；拒绝或建议时间仍由原有权工作人员处理。申请不占位、不扣次、不记收款。</p>${rows.length?rows.slice(0,3).map(rowHtml).join(''):'<p class="empty">本店暂无待确认的预约申请。</p>'}${rows.length>3?`<details><summary>其余 ${rows.length-3} 条申请</summary>${rows.slice(3).map(rowHtml).join('')}</details>`:''}${recent.length?`<details><summary>最近处理结果 · ${recent.length} 条</summary>${recent.map(rowHtml).join('')}</details>`:''}</section>`;
 }
 
 export function renderRequestHistory(ctx, clientId) {

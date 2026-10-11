@@ -1,8 +1,16 @@
-import { hourTimeField } from './hour-picker.js?v=20261011-therapist-phone-package-owner-6';
-import { receptionStores } from './reception.js?v=20261011-therapist-phone-package-owner-6';
+import {registerClientChoiceSource,refreshClientChoiceSource} from './client-search.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { hourTimeField } from './hour-picker.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { receptionStores } from './reception.js?v=20261011-combination-approval-franchise-paper-search-7';
 
 const limit = 20;
 function clients(ctx) { return ctx.model.visibleClients(ctx.role); }
+function currentMemberChoices(select,ctx){
+ const form=select.closest('form'),storeId=form?.elements.storeId?.value;
+ if(!['boss','frontdesk','therapist'].includes(ctx.role.type)||!ctx.model.state.stores.some(s=>s.id===storeId&&s.active!==false))return [];
+ if(ctx.role.type==='frontdesk'&&!receptionStores(ctx).some(s=>s.id===storeId))return [];
+ const occupied=[...form.querySelectorAll('[data-booking-client]')].filter(other=>other!==select).map(other=>other.value);
+ return [{id:'',name:'',label:'选择已建档客户'},...clients(ctx).map(c=>({id:c.id,name:c.name,disabled:occupied.includes(c.id)}))];
+}
 function memberRow(index, member, ctx) {
   const { esc, model } = ctx;
   const customer = clients(ctx).find(c => c.id === member.clientId);
@@ -34,6 +42,7 @@ export function restoreBookingDraft(form, saved, ctx) {
 export function updateBookingMembers(form, ctx) {
   if (form?.dataset.form !== 'appointment-batch' || form.dataset.busy === 'true') return;
   const rows = [...form.querySelectorAll('[data-booking-member]')];
+  for(const row of rows){const select=row.querySelector('[data-booking-client]');registerClientChoiceSource(select,currentMemberChoices);refreshClientChoiceSource(select,ctx);}
   const clientValues = rows.map(r => r.querySelector('[data-booking-client]').value);
   const principalValues = rows.map(r => r.querySelector('[data-booking-principal]').value);
   rows.forEach((row,index) => {

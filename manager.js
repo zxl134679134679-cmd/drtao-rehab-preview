@@ -1,8 +1,9 @@
-import { renderCashClosingSummary } from './cash.js?v=20261011-therapist-phone-package-owner-6';
+import {normalizeClientName} from './client-search.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { renderCashClosingSummary } from './cash.js?v=20261011-combination-approval-franchise-paper-search-7';
 /* Store managers supervise local work with read-only store access. */
-import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261011-therapist-phone-package-owner-6';
-import { renderBookingInbox } from './customer-ui.js?v=20261011-therapist-phone-package-owner-6';
-import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-therapist-phone-package-owner-6';
+import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { renderBookingInbox } from './customer-ui.js?v=20261011-combination-approval-franchise-paper-search-7';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-combination-approval-franchise-paper-search-7';
 const CHANNELS = {direct:'门店收款',douyin:'抖音',meituan:'美团',other_platform:'其他平台'};
 const METHODS = {wechat:'微信',alipay:'支付宝',cash:'现金',bank:'银行转账'};
 const PURPOSES = {package:'套餐',renewal:'续费',single:'单次服务',other:'其他',platform_settlement:'平台结算'};
@@ -98,7 +99,7 @@ function overview(ctx) {
 function clientList(ctx) {
   const x = helpers(ctx);
   const query = String(ctx.filters?.query || '').trim().toLowerCase();
-  const clients = (x.all.clients || []).filter(row => !query || `${row.name} ${row.phone || ''}`.toLowerCase().includes(query));
+  const clients = (x.all.clients || []).filter(row => !query || (normalizeClientName(row.name).includes(normalizeClientName(query)) || String(row.phone||'').includes(query)));
   const cards = clients.map(client => {
     const next = scheduled((x.all.appointments || []).filter(row => row.clientId === client.id && row.date >= x.today && PENDING_APPOINTMENTS.has(row.status)))[0];
     return `<article class="card person-card"><div class="section-head"><h2>${x.esc(client.name)}</h2>${x.tag(client.total?`剩余 ${client.remaining} 次`:'尚未办理本店套餐',client.total&&client.remaining <= 2 ? 'warn' : 'green')}</div><p class="meta">${x.esc(client.phone || '手机号待补充')} · 负责人 ${x.esc(x.name('therapists',client.ownerId))}</p><p class="client-goal">${x.esc(client.goal || client.planName || '计划待完善')}</p><p class="meta">本店下次服务：${next ? `${x.esc(next.date)} ${x.esc(next.time)}` : '待安排'}</p><p class="meta">${x.esc(client.nextStep || '下一步待康复师更新')}</p><div class="action-row">${x.link('查看档案与本店记录','manager-client',client.id)}${x.button('接待记录','paper-intake-list',client.id)}</div></article>`;
@@ -107,7 +108,7 @@ function clientList(ctx) {
 }
 
 function serviceLedger(x,rows,title = '本店服务记录') {
-  return `<section class="section card"><div class="section-head"><h2>${x.esc(title)}</h2><span class="muted">${rows.length} 次</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>客户 / 项目</th><th>日期 / 时间</th><th>主康复师 / 协作</th><th>消费业绩</th><th>状态 / 留底</th><th></th></tr></thead><tbody>${latest(rows).map(row => `<tr><td data-label="客户 / 项目">${x.clientLink(row.clientId)}<div class="meta">${x.esc(row.project)}</div></td><td data-label="日期 / 时间">${x.esc(row.date)}<div class="meta">${x.esc(row.time)}</div></td><td data-label="主康复师 / 协作">${x.esc(x.name('therapists',row.principalId))}<div class="meta">${(row.participantIds || []).length ? `协作：${x.esc(row.participantIds.map(id => x.name('therapists',id)).join('、'))}` : '独立服务'}</div></td><td data-label="消费业绩"><strong class="${row.status === 'revoked' ? 'revoked-amount' : 'amount'}">${x.money(row.amount)}</strong></td><td data-label="状态 / 留底">${x.tag(row.status === 'valid' ? '已完成' : '已撤销',row.status === 'valid' ? 'green' : 'warn')}<div class="meta">${row.evidencePhotos?.length ? `${row.evidencePhotos.length} 张照片` : '历史未留照片'}</div></td><td data-label="明细">${x.link('查看','manager-service',row.id)}</td></tr>`).join('')}</tbody></table>${!rows.length ? x.empty('当前日期没有本店服务记录。') : ''}</div></section>`;
+  return `<section class="section card"><div class="section-head"><h2>${x.esc(title)}</h2><span class="muted">${rows.length} 次</span></div><div class="table-wrap"><table class="data-table"><thead><tr><th>客户 / 项目</th><th>日期 / 时间</th><th>主康复师 / 协作</th><th>消费业绩</th><th>状态 / 留底</th><th></th></tr></thead><tbody data-client-search-list>${latest(rows).map(row => `<tr data-client-id="${x.esc(row.clientId)}"><td data-label="客户 / 项目">${x.clientLink(row.clientId)}<div class="meta">${x.esc(row.project)}</div></td><td data-label="日期 / 时间">${x.esc(row.date)}<div class="meta">${x.esc(row.time)}</div></td><td data-label="主康复师 / 协作">${x.esc(x.name('therapists',row.principalId))}<div class="meta">${(row.participantIds || []).length ? `协作：${x.esc(row.participantIds.map(id => x.name('therapists',id)).join('、'))}` : '独立服务'}</div></td><td data-label="消费业绩"><strong class="${row.status === 'revoked' ? 'revoked-amount' : 'amount'}">${x.money(row.amount)}</strong></td><td data-label="状态 / 留底">${x.tag(row.status === 'valid' ? '已完成' : '已撤销',row.status === 'valid' ? 'green' : 'warn')}<div class="meta">${row.evidencePhotos?.length ? `${row.evidencePhotos.length} 张照片` : '历史未留照片'}</div></td><td data-label="明细">${x.link('查看','manager-service',row.id)}</td></tr>`).join('')}</tbody></table>${!rows.length ? x.empty('当前日期没有本店服务记录。') : ''}</div></section>`;
 }
 function cashRow(x,row,kind) {
   const isRefund = kind === 'refund';
@@ -121,7 +122,7 @@ function records(ctx) {
   const x = helpers(ctx,true);
   const cashRows = latest([...(x.snapshot.receipts || []).map(row => ({...row,kind:'receipt'})),...(x.snapshot.refunds || []).map(row => ({...row,kind:'refund'}))]);
   const evaluations = x.snapshot.frontDeskEvaluations || [];
-  return `<div class="manager-dashboard">${heading(x,'本店经营','按日期核对服务、收支、预约和评估。')}<div class="action-row manager-operations-links">${x.button('人员工作','nav','manager-team')}${x.button('本店排班','nav','schedules')}</div>${periodFilter(x)}<p class="boss-scope">${x.esc(x.all.store.name)} · ${x.esc(x.periodLabel)}</p>${cashHero(x,x.snapshot.cash,'所选日期实收',false)}${serviceLedger(x,x.snapshot.services || [])}<section class="section card"><div class="section-head"><h2>收支明细</h2><span class="muted">${cashRows.length} 笔</span></div>${cashRows.map(row => cashRow(x,row,row.kind)).join('') || x.empty('当前日期没有本店收支记录。')}<p class="meta">待结算、已结算原单和已撤销记录保留备查，不重复计入实收。</p></section>${fold(x,'预约记录',scheduled(x.snapshot.appointments || []),row => appointmentCard(x,row),'当前日期没有本店预约记录。')}${fold(x,'评估记录',x.snapshot.assessments || [],row => assessmentList(x,[row]),'当前日期没有本店评估记录。')}${fold(x,'前台考核记录',evaluations,row => `<div class="row"><div><strong>${x.esc(x.name('frontDesks',row.frontDeskId))}</strong><p class="meta">${x.esc(row.from)} 至 ${x.esc(row.to)} · ${row.status === 'voided' ? '已撤销' : '已记录'}</p></div>${x.link('考核明细','manager-frontdesk-evaluation',row.id)}</div>`,'当前日期没有本店前台考核记录。')}</div>`;
+  return `<div class="manager-dashboard">${heading(x,'本店经营','按日期核对服务、收支、预约和评估。')}<div class="action-row manager-operations-links">${x.button('人员工作','nav','manager-team')}${x.button('本店排班','nav','schedules')}</div>${periodFilter(x)}<p class="boss-scope">${x.esc(x.all.store.name)} · ${x.esc(x.periodLabel)}</p>${cashHero(x,x.snapshot.cash,'所选日期实收',false)}${serviceLedger(x,x.snapshot.services || [])}<section class="section card"><div class="section-head"><h2>收支明细</h2><span class="muted">${cashRows.length} 笔</span></div><div data-client-search-list>${cashRows.map(row => cashRow(x,row,row.kind)).join('') || x.empty('当前日期没有本店收支记录。')}</div><p class="meta">待结算、已结算原单和已撤销记录保留备查，不重复计入实收。</p></section>${fold(x,'预约记录',scheduled(x.snapshot.appointments || []),row => appointmentCard(x,row),'当前日期没有本店预约记录。')}${fold(x,'评估记录',x.snapshot.assessments || [],row => assessmentList(x,[row]),'当前日期没有本店评估记录。')}${fold(x,'前台考核记录',evaluations,row => `<div class="row"><div><strong>${x.esc(x.name('frontDesks',row.frontDeskId))}</strong><p class="meta">${x.esc(row.from)} 至 ${x.esc(row.to)} · ${row.status === 'voided' ? '已撤销' : '已记录'}</p></div>${x.link('考核明细','manager-frontdesk-evaluation',row.id)}</div>`,'当前日期没有本店前台考核记录。')}</div>`;
 }
 
 function therapistWork(x,person) {
@@ -214,8 +215,8 @@ export function managerDialog(type,id,ctx) {
     } else {
       const work = frontDeskWork(x,person);
       const evaluations = (x.snapshot.frontDeskEvaluations || []).filter(row => row.frontDeskId === person.id);
-      html += `${x.detail([['到店确认',`${work.arrivals.length} 次`],['有效收款录入',`${work.receipts.length} 笔`],['评估录入',`${work.assessments.length} 条`]])}<h3>到店确认记录</h3>${work.arrivals.map(row => appointmentCard(x,row)).join('') || x.empty('当前日期没有本店到店确认记录。')}<h3>收款录入记录</h3>${work.receipts.map(row => cashRow(x,row,'receipt')).join('') || x.empty('当前日期没有本店有效收款录入。')}<h3>评估录入记录</h3>${assessmentList(x,work.assessments)}<h3>老板考核记录</h3>${evaluations.map(row => `<div class="row"><span>${x.esc(row.from)} 至 ${x.esc(row.to)} · ${row.status === 'voided' ? '已撤销' : '已记录'}</span>${x.link('查看','manager-frontdesk-evaluation',row.id)}</div>`).join('') || x.empty('当前日期没有本店考核记录。')}`;
+      html += `${x.detail([['到店确认',`${work.arrivals.length} 次`],['有效收款录入',`${work.receipts.length} 笔`],['评估录入',`${work.assessments.length} 条`]])}<h3>到店确认记录</h3><div data-client-search-list>${work.arrivals.map(row => appointmentCard(x,row)).join('') || x.empty('当前日期没有本店到店确认记录。')}</div><h3>收款录入记录</h3><div data-client-search-list>${work.receipts.map(row => cashRow(x,row,'receipt')).join('') || x.empty('当前日期没有本店有效收款录入。')}</div><h3>评估录入记录</h3><div data-client-search-list>${assessmentList(x,work.assessments)}</div><h3>老板考核记录</h3>${evaluations.map(row => `<div class="row"><span>${x.esc(row.from)} 至 ${x.esc(row.to)} · ${row.status === 'voided' ? '已撤销' : '已记录'}</span>${x.link('查看','manager-frontdesk-evaluation',row.id)}</div>`).join('') || x.empty('当前日期没有本店考核记录。')}`;
     }
   }
-  return {title,html:`<div class="manager-detail">${html}${close}</div>`};
+  return {title,html:`<div class="manager-detail"${type==='manager-client'?' data-client-search-ignore':''}>${html}${close}</div>`};
 }

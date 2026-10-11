@@ -94,11 +94,10 @@ test('invalid ages, pain score, optional phone and clock never advance sequence 
   model.now = () => 'invalid'; unchanged(model, () => call('savePaperIntake', model, input(), front), /时间|时钟/);
 });
 
-test('form inherits client identity, leaves safety questions unselected and has no professional measurements', () => {
-  const model = fresh(), markup = call('paperIntakeDialog', 'paper-intake-create', 'c3', ctx(model)).html;
-  assert.match(markup, /周沐/); assert.match(markup, /林予安/); assert.match(markup, /name="age"/); assert.match(markup, /name="goal"/); assert.match(markup, /name="pain"/);
-  assert.equal((markup.match(/data-safety-question=/g) || []).length, 10); assert.equal((markup.match(/type="radio"/g) || []).length, 30); assert.doesNotMatch(markup, /checked|肌力测试|关节活动度|name="diagnosis"/);
-  assert.match(markup, /监护人/); assert.match(markup, /保存.*复核/);
+test('new form uses photographed case fields only after actual arrival without fabricating legacy answers', () => {
+ const model=fresh();model.state.appointments.push({id:'new-case-dialog',clientId:'c3',storeId:'a',date:model.today,time:'10:00',status:'confirmed',principalId:'t1',arrivalAt:model.now()});
+ const markup=call('paperIntakeDialog','paper-intake-create','c3',{...ctx(model),receptionAppointment:'new-case-dialog'}).html;
+ assert.match(markup,/周沐/);assert.match(markup,/initial_case_v2/);assert.match(markup,/name="birthDate"/);assert.match(markup,/name="medicalHistory"/);assert.doesNotMatch(markup,/answer_treatment|name="goal"|name="diagnosis"/);assert.match(markup,/监护人/);assert.match(markup,/保存.*复核/);
 });
 
 test('boss inbox surfaces pending count, client question and attention items without background history', () => {
@@ -163,8 +162,7 @@ test('all authorized operating roles can open a complete list directly from thei
     const context = ctx(model, role), inbox = call('renderPaperIntakeInbox', context);
     assert.match(inbox, /data-action="paper-intake-list"/);
     const list = call('paperIntakeDialog', 'paper-intake-list', '', context);
-    if(role.type==='manager')assert.doesNotMatch(list.html, /data-form="paper-intake-select"/);
-    else assert.match(list.html, /data-form="paper-intake-select"/);
+    assert.match(list.html, /data-form="paper-intake-select"/);assert.match(list.html,/按客户姓名搜索/);
     assert.match(list.html, /周沐/);
   }
   unchanged(model, () => call('paperIntakeDialog', 'paper-intake-list', '', ctx(model, { type: 'customer', id: 'c3' })), /权限/);
@@ -184,7 +182,7 @@ test('client-specific record view cannot mix another customer and preselects the
   const model = fresh(); call('ensurePaperIntakes', model);
   const context = { ...ctx(model, boss), filters: { storeId: '', clientId: 'c3' } };
   const markup = call('renderPaperIntakeList', context);
-  assert.match(markup, /value="c3" selected/); assert.match(markup, /周沐/); assert.doesNotMatch(markup, /许安然|value="c2"|paper-demo-b/);
+  assert.doesNotMatch(markup,/value="c3" selected/);assert.match(markup,/暂无今天实际已到店/); assert.match(markup, /周沐/); assert.doesNotMatch(markup, /许安然|value="c2"|paper-demo-b/);
 });
 
 test('pending inbox follows a valid selected store while owner keeps their own cross-store followups', () => {
@@ -199,16 +197,10 @@ test('pending inbox follows a valid selected store while owner keeps their own c
   const ownerView = call('renderPaperIntakeInbox', { ...ctx(model, owner), filters: { storeId: 'b' } }); assert.match(ownerView, /陈一诺/); assert.match(ownerView, /周沐/); assert.doesNotMatch(ownerView, /许安然/);
 });
 
-test('create form honors selected authorized store without adding a single-store front desk privilege', () => {
-  const model = fresh();
-  const bossForm = call('paperIntakeDialog', 'paper-intake-create', 'c1', { ...ctx(model, boss), filters: { storeId: 'b' } }).html;
-  assert.match(bossForm, /value="b" selected/); assert.doesNotMatch(bossForm, /value="a" selected/);
-  model.state.frontDesks.find(f => f.id === 'f1').storeIds.push('b');
-  const frontForm = call('paperIntakeDialog', 'paper-intake-create', 'c1', { ...ctx(model), filters: { storeId: 'b' } }).html;
-  assert.match(frontForm, /value="b" selected/);
-  model.state.frontDesks.find(f => f.id === 'f1').storeIds = ['a'];
-  const singleForm = call('paperIntakeDialog', 'paper-intake-create', 'c1', { ...ctx(model), filters: { storeId: 'b' } }).html;
-  assert.match(singleForm, /value="a" selected/); assert.doesNotMatch(singleForm, /value="b"/);
+test('new case store follows exact arrived appointment rather than a mutable filter',()=>{
+ const model=fresh();model.state.appointments.push({id:'case-b',clientId:'c1',storeId:'b',date:model.today,time:'10:00',status:'confirmed',principalId:'t2',arrivalAt:model.now()});
+ for(const role of [boss,front]){const html=call('paperIntakeDialog','paper-intake-create','c1',{...ctx(model,role),receptionAppointment:'case-b',filters:{storeId:'a'}}).html;assert.match(html,/name="storeId" value="b"/);assert.doesNotMatch(html,/name="storeId" value="a"/);}
+ assert.throws(()=>call('paperIntakeDialog','paper-intake-create','c3',ctx(model)),/到店|预约/);
 });
 
 test('detail displays recording and review times in Chinese Shanghai local time without ISO timestamps', () => {
