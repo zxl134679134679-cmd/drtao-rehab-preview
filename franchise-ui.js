@@ -1,5 +1,5 @@
 /* Role-specific forms keep franchise operations scoped without pretending to be headquarters. */
-import {renderBookingInbox} from './customer-ui.js?v=20261011-suzhou-franchise-preview-7b';
+import {renderBookingInbox} from './customer-ui.js?v=20261011-operations-closed-loop-8';
 const action=(ctx,label,type,id='')=>`<button type="button" class="btn btn-outline" data-action="${type}" data-id="${ctx.esc(id)}">${ctx.esc(label)}</button>`;
 const input=(ctx,label,key,value='',attrs='')=>`<label class="field"><span>${label}</span><input name="${key}" value="${ctx.esc(value)}" ${attrs}></label>`;
 const area=(ctx,label,key,value='',attrs='')=>`<label class="field span-all"><span>${label}</span><textarea name="${key}" rows="2" ${attrs}>${ctx.esc(value)}</textarea></label>`;

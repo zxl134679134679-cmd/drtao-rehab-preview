@@ -1,30 +1,31 @@
-import {mountClientSearch,handleClientSearchInput,validateClientSearchSelection} from './client-search.js?v=20261011-suzhou-franchise-preview-7b';
-import {renderPurchasePanel,purchaseDialog,purchaseLinesFromForm} from './package-purchase-ui.js?v=20261011-suzhou-franchise-preview-7b';
-import {approvedPurchaseReceipt,approvedPurchaseSettlement} from './package-purchase.js?v=20261011-suzhou-franchise-preview-7b';
-import {renderFranchiseManagement,renderFranchiseDashboard,franchiseDialog} from './franchise-ui.js?v=20261011-suzhou-franchise-preview-7b';
-import {INITIAL_CASE_FIELDS,updatePaperIntakeSearch,paperIntakeSelection} from './paper-case-form.js?v=20261011-suzhou-franchise-preview-7b';
-import {renderStaffReception,staffReceptionDialog,updateAssessorChoices,restoreAssessorDraft} from './staff-reception.js?v=20261011-suzhou-franchise-preview-7b';
-import { bossDecisionDialog } from './boss-decision.js?v=20261011-suzhou-franchise-preview-7b';
-import {saveMultiDayBooking} from './multi-day-booking.js?v=20261011-suzhou-franchise-preview-7b';
-import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261011-suzhou-franchise-preview-7b';
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples, ensureFranchisePreviewExamples } from './core.js?v=20261011-suzhou-franchise-preview-7b';
-import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261011-suzhou-franchise-preview-7b';
-import { renderManager, managerDialog } from './manager.js?v=20261011-suzhou-franchise-preview-7b';
-import { hourTimeField } from './hour-picker.js?v=20261011-suzhou-franchise-preview-7b';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261011-suzhou-franchise-preview-7b';
-import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261011-suzhou-franchise-preview-7b';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261011-suzhou-franchise-preview-7b';
-import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261011-suzhou-franchise-preview-7b';
+import {serviceEvidenceOwner,serviceVisitRows,purchasedCardDetails,renderOperationsPanel,operationsDialog,operationsTypes,updateOperationsForm,serviceItemsFromForm,dispatchOperations} from './operations-ui.js?v=20261011-operations-closed-loop-8';
+import {mountClientSearch,handleClientSearchInput,validateClientSearchSelection} from './client-search.js?v=20261011-operations-closed-loop-8';
+import {renderPurchasePanel,purchaseDialog,purchaseLinesFromForm} from './package-purchase-ui.js?v=20261011-operations-closed-loop-8';
+import {approvedPurchaseReceipt,approvedPurchaseSettlement} from './package-purchase.js?v=20261011-operations-closed-loop-8';
+import {renderFranchiseManagement,renderFranchiseDashboard,franchiseDialog} from './franchise-ui.js?v=20261011-operations-closed-loop-8';
+import {INITIAL_CASE_FIELDS,updatePaperIntakeSearch,paperIntakeSelection} from './paper-case-form.js?v=20261011-operations-closed-loop-8';
+import {renderStaffReception,staffReceptionDialog,updateAssessorChoices,restoreAssessorDraft} from './staff-reception.js?v=20261011-operations-closed-loop-8';
+import { bossDecisionDialog } from './boss-decision.js?v=20261011-operations-closed-loop-8';
+import {saveMultiDayBooking} from './multi-day-booking.js?v=20261011-operations-closed-loop-8';
+import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261011-operations-closed-loop-8';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples, ensureFranchisePreviewExamples } from './core.js?v=20261011-operations-closed-loop-8';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261011-operations-closed-loop-8';
+import { renderManager, managerDialog } from './manager.js?v=20261011-operations-closed-loop-8';
+import { hourTimeField } from './hour-picker.js?v=20261011-operations-closed-loop-8';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261011-operations-closed-loop-8';
+import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261011-operations-closed-loop-8';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261011-operations-closed-loop-8';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261011-operations-closed-loop-8';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261011-suzhou-franchise-preview-7b';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261011-suzhou-franchise-preview-7b';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261011-operations-closed-loop-8';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261011-operations-closed-loop-8';
 
-import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, amendPaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261011-suzhou-franchise-preview-7b';
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, amendPaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261011-operations-closed-loop-8';
 
-import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261011-suzhou-franchise-preview-7b';
-import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261011-suzhou-franchise-preview-7b';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261011-suzhou-franchise-preview-7b';
-import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261011-suzhou-franchise-preview-7b';
+import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261011-operations-closed-loop-8';
+import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261011-operations-closed-loop-8';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261011-operations-closed-loop-8';
+import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261011-operations-closed-loop-8';
 
 // Keep operations on the displayed example day. Real systems use server time.
 function previewTimestamp() {
@@ -32,6 +33,7 @@ function previewTimestamp() {
   return new Date(`${TODAY}T${time}+08:00`).toISOString();
 }
 let model = new DemoModel({now:previewTimestamp});
+model.initializeOperationsWorkflow();
 ensureFranchisePreviewExamples(model);
 ensureStorePackageExamples(model);
 ensureEvaluations(model);
@@ -139,6 +141,7 @@ function render(resetScroll = false) {
   $('#app-header').innerHTML = `<div class="app-brand"><img class="brand-logo" src="assets/brand-logo.png" alt="涛博士 Dr.Tao 运动康复" width="146" height="56"></div><div class="customer-head"><span class="header-name">${esc(label)}</span>${customer ? `<button class="capsule" data-action="mini-info" aria-label="小程序预览说明">${icon('dots',20)}<span></span>${icon('circle-dot',20)}</button>` : '<span class="tag tag-green">工作端</span>'}</div>`;
   const staffHome=['work','overview','reception','manager-overview'].includes(view);
   main.innerHTML = role.type==='franchise_owner'?(view==='schedules'?renderSchedulePage(ctx()):renderFranchiseDashboard(ctx())):customer ? view === 'records' ? customerRecords() : view === 'profile' ? customerProfile() : customerHome() : view==='schedules'?renderSchedulePage(ctx()):`${renderStaffReception(ctx())}${renderBookingInbox(customerCtx())}${role.type==='manager'?renderManager(ctx()):`${view==='work'?assessmentInbox():''}${renderStaff(ctx())}${view==='team'?renderFranchiseManagement(ctx()):''}`}${staffHome?renderScheduleInbox(ctx())+(role.type==='therapist'&&view==='work'?'':renderScheduleSummary(ctx())):''}`;
+  if(['boss','franchise_owner','manager'].includes(role.type))main.insertAdjacentHTML('beforeend',renderOperationsPanel(ctx()));
   if(role.type!=='therapist')main.insertAdjacentHTML('afterbegin',renderPurchasePanel(ctx()));
   mountClientSearch(main,ctx());
   const supervision=main.querySelector('.manager-supervision');
@@ -182,7 +185,7 @@ function packageRecord(pack) {
   const rows = clientServices(pack.clientId).filter(s => s.packageId === pack.id);
   const used = pack.openingUsed + rows.filter(s=>s.status==='valid').reduce((sum,s)=>sum+s.sessions,0);
   const finance = role.type==='boss' && pack.storeId ? model.packageFinance(pack.id,role) : null;
-  return `<h3>${esc(pack.name)}</h3>${pack.serviceContent?`<h3>服务内容</h3><p>${esc(pack.serviceContent)}</p>`:''}${pack.description?`<h3>套餐说明</h3><p>${esc(pack.description)}</p>`:''}${role.type==='boss'?button('编辑套餐内容','update-package-content',pack.id,'btn-outline')+(pack.metadataHistory?.length?`<details><summary>套餐内容修改历史</summary>${pack.metadataHistory.map(row=>`<div class="note"><p>${esc(row.changedAt)} · ${esc(row.changedBy==='boss'?'老板':row.changedBy)} · 第 ${esc(row.version)} 版</p><p>原因：${esc(row.reason)}</p><p>原名称：${esc(row.before.name)}</p><p>原服务内容：${esc(row.before.serviceContent||'未填写')}</p><p>原说明：${esc(row.before.description||'未填写')}</p><p>改为：${esc(row.after.name)} · ${esc(row.after.serviceContent||'未填写')} · ${esc(row.after.description||'未填写')}</p></div>`).join('')}</details>`:''):''}${pack.purchaseId?`<p class="meta">购入生效 ${esc(pack.validFrom)} · 到期 ${esc(pack.expiresOn)}（当日不可新消课）</p><p>可用项目：${esc((pack.allowedServiceIds||[]).map(id=>({rehabilitation:'康复训练',cryotherapy:'超低温冷疗',iastm:'筋膜刀','deep-stretch':'深度拉伸放松治疗'}[id]||id)).join('、'))}</p>`:''}${pack.closed?'<p class="notice">套餐已结束，未用次数暂停使用，历史服务保留。</p>':''}<div class="detail-grid">${role.type === 'customer' ? '' : pair('套餐金额',money(pack.amount))}${pair('套餐总次数',`${pack.total} 次`)}${pair('剩余次数',`${balance} 次`)}${pair('已使用',`${used} 次`)}${pack.closed?pair('已结束未用次数',`${pack.total-used} 次`):''}</div>${finance?`<section class="note"><strong>本套餐收款核对</strong><div class="detail-grid">${pair('已关联到账',money(finance.received))}${pair('已关联退款',money(finance.refunded))}${pair('关联净收款',money(finance.netReceived))}${pair('套餐与收款差额',money(pack.amount-finance.netReceived))}${pair('平台待到账',money(finance.pending))}</div><p class="meta">${finance.status==='opening'?'历史套餐未自动追记收入，请按旧账核对。':finance.status==='unlinked'?'尚未关联收款，请登记已收款或从收款记录关联。':'仅统计本套餐已关联的收退款；与套餐金额的差额需核对，不自动认定为欠款。'}</p></section>`:''}<h3>次数变动记录</h3>${pack.openingUsed ? `<div class="row"><div><strong>期初纸质档案余额</strong><p class="meta">已核对迁入 ${pack.openingUsed} 次历史使用</p></div><span>−${pack.openingUsed} 次</span></div>` : ''}${rows.length ? rows.map(s => `<div class="row"><div><strong>${date(s.date)} · ${esc(s.project)}</strong><p class="meta">${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? '已完成' : pack.closed?'已撤销，套餐已结束':'已撤销，恢复原套餐 1 次'}</p></div>${link(s.status === 'valid' ? '−1 次' : '已冲回','service-detail',s.id)}</div>`).join('') : '<p class="muted">此套餐暂无新增服务记录。</p>'}`;
+  return `<h3>${esc(pack.name)}</h3>${pack.serviceContent?`<h3>服务内容</h3><p>${esc(pack.serviceContent)}</p>`:''}${pack.description?`<h3>套餐说明</h3><p>${esc(pack.description)}</p>`:''}${role.type==='boss'?button('编辑套餐内容','update-package-content',pack.id,'btn-outline')+(pack.metadataHistory?.length?`<details><summary>套餐内容修改历史</summary>${pack.metadataHistory.map(row=>`<div class="note"><p>${esc(row.changedAt)} · ${esc(row.changedBy==='boss'?'老板':row.changedBy)} · 第 ${esc(row.version)} 版</p><p>原因：${esc(row.reason)}</p><p>原名称：${esc(row.before.name)}</p><p>原服务内容：${esc(row.before.serviceContent||'未填写')}</p><p>原说明：${esc(row.before.description||'未填写')}</p><p>改为：${esc(row.after.name)} · ${esc(row.after.serviceContent||'未填写')} · ${esc(row.after.description||'未填写')}</p></div>`).join('')}</details>`:''):''}${pack.purchaseId?purchasedCardDetails(pack):''}${pack.closed?'<p class="notice">套餐已结束，未用次数暂停使用，历史服务保留。</p>':''}<div class="detail-grid">${role.type === 'customer' ? '' : pair('套餐金额',money(pack.amount))}${pair('套餐总次数',`${pack.total} 次`)}${pair('剩余次数',`${balance} 次`)}${pair('已使用',`${used} 次`)}${pack.closed?pair('已结束未用次数',`${pack.total-used} 次`):''}</div>${finance?`<section class="note"><strong>本套餐收款核对</strong><div class="detail-grid">${pair('已关联到账',money(finance.received))}${pair('已关联退款',money(finance.refunded))}${pair('关联净收款',money(finance.netReceived))}${pair('套餐与收款差额',money(pack.amount-finance.netReceived))}${pair('平台待到账',money(finance.pending))}</div><p class="meta">${finance.status==='opening'?'历史套餐未自动追记收入，请按旧账核对。':finance.status==='unlinked'?'尚未关联收款，请登记已收款或从收款记录关联。':'仅统计本套餐已关联的收退款；与套餐金额的差额需核对，不自动认定为欠款。'}</p></section>`:''}<h3>次数变动记录</h3>${pack.openingUsed ? `<div class="row"><div><strong>期初纸质档案余额</strong><p class="meta">已核对迁入 ${pack.openingUsed} 次历史使用</p></div><span>−${pack.openingUsed} 次</span></div>` : ''}${rows.length ? rows.map(s => `<div class="row"><div><strong>${date(s.date)} · ${esc(s.project)}</strong><p class="meta">${esc(name('stores',s.storeId))} · ${s.status === 'valid' ? '已完成' : pack.closed?'已撤销，套餐已结束':'已撤销，恢复原套餐 1 次'}</p></div>${link(s.status === 'valid' ? '−1 次' : '已冲回','service-detail',s.id)}</div>`).join('') : '<p class="muted">此套餐暂无新增服务记录。</p>'}`;
 }
 function packageDialog(id,storeId='') {
   const c = assertClient(id);
@@ -214,12 +217,16 @@ function appointmentHistoryDialog(id) {
 }
 
 function serviceDialog(id) {
-  const s = assertService(id);
+  const selected = assertService(id);
+  const s = selected.visitId ? serviceEvidenceOwner(model,selected) : selected;
+  if(s.id!==selected.id)assertService(s.id);
+  id=s.id;
   const r = reviewFor(id);
   const canOpenClient = model.canSeeClient(role, s.clientId);
-  return {title: '服务明细', html: `<span class="tag ${s.status === 'valid' ? 'tag-green' : 'tag-warn'}">${s.status === 'valid' ? '已完成' : '已撤销'}</span><h3>${esc(s.project)}</h3><div class="detail-grid">${pair('客户',name('clients',s.clientId))}${pair('服务日期',`${date(s.date)} ${s.time}`)}${pair('服务门店',name('stores',s.storeId))}${pair('本次主康复师',name('therapists',s.principalId))}${pair('参与康复师',s.participantIds.map(t => name('therapists',t)).join('、') || '独立服务')}${pair('登记时客户负责人',name('therapists',s.ownerId))}${pair('登记人',name('therapists',s.recordedBy))}${pair('登记方式',s.billingMode==='single'?'单次服务 · 不扣套餐次数':find('packages',s.packageId)?.name || '原套餐')}${s.billingMode==='single'?role.type!=='customer'?pair('对应单次收款',s.receiptId):'':pair('套餐次数',s.status === 'valid' ? `使用 ${s.sessions} 次` : find('packages',s.packageId)?.closed ? '已纠正消课，原套餐已结束' : '已恢复原套餐 1 次')}${role.type !== 'customer' ? pair('消费业绩',s.status === 'valid' ? `${money(s.amount)}，归${name('therapists',s.principalId)}` : `${money(s.amount)} 已冲回`) : ''}</div><h3>这次为您做了什么</h3><p>${esc(s.notes)}</p>${s.nextStepSuggestion?`<h3>下次建议</h3><p>${esc(s.nextStepSuggestion)}</p>${role.type!=='customer'&&s.status==='valid'&&canEditPlan(find('clients',s.clientId))?button('确认客户下一步','confirm-service-next-step',s.id,'btn-outline'):''}`:''}${serviceEvidence(s)}${s.status === 'revoked' ? `<div class="note"><strong>撤销说明</strong><p>${esc(s.revokeReason)}</p><p class="meta">处理人 ${esc(name('therapists',s.revokedBy))} · 原记录保留</p></div>` : ''}${r ? `<div class="note"><strong>客户评价 ${r.score} 分</strong><p>${esc(r.feedback || '未填写文字反馈')}</p><p class="meta">${r.followupStatus === 'closed' ? '已完成回访' : r.followupStatus === 'pending' ? '老板待跟进' : '已记录'}</p></div>` : ''}<div class="action-row">${role.type === 'customer' && s.status === 'valid' ? button(r ? '查看我的评价' : '评价本次服务','review',id,'btn-primary','star') : ''}${role.type !== 'customer' && canOpenClient ? button('打开客户档案','client-detail',s.clientId,'btn-outline') : ''}${role.type === 'boss' && s.status === 'valid' ? button('撤销错误登记','revoke-service',id,'btn-quiet') : ''}${role.type === 'boss' && r?.followupStatus === 'pending' ? button('记录回访','followup',r.id,'btn-primary') : ''}</div>`};
+  return {title: '服务明细', html: `<span class="tag ${s.status === 'valid' ? 'tag-green' : 'tag-warn'}">${s.status === 'valid' ? '已完成' : '已撤销'}</span><h3>${esc(s.project)}</h3><div class="detail-grid">${pair('客户',name('clients',s.clientId))}${pair('服务日期',`${date(s.date)} ${s.time}`)}${pair('服务门店',name('stores',s.storeId))}${pair('本次主康复师',name('therapists',s.principalId))}${pair('参与康复师',s.participantIds.map(t => name('therapists',t)).join('、') || '独立服务')}${pair('登记时客户负责人',name('therapists',s.ownerId))}${pair('登记人',name('therapists',s.recordedBy))}${pair('登记方式',s.billingMode==='single'?'单次服务 · 不扣套餐次数':find('packages',s.packageId)?.name || '原套餐')}${s.billingMode==='single'?role.type!=='customer'?pair('对应单次收款',s.receiptId):'':pair('套餐次数',s.status === 'valid' ? `使用 ${s.sessions} 次` : find('packages',s.packageId)?.closed ? '已纠正消课，原套餐已结束' : '已恢复原套餐 1 次')}${role.type !== 'customer' ? pair('消费业绩',s.status === 'valid' ? `${money(s.amount)}，归${name('therapists',s.principalId)}` : `${money(s.amount)} 已冲回`) : ''}</div>${s.visitId?serviceResultSummary(s,ctx(),s.status==='revoked'?'revoked':'registered'):''}<h3>这次为您做了什么</h3><p>${esc(s.notes)}</p>${s.nextStepSuggestion?`<h3>下次建议</h3><p>${esc(s.nextStepSuggestion)}</p>${role.type!=='customer'&&s.status==='valid'&&canEditPlan(find('clients',s.clientId))?button('确认客户下一步','confirm-service-next-step',s.id,'btn-outline'):''}`:''}${serviceEvidence(s)}${s.status === 'revoked' ? `<div class="note"><strong>撤销说明</strong><p>${esc(s.revokeReason)}</p><p class="meta">处理人 ${esc(name('therapists',s.revokedBy))} · 原记录保留</p></div>` : ''}${r ? `<div class="note"><strong>客户评价 ${r.score} 分</strong><p>${esc(r.feedback || '未填写文字反馈')}</p><p class="meta">${r.followupStatus === 'closed' ? '已完成回访' : r.followupStatus === 'pending' ? '老板待跟进' : '已记录'}</p></div>` : ''}<div class="action-row">${role.type === 'customer' && s.status === 'valid' ? button(r ? '查看我的评价' : '评价本次服务','review',id,'btn-primary','star') : ''}${role.type !== 'customer' && canOpenClient ? button('打开客户档案','client-detail',s.clientId,'btn-outline') : ''}${role.type === 'boss' && s.status === 'valid' ? button('撤销错误登记','revoke-service',id,'btn-quiet') : ''}${role.type === 'boss' && r?.followupStatus === 'pending' ? button('记录回访','followup',r.id,'btn-primary') : ''}</div>`};
 }
 function serviceEvidence(service) {
+  if(service.evidenceServiceId)service=serviceEvidenceOwner(model,service);
   const photos = service.evidencePhotos || [];
   if (!photos.length) return '<section class="service-evidence"><h3>消课留底照片</h3><p class="meta">历史记录暂无留底照片。</p></section>';
   if (!model.canSeeEvidence(role, service.id)) return '<section class="service-evidence"><h3>消课留底照片</h3><p class="meta">已留底，仅客户本人、当前负责康复师、本次服务人员及老板可查看。</p></section>';
@@ -371,6 +378,7 @@ function tourDialog() {
 const evaluationTypes = new Set(['assessment-create','assessment-history','assessment-detail','assessment-confirm','assessment-void','frontdesk-work','frontdesk-evaluate','frontdesk-evaluation-detail','frontdesk-evaluation-void']);
 const staffTypes = new Set(['register','edit-plan','appointment-create','appointment-edit','followup','add-store','add-therapist','add-frontdesk','transfer-client','import-opening','revoke-service','register-appointment','renew-package']);
 function buildDialog(type, id) {
+  if(type.startsWith('ops-'))return operationsDialog(type,id,ctx());
   if(role.type==='franchise_owner'&&['assessment-create','staff-assessment-create'].includes(type))throw new Error('加盟经营身份没有新建专业评估权限，请由指定评估师记录');
   if(['catalog-configure','purchase-intent','purchase-quote','purchase-quote-intent','amount-decision','purchase-complete','amount-execute','equipment-receipt'].includes(type))return purchaseDialog(type,id,ctx());
   if(type.startsWith('franchise-'))return franchiseDialog(type,id,ctx());
@@ -544,6 +552,7 @@ function openDialog(type,id = '') {
   updatePaperIntakeForm($('#sheet-body form'),ctx());
   updateScheduleForm($('#sheet-body form'),ctx());
   updateAppointmentAvailability($('#sheet-body form'),ctx());
+  updateOperationsForm($('#sheet-body form'),ctx());
   updateMultiDayBookingForm($('#sheet-body form'),ctx());
   if(type==='reception-create-client'&&$('#sheet-body form')?.elements.phone?.value)checkReceptionIntakePhone($('#sheet-body form'));
   if (['register','register-appointment'].includes(type)) {
@@ -563,11 +572,11 @@ function openDialog(type,id = '') {
 async function loadLegacyDialog(context) {
   const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
   try {
-    const legacy=await import('./legacy.js?v=20261011-suzhou-franchise-preview-7b');
+    const legacy=await import('./legacy.js?v=20261011-operations-closed-loop-8');
     if(!active())return;
     $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
     context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,
-      applyModel:candidate=>{model=candidate;},
+      applyModel:candidate=>{model=candidate;model.initializeOperationsWorkflow();},
       beforeCommit:async()=>{
         await new Promise(resolve=>setTimeout(resolve,160));
         if(active()&&$('#network-toggle').checked){$('#network-toggle').checked=false;throw new Error('模拟提交失败：整批未录入，修正后可重新确认。');}
@@ -646,7 +655,9 @@ document.addEventListener('click', event => {
     if (action === 'service-photo') {
       const service = assertService(id);
       if (!model.canSeeEvidence(role, id)) throw new Error('您没有查看本次留底照片的权限');
-      const photo = service.evidencePhotos?.find(p => p.id === target.dataset.photoId);
+      const evidence = service.evidenceServiceId?serviceEvidenceOwner(model,service):service;
+      if (!model.canSeeEvidence(role, evidence.id)) throw new Error('您没有查看本次留底照片的权限');
+      const photo = evidence.evidencePhotos?.find(p => p.id === target.dataset.photoId);
       if (!photo) throw new Error('照片不存在');
       return showPhoto(photo,`${name('clients',service.clientId)}的留底照片`,`${date(service.date)} ${service.time} · ${name('stores',service.storeId)} · ${service.project}${service.status === 'revoked' ? ' · 本次消课已撤销，原照片保留' : ''}`);
     }
@@ -741,6 +752,7 @@ document.addEventListener('change', event => {
   if (event.target.matches('[data-booking-client],[data-booking-principal]')||event.target.name==='storeId'&&event.target.closest('form')?.dataset.form==='appointment-batch') updateBookingMembers(event.target.closest('form'),ctx());
   if (['channel','settlementStatus','purpose'].includes(event.target.name)) updateCashFields(event.target.closest('form'),event.target.name);
   if (['channel','clientId','storeId','purpose','packageId'].includes(event.target.name)) updateCashPackageChoices(event.target.closest('form'),ctx());
+  if(event.target.name==='groupMode'){for(const el of intakeForm.querySelectorAll('[name="packageId"],[name="receiptId"],[name="billingMode"],[name="serviceOfferingId"]'))el.disabled=false;updateServicePackageChoices(intakeForm,ctx());}
   if (['clientId','storeId','packageId','previousPackageId','billingMode','receiptId'].includes(event.target.name)) updateServicePackageChoices(event.target.closest('form'),ctx());
   if (event.target.name==='storeId') updateWorkflowForm(event.target.closest('form'),ctx());
   if (event.target.hasAttribute('data-evidence-picker')) { void addEvidencePhotos(event.target); return; }
@@ -760,6 +772,7 @@ document.addEventListener('change', event => {
   if (event.target.name === 'principalId' && $('#sheet-body form')?.dataset.form === 'register') updateParticipants();
   updateAssessorChoices(intakeForm,ctx());
   updateAppointmentAvailability(intakeForm,ctx());
+  updateOperationsForm(intakeForm,ctx());
   updateCustomerBookingForm(intakeForm,customerCtx());
   updateMultiDayBookingForm(intakeForm,ctx());
 });
@@ -806,11 +819,12 @@ sheet.addEventListener('cancel', event => { event.preventDefault(); closeDialog(
 sheet.addEventListener('click', event => { if (event.target === sheet) { const rect = sheet.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) closeDialog(); } });
 
 document.addEventListener('submit', async event => {
+  model.initializeOperationsWorkflow();
   const f = event.target;
   if (!f.dataset.form) return;
   event.preventDefault();
   if (f.dataset.busy === 'true' || f.dataset.succeeded === 'true') return;
-  if(role.type==='manager'&&!['amount-decision','manager-filters','manager-search','schedule-filters','cash-closing-select','customer-booking-confirm','record-arrival','paper-intake-select','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','appointment-create','appointment-cancel','appointment-cancel-handle'].includes(f.dataset.form)){formError(f,'店长仅有本店监管只读权限，业务录入请由前台或老板处理');return;}
+  if(role.type==='manager'&&!['ops-bind-customer','ops-reception-duty','ops-assessor-schedule','amount-decision','manager-filters','manager-search','schedule-filters','cash-closing-select','customer-booking-confirm','record-arrival','paper-intake-select','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','appointment-create','appointment-cancel','appointment-cancel-handle'].includes(f.dataset.form)){formError(f,'店长仅有本店监管只读权限，业务录入请由前台或老板处理');return;}
   if(f.dataset.form==='import-opening-batch'){void dialogContext?.legacyController?.submit();return;}
   if(f.dataset.form==='customer-booking' && !advanceCustomerBookingForm(f,customerCtx())) {saveDraft();return;}
   if(f.dataset.form==='multi-day-booking'&&!advanceMultiDayBookingForm(f,ctx())){saveDraft();return;}
@@ -847,7 +861,7 @@ document.addEventListener('submit', async event => {
   }
   if(type==='paper-intake-select'){try{const selection=paperIntakeSelection(model,role,data);openDialog('staff-intake-create',selection.appointmentId);}catch(error){formError(f,error.message);}return;}
   if(type==='cash-closing-select'){try{model.cashClosingSummary(role,{storeId:data.storeId,date:data.date});openDialog('cash-closing',JSON.stringify({storeId:data.storeId,date:data.date}));}catch(error){formError(f,error.message);}return;}
-  if(role.type==='manager'&&!['amount-decision','customer-booking-confirm','record-arrival','paper-intake-select','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','appointment-create','appointment-cancel','appointment-cancel-handle'].includes(type)) {formError(f,'店长经营监管只读，预约接待和本人评估以外的操作请由对应工作人员处理');return;}
+  if(role.type==='manager'&&!['ops-bind-customer','ops-reception-duty','ops-assessor-schedule','amount-decision','customer-booking-confirm','record-arrival','paper-intake-select','paper-intake-create','paper-intake-review','assessment-create','assessment-confirm','appointment-create','appointment-cancel','appointment-cancel-handle'].includes(type)) {formError(f,'店长经营监管只读，预约接待和本人评估以外的操作请由对应工作人员处理');return;}
   if (type === 'filters') {
     if (data.from && data.to && data.from > data.to) { toast('开始日期不能晚于结束日期'); return; }
     filters = {...filters,...data}; render(); return;
@@ -873,6 +887,7 @@ document.addEventListener('submit', async event => {
       throw new Error(['record-receipt','settle-receipt','refund-receipt','void-receipt','void-refund','link-receipt-package','cash-closing','cash-closing-confirm'].includes(type)?'模拟提交失败：内容已保留，收支、套餐和日结未改变，请重试。':type==='record-arrival'?'模拟提交失败：到店状态未改变，请重试。':'模拟提交失败：内容已保留，未扣次数，请重试。');
     }
     let result;
+    if(type.startsWith('ops-')){result=dispatchOperations(model,type,data,role,context.requestId);drafts.delete(context.key);f.dataset.succeeded='true';render();showSuccess('运营核对已保存','<p>页面内模拟数据已保存，当前流程卡点已更新。模拟绑定及邀请未连接真实微信。</p>');return;}
     if(type==='multi-day-booking'){
       result=saveMultiDayBooking(model,{clientId:data.clientId,storeId:data.storeId,project:data.project,items:multiDayBookingItems(fd),requestId:context.requestId},role);
       drafts.delete(context.key);f.dataset.succeeded='true';render();
@@ -938,7 +953,8 @@ document.addEventListener('submit', async event => {
     }
     if(['record-receipt','settle-receipt','equipment-receipt'].includes(type)&&role.type==='frontdesk'&&model._amountApprovalRequired()){
       const {approvalReason,...input}=data,payload={...input,requestId:context.requestId};
-      if(type==='settle-receipt'?!approvedPurchaseSettlement(model,payload,role):!approvedPurchaseReceipt(model,payload,role)){
+      const replay=model.state.receipts.some(row=>row.requestId===context.requestId&&row.recordedBy===role.id&&row.recordedRole===role.type&&row.requestType===(type==='settle-receipt'?'settlement':'receipt'));
+      if(!replay&&(type==='settle-receipt'?!approvedPurchaseSettlement(model,payload,role):!approvedPurchaseReceipt(model,payload,role))){
         const storeId=type==='settle-receipt'?model.state.receipts.find(r=>r.id===data.id)?.storeId:data.storeId;
         result=model.purchaseCommand('submit-amount-application',{storeId,command:type==='settle-receipt'?'settle-receipt':'record-receipt',payload,reason:approvalReason||data.notes||'本次实际金额核对'},role,context.requestId);
         drafts.delete(context.key);f.dataset.succeeded='true';render();showSuccess('金额已提交，待本店任一授权人审批','<p>原资料已冻结，尚未登记到账、套餐次数或计提。批准后从待正式登记卡执行。</p>');return;
@@ -985,7 +1001,7 @@ document.addEventListener('submit', async event => {
       else if(type==='customer-booking-cancel')result=cancelCustomerBooking(model,data.id,role);
       else if(type==='customer-booking-resolve')result=resolveCustomerBooking(model,data,role);
       else if(type==='customer-booking-accept')result=acceptCustomerBookingSuggestion(model,data.id,role);
-      else result=confirmCustomerBooking(model,data.id,role);
+      else result=confirmCustomerBooking(model,data.id,role,{assessorId:data.assessorId,assessmentTime:data.assessmentTime});
       drafts.delete(context.key);f.dataset.succeeded='true';render();
       const title=type==='customer-booking'?'预约申请已提交，待门店确认':type==='customer-booking-cancel'?'预约申请已取消':type==='customer-booking-resolve'?'预约申请处理结果已保存':type==='customer-booking-accept'?'已接受建议，等待门店确认':'预约已确认';
       showSuccess(title,
@@ -1003,7 +1019,8 @@ document.addEventListener('submit', async event => {
       showSuccess(title,`${assessment?`<p>${esc(name('clients',result.clientId))} · ${date(result.date)} · ${esc(result.project)}</p>`:'<p>本次结论、工作数据与改进安排已保留，可随时回看。</p>'}<div class="action-row">${button('查看记录',assessment?'assessment-detail':'frontdesk-evaluation-detail',result.id,'btn-primary')}</div>`);return;
     }
     if (type === 'register' || type === 'register-appointment') {
-      result = model.registerService({...data,participantIds:fd.getAll('participantIds'),evidencePhotos:context.evidencePhotos.map(photo => ({...photo})),requestId:context.requestId},role);
+      const items=fd.get('groupMode')==='true'?serviceItemsFromForm(fd):null;
+      result = model.registerService({...data,...(items?{items,packageId:undefined,receiptId:undefined,billingMode:undefined}:{}),participantIds:fd.getAll('participantIds'),evidencePhotos:context.evidencePhotos.map(photo => ({...photo})),requestId:context.requestId},role);
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
       showSuccess('本次服务已登记',`<h3>${esc(name('clients',result.clientId))} · ${esc(result.project)}</h3>${serviceResultSummary(result,ctx())}<div class="action-row">${button('查看服务明细','service-detail',result.id,'btn-outline')}${button('安排下一次服务','appointment-create',result.clientId,'btn-outline')}${result.nextStepSuggestion&&canEditPlan(find('clients',result.clientId))?button('确认客户下一步','confirm-service-next-step',result.id,'btn-primary'):''}</div>`); return;
     }
@@ -1050,7 +1067,7 @@ document.addEventListener('submit', async event => {
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
       showSuccess(result.billingMode==='single'?'服务已更正，业绩已冲回':find('packages',result.packageId)?.closed?'消课已更正，业绩已冲回':'次数已恢复，业绩已冲回',`${serviceResultSummary(result,ctx(),'revoked')}${button('查看原记录','service-detail',result.id,'btn-outline')}`); return;
     } else if (type === 'reset') {
-      model = new DemoModel({now:previewTimestamp}); ensureFranchisePreviewExamples(model); ensureStorePackageExamples(model); ensureEvaluations(model); ensurePaperIntakes(model); ensureCustomerBooking(model); ensureSchedules(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
+      model = new DemoModel({now:previewTimestamp}); model.initializeOperationsWorkflow(); ensureFranchisePreviewExamples(model); ensureStorePackageExamples(model); ensureEvaluations(model); ensurePaperIntakes(model); ensureCustomerBooking(model); ensureSchedules(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
       closeDialog(false); role = {type:'customer',id:'c1'}; view='home'; filters={storeId:'',therapistId:'',from:'',to:'',query:''}; render(true); toast('示例已重置'); return;
     } else throw new Error('此表单暂不可提交');
     drafts.delete(context.key); f.dataset.succeeded = 'true'; closeDialog(false); render();
@@ -1070,7 +1087,8 @@ function exportPreview() {
   const state = model.state;
   const exportService = s => {
     const {inputKey, taskSnapshots, appointmentSnapshots, evidencePhotos, ...record} = s;
-    const photos = model.canSeeEvidence(role, s.id) ? evidencePhotos || [] : undefined;
+    const evidence = s.evidenceServiceId?serviceEvidenceOwner(model,s):s;
+    const photos = model.canSeeEvidence(role, s.id) && model.canSeeEvidence(role, evidence.id) ? evidence.evidencePhotos || [] : undefined;
     return role.type === 'customer' ? {id:s.id,clientId:s.clientId,storeId:s.storeId,date:s.date,time:s.time,project:s.project,principalId:s.principalId,participantIds:s.participantIds,sessions:s.sessions,billingMode:s.billingMode,status:s.status,notes:s.notes,nextStepSuggestion:s.nextStepSuggestion,revokeReason:s.revokeReason,recordedAt:s.recordedAt || s.createdAt,recordedBy:s.recordedBy,evidencePhotos:photos} : {...record,...(photos ? {evidencePhotos:photos} : {})};
   };
   const cleanAudit=row=>{const {inputKey,requestId,personnelOperation,...safe}=row;return safe;};

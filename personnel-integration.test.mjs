@@ -34,7 +34,7 @@ function submitRuntime(model,role,simulateFailure=false){
  return {scope,f,event:{target:f,preventDefault(){}}};
 }
 test('actual boss dialog dispatch provides add and edit forms for all three personnel roles',()=>{
- const model=new DemoModel(),open=dialogs(model,boss);
+ const model=new DemoModel().initializeOperationsWorkflow(),open=dialogs(model,boss);
  for(const [kind,id]of[['therapist','t1'],['frontdesk','f1'],['manager','m1']]){
   assert.match(open(`add-${kind}`,'').html,/name="phone"/);
   assert.match(open(`edit-${kind}`,id).html,/name="expectedVersion"/);
@@ -42,14 +42,14 @@ test('actual boss dialog dispatch provides add and edit forms for all three pers
  }
 });
 test('non-boss roles cannot open personnel edit or add dialogs through actual dispatch',()=>{
- const model=new DemoModel();
+ const model=new DemoModel().initializeOperationsWorkflow();
  for(const role of roles)for(const [kind,id]of[['therapist','t1'],['frontdesk','f1'],['manager','m1']]){
   assert.throws(()=>dialogs(model,role)(`edit-${kind}`,id),/老板|权限/);
   assert.throws(()=>dialogs(model,role)(`add-${kind}`,''),/老板|权限/);
  }
 });
 test('actual edit submit accepts store arrays and status, prevents double save and updates once',async()=>{
- const model=new DemoModel(),{scope,f,event}=submitRuntime(model,boss);
+ const model=new DemoModel().initializeOperationsWorkflow(),{scope,f,event}=submitRuntime(model,boss);
  await Promise.all([scope.submit(event),scope.submit(event)]);
  assert.equal(scope.error,undefined);assert.ok(scope.success);
  const person=model.state.frontDesks.find(row=>row.id==='f1');
@@ -57,12 +57,12 @@ test('actual edit submit accepts store arrays and status, prevents double save a
  assert.equal(model.state.audit.filter(row=>row.type==='frontdesk_updated').length,1);
 });
 test('actual posted personnel edit is denied to every non-boss role without changing state',async()=>{
- for(const role of roles){const model=new DemoModel(),before=JSON.stringify([model.state,model.sequence]),{scope,event}=submitRuntime(model,role);await scope.submit(event);assert.match(scope.error,/老板|权限|店长/);assert.equal(JSON.stringify([model.state,model.sequence]),before);}
+ for(const role of roles){const model=new DemoModel().initializeOperationsWorkflow(),before=JSON.stringify([model.state,model.sequence]),{scope,event}=submitRuntime(model,role);await scope.submit(event);assert.match(scope.error,/老板|权限|店长/);assert.equal(JSON.stringify([model.state,model.sequence]),before);}
 });
 test('simulated edit failure preserves the form and changes no personnel until retry',async()=>{
- const model=new DemoModel(),before=JSON.stringify([model.state,model.sequence]),{scope,f,event}=submitRuntime(model,boss,true);
+ const model=new DemoModel().initializeOperationsWorkflow(),before=JSON.stringify([model.state,model.sequence]),{scope,f,event}=submitRuntime(model,boss,true);
  await scope.submit(event);assert.match(scope.error,/未保存|未改变|失败/);assert.equal(JSON.stringify([model.state,model.sequence]),before);assert.equal(f.data.name,'示例前台新姓名');
  delete scope.error;await scope.submit(event);assert.equal(scope.error,undefined);assert.ok(scope.success);assert.equal(model.state.frontDesks.find(row=>row.id==='f1').profileVersion,1);
 });
 
-test('actual boss store edit dialog and submit preserve identity and write one reasoned version',async()=>{const model=new DemoModel(),open=dialogs(model,boss);const dialog=open('edit-store','a');assert.match(dialog.html,/name="expectedVersion"/);for(const role of roles)assert.throws(()=>dialogs(model,role)('edit-store','a'),/老板|权限/);const {scope,f,event}=submitRuntime(model,boss);f.dataset.form='edit-store';f.data={id:'a',name:'麦岛店新名',address:'已核对地址',expectedVersion:'0',reason:'核对资料'};await scope.submit(event);await scope.submit(event);assert.equal(scope.error,undefined);const store=model.state.stores.find(s=>s.id==='a');assert.equal(store.name,'麦岛店新名');assert.equal(store.profileVersion,1);assert.equal(store.history.length,1);});
+test('actual boss store edit dialog and submit preserve identity and write one reasoned version',async()=>{const model=new DemoModel().initializeOperationsWorkflow(),open=dialogs(model,boss);const dialog=open('edit-store','a');assert.match(dialog.html,/name="expectedVersion"/);for(const role of roles)assert.throws(()=>dialogs(model,role)('edit-store','a'),/老板|权限/);const {scope,f,event}=submitRuntime(model,boss);f.dataset.form='edit-store';f.data={id:'a',name:'麦岛店新名',address:'已核对地址',expectedVersion:'0',reason:'核对资料'};await scope.submit(event);await scope.submit(event);assert.equal(scope.error,undefined);const store=model.state.stores.find(s=>s.id==='a');assert.equal(store.name,'麦岛店新名');assert.equal(store.profileVersion,1);assert.equal(store.history.length,1);});

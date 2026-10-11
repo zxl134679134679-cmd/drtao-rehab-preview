@@ -1,9 +1,9 @@
 // Desired times are requests, not live availability or confirmed appointments.
 // The preview's existing appointment model remains the confirmation authority.
-import { assertScheduleAvailability } from './schedules.js?v=20261011-suzhou-franchise-preview-7b';
-import { bookingAvailability } from './booking-availability.js?v=20261011-suzhou-franchise-preview-7b';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-operations-closed-loop-8';
+import { bookingAvailability } from './booking-availability.js?v=20261011-operations-closed-loop-8';
 const clone = value => JSON.parse(JSON.stringify(value));
-const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt', 'resolutionReason', 'resolvedBy', 'resolvedRole', 'resolvedAt', 'suggestedDate', 'suggestedTime', 'acceptedRequestId', 'acceptedBy', 'acceptedAt', 'sourceRequestId'];
+const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt', 'resolutionReason', 'resolvedBy', 'resolvedRole', 'resolvedAt', 'suggestedDate', 'suggestedTime', 'acceptedRequestId', 'acceptedBy', 'acceptedAt', 'sourceRequestId','assessorId','assessmentTime'];
 const publicRow = row => clone(Object.fromEntries(fields.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
 function text(value, label, limit = 80) {
   if (typeof value !== 'string' || !value.trim() || value.trim().length > limit) throw new Error(`请填写有效的${label}`);
@@ -103,6 +103,7 @@ export function requestCustomerBooking(model, data, role) {
   if (!data || typeof data !== 'object' || (data.clientId !== undefined && data.clientId !== client.id)) throw new Error('只能为客户本人提交预约申请');
   const existingProject = [client.goal, client.phase].find(value => typeof value === 'string' && value.trim());
   const row = { clientId: client.id, storeId: text(data.storeId, '服务门店'), date: date(data.date), time: time(data.time), principalId: text(data.principalId || client.ownerId, '服务康复师'), project: text(data.project ?? existingProject ?? '康复服务', '服务项目', 120) };
+  if(data.assessorId)row.assessorId=text(data.assessorId,'期望实际评估师',80);if(data.assessmentTime)row.assessmentTime=time(data.assessmentTime);
   const requestId = text(data.requestId, '提交标识');
   const inputKey = JSON.stringify(row);
   ensureCustomerBooking(model);
@@ -152,7 +153,7 @@ export function customerBookingRows(model, role) {
   return model.state.bookingRequests.filter(row => (role.type!=='customer'||row.clientId===role.id)&&(!stores||stores.includes(row.storeId))).map(publicRow);
 }
 
-export function confirmCustomerBooking(model, id, role) {
+export function confirmCustomerBooking(model, id, role, assessment={}) {
   reader(model, role);
   const current = request(model, id);
   confirmActor(model, current, role, true);
@@ -165,7 +166,7 @@ export function confirmCustomerBooking(model, id, role) {
   if (current.status !== 'pending') throw new Error('此申请已处理或取消，不能确认；建议时间须由客户接受后重新确认');
   assignment(model, current);
   const staged = stage(model), row = staged.state.bookingRequests.find(item => item.id === id);
-  const appointment = staged.saveAppointment({ clientId: row.clientId, storeId: row.storeId, date: row.date, time: row.time, principalId: row.principalId, project: row.project }, role);
+  const appointment = staged.saveAppointment({ clientId: row.clientId, storeId: row.storeId, date: row.date, time: row.time, principalId: row.principalId, project: row.project,assessorId:assessment.assessorId||row.assessorId,assessmentTime:assessment.assessmentTime||row.assessmentTime }, role);
   Object.assign(row, { status: 'confirmed', appointmentId: appointment.id, confirmedBy: role.id, confirmedRole: role.type, confirmedAt: staged._timestamp() });
   staged._log('customer_booking_confirmed', { bookingRequestId: id, appointmentId: appointment.id, clientId: row.clientId, storeId: row.storeId, result: 'confirmed' }, role);
   return commit(model, staged, row);

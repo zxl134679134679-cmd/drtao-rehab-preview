@@ -70,8 +70,12 @@ function inputSchedule(model, data) {
 function sameShift(a, b) { return ['therapistId', 'date', 'storeId', 'status', 'startTime', 'endTime'].every(key => a[key] === b[key]); }
 function assertVersion(before, expected) { if (before.version !== expected) throw new Error('排班已更新，版本发生变化。请重新打开并核对后再提交'); }
 function assertAppointments(model, candidate) {
+  const assessmentShifts=(model.state.assessorSchedules||[]).filter(row=>row.date===candidate.date&&row.status==='work'&&model.state.assessors.some(p=>p.id===row.assessorId&&p.accountRole==='therapist'&&p.accountId===candidate.therapistId));
+  if(assessmentShifts.some(row=>candidate.status!=='work'||row.storeId!==candidate.storeId))throw new Error('此治疗排班与本人已确认评估排班休息或跨店安排冲突，请先核对评估班次');
   const conflicts = model.state.appointments.filter(row => pendingAppointment(row.status) && row.date === candidate.date && (row.principalId === candidate.therapistId || row.participantIds?.includes(candidate.therapistId)) &&
     (candidate.status !== 'work' || row.storeId !== candidate.storeId || minutes(row.time) < minutes(candidate.startTime) || minutes(row.time) + 60 > minutes(candidate.endTime)));
+  const assessmentConflicts=model.state.appointments.filter(row=>pendingAppointment(row.status)&&row.date===candidate.date&&row.assessmentTime&&model.state.assessors.some(p=>p.id===row.assessorId&&p.accountRole==='therapist'&&p.accountId===candidate.therapistId)&&(candidate.status!=='work'||row.storeId!==candidate.storeId||minutes(row.assessmentTime)<minutes(candidate.startTime)||minutes(row.assessmentTime)+60>minutes(candidate.endTime)));
+  if(assessmentConflicts.length)throw new Error('此排班调整影响已有评估预约，请先处理指定评估安排');
   if (conflicts.length) throw new Error(`这项修改会影响 ${conflicts.length} 个现有预约（${conflicts.map(row => `${row.time} ${model.state.clients.find(c => c.id === row.clientId)?.name || '客户'}`).join('、')}）。请先处理预约，再修改排班`);
 }
 function stage(model) {

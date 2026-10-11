@@ -1,9 +1,10 @@
-import {assertApprovedAmount,assertPurchasedService,purchaseCommands,purchaseView} from './package-purchase.js?v=20261011-suzhou-franchise-preview-7b';
-import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261011-suzhou-franchise-preview-7b';
-import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261011-suzhou-franchise-preview-7b';
-import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-suzhou-franchise-preview-7b';
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-suzhou-franchise-preview-7b';
-import { assertScheduleAvailability } from './schedules.js?v=20261011-suzhou-franchise-preview-7b';
+import { initializeOperationsWorkflow, operationsEnabled, bindingCommand, isSameStagedVisit, firstVisit, saveAssessmentSchedule, assertAssessmentBooking, serviceReadiness, registerServiceGroup, revokeServiceGroup, configureReceptionDuty, receptionDutyFor, receptionDutyRows, cancellationAssignment, refreshReceptionEscalations, workflowBlockersView } from './operations-workflow.js?v=20261011-operations-closed-loop-8';
+import {assertApprovedAmount,assertPurchasedService,purchasedNetReceived,syncPurchasedActivation,purchaseCommands,purchaseView} from './package-purchase.js?v=20261011-operations-closed-loop-8';
+import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261011-operations-closed-loop-8';
+import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261011-operations-closed-loop-8';
+import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-operations-closed-loop-8';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-operations-closed-loop-8';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-operations-closed-loop-8';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -837,6 +838,7 @@ export class DemoModel {
       status: settlementStatus === 'pending' ? 'pending_settlement' : 'valid', recordedBy: role.id, recordedRole: role.type,
       requestId, requestType: 'receipt', inputKey, createdAt: stamp, recordedAt: stamp };
     this.state.receipts.push(row);
+    if(packageId)syncPurchasedActivation(this,packageId,input.date,role);
     this._log('receipt_recorded', { receiptId: row.id, clientId, storeId, channel, status: row.status, amountMinor: minor, reference, ...(packageId ? { packageId } : {}) }, role);
     return row;
   }
@@ -909,6 +911,7 @@ export class DemoModel {
     parent.status = 'settled';
     parent.settlementReceiptId = row.id;
     parent.settlementReceiptIds = [...(parent.settlementReceiptIds || []), row.id];
+    if(row.packageId)syncPurchasedActivation(this,row.packageId,input.date,role);
     this._log('receipt_settled', { receiptId: row.id, parentId, storeId: row.storeId, channel: row.channel, amountMinor: minor, reference: row.reference }, role);
     return row;
   }
@@ -1122,6 +1125,7 @@ export class DemoModel {
     if (storeId !== undefined) this._store(storeId);
     return this.state.packages.filter(pack => {
       if (pack.clientId !== client.id || pack.closed === true || !['current', 'historical'].includes(pack.status)) return false;
+      if(pack.activationPolicy==='paid'&&(pack.activationStatus!=='active'||!pack.validFrom||!pack.expiresOn||this.today<pack.validFrom||this.today>=pack.expiresOn||purchasedNetReceived(this,pack.id)<pack.amountMinor))return false;
       const boundStore = this._packageStoreId(pack);
       if (!boundStore && (pack.id !== client.packageId || pack.status !== 'current')) return false;
       if (storeId !== undefined && boundStore && boundStore !== storeId) return false;
@@ -1385,7 +1389,7 @@ export class DemoModel {
 
   projectForRole(value, role) {
     if (role?.type === 'boss' && role.id === 'boss') return value;
-    const hidden = new Set(['metadataHistory','catalogRequests','purchaseRequests','sourceBasis',...(role?.type === 'therapist' ? ['phone', 'clientPhone', 'customerPhone', 'phoneMasked', 'guardianPhone', 'emergencyPhone', 'inputKey', 'receptionInputKey', 'reviewInputKey', 'confirmInputKey'] : [])]);
+    const hidden = new Set(['metadataHistory','catalogRequests','purchaseRequests','sourceBasis','identityOperations','assessmentScheduleOperations','receptionDutyOperations',...(role?.type === 'therapist' ? ['identityBindings','identityOperations','phone', 'clientPhone', 'customerPhone', 'phoneMasked', 'guardianPhone', 'emergencyPhone', 'inputKey', 'receptionInputKey', 'reviewInputKey', 'confirmInputKey'] : [])]);
     const project = item => Array.isArray(item) ? item.map(project) : item && typeof item === 'object'
       ? Object.fromEntries(Object.entries(item).filter(([key,child]) => !hidden.has(key)&&!(role?.type==='therapist'&&key==='wechat'&&typeof child==='string'&&/^\+?\d{6,}$/.test(child.replace(/[\s()-]/g,'')))).map(([key, child]) => [key, project(child)])) : item;
     return project(value);
@@ -1458,7 +1462,23 @@ export class DemoModel {
     ).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`));
   }
 
+  initializeOperationsWorkflow() { return initializeOperationsWorkflow(this); }
+  bindingCommand(command,data,role,requestId) { return bindingCommand(this,command,data,role,requestId); }
+  firstVisit(clientId,storeId) { return firstVisit(this,clientId,storeId); }
+  saveAssessmentSchedule(data,role) { return saveAssessmentSchedule(this,data,role); }
+  configureReceptionDuty(data,role) { return configureReceptionDuty(this,data,role); }
+  receptionDutyFor(storeId,date,time) { return receptionDutyFor(this,storeId,date,time); }
+  receptionDutyRows(role) { return receptionDutyRows(this,role); }
+  workflowBlockersView(role) { return workflowBlockersView(this,role); }
+  refreshReceptionEscalations(role) { return refreshReceptionEscalations(this,role); }
+  serviceReadiness(data) { return serviceReadiness(this,data); }
   registerService(data, role) {
+    if(data.items!==undefined)return registerServiceGroup(this,data,role);
+    const replay=this.state.services.find(s=>s.requestId===data.requestId&&s.recordedBy===role.id);
+    if(!replay&&operationsEnabled(this,data)){const readiness=serviceReadiness(this,data);if(!readiness.ready)throw new Error(readiness.missing.join('；'));}
+    return this._registerServiceLine(data,role);
+  }
+  _registerServiceLine(data, role) {
     const client = this._staff(role, data.clientId, data.storeId);
     if(role.type==='therapist'&&!this._therapist(role.id).legacy&&data.principalId!==role.id&&!(data.participantIds||[]).includes(role.id))throw new Error('治疗师仅能登记本人主服务或协作服务');
     const requestId = required(data.requestId, '提交标识', 80);
@@ -1493,10 +1513,10 @@ export class DemoModel {
     this._store(input.storeId);
     this._therapist(input.principalId);
     input.participantIds.forEach(id => this._therapist(id));
-    if (this.state.services.some(item => item.status === 'valid' && item.clientId === client.id && item.date === input.date && item.time === input.time)) {
+    if (this.state.services.some(item => item.status === 'valid' && !isSameStagedVisit(this,item) && item.clientId === client.id && item.date === input.date && item.time === input.time)) {
       throw new Error('同一客户此时间已登记有效服务，不能重复扣次数，请先核对原记录');
     }
-    const activeService = appointment => this.state.services.some(item => item.status === 'valid' &&
+    const activeService = appointment => this.state.services.some(item => item.status === 'valid' && !isSameStagedVisit(this,item) &&
       (item.appointmentId === appointment.id || item.id === appointment.serviceId));
     if(this.state.appointments.some(a=>a.cancellationRequest?.status==='pending'&&['clientId','date','time','storeId'].every(key=>a[key]===input[key])))throw new Error('取消申请待审批或处理，不能登记服务');
     const sameSlot = appointment => ['clientId', 'date', 'time', 'storeId', 'principalId'].every(key => appointment[key] === input[key]);
@@ -1568,7 +1588,8 @@ export class DemoModel {
     return row;
   }
 
-  revokeService(id, reason, role) {
+  revokeService(id,reason,role) { return revokeServiceGroup(this,id,reason,role)||this._revokeServiceLine(id,reason,role); }
+  _revokeServiceLine(id, reason, role) {
     const source=this.state.services.find(r=>r.id===id);this._businessOwner(role,[source?.storeId,...(source?.appointmentSnapshots||[]).map(r=>this.state.appointments.find(a=>a.id===r.id)?.storeId),...(source?.taskSnapshots||[]).map(r=>this.state.tasks.find(a=>a.id===r.id)?.storeId)]);
     const why = required(reason, '撤销原因');
     const row = this.state.services.find(item => item.id === id);
@@ -1657,6 +1678,9 @@ export class DemoModel {
       storeId: required(data.storeId, '服务门店'), principalId: required(data.principalId, '服务康复师'),
       project: required(data.project, '服务项目'),
     };
+    if(operationsEnabled(this,data))input.initialAssessmentRequired=existingInitial(this,data,input,role);
+    if(input.initialAssessmentRequired){input.assessorId=required(data.assessorId,'本次实际评估师',80);input.assessmentTime=required(data.assessmentTime||data.time,'本次评估时间',5);assertAssessmentBooking(this,input,data.id);}
+    else if(data.assessorId||data.assessmentTime){input.assessorId=required(data.assessorId,'本次实际评估师',80);input.assessmentTime=required(data.assessmentTime||data.time,'本次评估时间',5);assertAssessmentBooking(this,input,data.id);}
     const requestId=data.requestId===undefined?'':required(data.requestId,'提交标识',150),inputKey=JSON.stringify({id:data.id||null,...input});
     const prior=requestId&&this.state.audit.find(row=>row.type==='appointment_saved'&&row.requestId===requestId&&row.actorId===role.id&&row.actorType===role.type);
     if(prior){if(prior.inputKey!==inputKey)throw new Error('同一提交的预约内容发生变化，请重新打开');const row=this.state.appointments.find(a=>a.id===prior.appointmentId);if(!row)throw new Error('原预约记录不存在，请老板核对');return row;}
@@ -1672,7 +1696,9 @@ export class DemoModel {
     if (existing && !pendingAppointment(existing.status)) throw new Error('该预约已结束或已取消，不能编辑，请重新安排服务');
     if (existing?.arrivalAt && ['date', 'time', 'storeId'].some(key => existing[key] !== input[key])) throw new Error('此预约已到店，不能搬移到其他时间或门店，请先核对原预约后重新安排新预约');
     assertScheduleAvailability(this, input);
-    const conflict = this.state.appointments.find(item => item.id !== data.id && pendingAppointment(item.status) && item.date === input.date && Math.abs(minutes(item.time) - minutes(input.time)) < 60 && (item.principalId === input.principalId || item.clientId === input.clientId));
+    const conflict = this.state.appointments.find(item => item.id !== data.id && pendingAppointment(item.status) && item.date === input.date && Math.abs(minutes(item.time) - minutes(input.time)) < 60 && (item.principalId === input.principalId || item.participantIds?.includes(input.principalId) || item.clientId === input.clientId));
+    const assessmentConflict=this.state.appointments.find(a=>a.id!==data.id&&pendingAppointment(a.status)&&a.date===input.date&&a.assessmentTime&&Math.abs(minutes(a.assessmentTime)-minutes(input.time))<60&&(a.clientId===input.clientId||this.state.assessors.some(p=>p.id===a.assessorId&&p.accountRole==='therapist'&&p.accountId===input.principalId)));
+    if(assessmentConflict)throw new Error('治疗时间与已有评估预约冲突，请核对跨店时间');
     if (conflict) throw new Error('此时间与已有预约冲突，请检查康复师跨店安排及客户时间');
     const before = existing ? copy(existing) : null, stamp = this._timestamp();
     const changedCancellation = existing?.cancellationRequest?.status === 'pending' && ['date', 'time', 'storeId', 'principalId', 'project'].some(key => existing[key] !== input[key]);
@@ -1698,7 +1724,7 @@ export class DemoModel {
     const input = {
       storeId: required(data.storeId, '服务门店', 80), date: validDate(data.date), time: validTime(data.time),
       project: required(data.project, '服务项目', 120),
-      items: data.items.map(item => ({clientId:required(item?.clientId,'客户',80),principalId:required(item?.principalId,'服务康复师',80)})),
+      items: data.items.map(item => ({clientId:required(item?.clientId,'客户',80),principalId:required(item?.principalId,'服务康复师',80),...(item.assessorId?{assessorId:required(item.assessorId,'实际评估师',80)}:{}),...(item.assessmentTime?{assessmentTime:validTime(item.assessmentTime)}:{})})),
     };
     if (!/:(00|30)$/.test(input.time)) throw new Error('一起预约请选择整点或半点开始时间');
     if (new Set(input.items.map(item => item.clientId)).size !== input.items.length) throw new Error('同一组不能重复选择客户，请每人使用自己的档案');
@@ -1891,7 +1917,7 @@ export class DemoModel {
     target.cancellationRequest={id:staged._id('cancelrequest'),status:'pending',reason,source,requestedBy:role.id,requestedRole:role.type,requestedAt:stamp,...(data.requestId?{requestId:data.requestId}:{}),
       ...(source==='frontdesk'?{needsApproval:true,approvalRequestedBy:role.id,approvalRequestedRole:role.type,approvalRequestedAt:stamp,approvalRequestedReason:reason}:{}),
       appointmentDate:target.date,appointmentTime:target.time,storeId:target.storeId,principalId:target.principalId};
-    const task={id:staged._id('task'),type:'appointment_cancellation',clientId:target.clientId,appointmentId:id,cancellationRequestId:target.cancellationRequest.id,storeId:target.storeId,title:`处理${staged._client(target.clientId).name}的取消预约申请`,assigneeId:'boss',dueDate:this.today,status:'pending'};
+    const task={id:staged._id('task'),type:'appointment_cancellation',clientId:target.clientId,appointmentId:id,cancellationRequestId:target.cancellationRequest.id,storeId:target.storeId,title:`处理${staged._client(target.clientId).name}的取消预约申请`,...cancellationAssignment(staged,target,stamp,source==='frontdesk'),dueDate:this.today,status:'pending'};
     staged.state.tasks.push(task);staged._log('appointment_cancellation_requested',{appointmentId:id,clientId:target.clientId,storeId:target.storeId,request:target.cancellationRequest,taskId:task.id},role);
     this.state=staged.state;this.sequence=staged.sequence;return target;
   }
@@ -1917,6 +1943,7 @@ export class DemoModel {
     const stamp=this._timestamp(),staged=this._stageWorkflowWrite(stamp),target=staged.state.appointments.find(a=>a.id===id);
     if(role.type==='frontdesk'&&data.decision==='approve') {
       Object.assign(target.cancellationRequest,{needsApproval:true,approvalRequestedBy:role.id,approvalRequestedRole:role.type,approvalRequestedAt:stamp,approvalRequestedReason:reason,...(data.requestId?{approvalRequestId:data.requestId}:{})});
+      staged.state.tasks.filter(t=>t.appointmentId===id&&t.type==='appointment_cancellation'&&t.status==='pending').forEach(t=>Object.assign(t,cancellationAssignment(staged,target,target.cancellationRequest.requestedAt,true)));
       staged._log('appointment_cancellation_approval_requested',{appointmentId:id,clientId:row.clientId,storeId:row.storeId,cancellationRequestId:request.id,reason},role,stamp);
       this.state=staged.state;this.sequence=staged.sequence;return target;
     }
@@ -2202,3 +2229,5 @@ export class DemoModel {
     return client;
   }
 }
+
+function existingInitial(model,data,input,role){const prior=data.requestId&&model.state.audit.find(a=>a.type==='appointment_saved'&&a.requestId===data.requestId&&a.actorId===role.id&&a.actorType===role.type);const old=model.state.appointments.find(a=>a.id===(data.id||prior?.appointmentId));return old&&Object.hasOwn(old,'initialAssessmentRequired')?old.initialAssessmentRequired:model.firstVisit(input.clientId,input.storeId);}

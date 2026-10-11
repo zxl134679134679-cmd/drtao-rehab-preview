@@ -1,4 +1,5 @@
-import {INITIAL_CASE_VERSION, INITIAL_CASE_FIELDS, normalizeInitialCase, projectInitialCase, renderInitialCaseFields, renderInitialCaseDetail, paperIntakeChoices, paperChoiceOptions, caseIsMinor} from './paper-case-form.js?v=20261011-suzhou-franchise-preview-7b';
+import {INITIAL_CASE_VERSION, INITIAL_CASE_FIELDS, normalizeInitialCase, projectInitialCase, renderInitialCaseFields, renderInitialCaseDetail, paperIntakeChoices, paperChoiceOptions, caseIsMinor} from './paper-case-form.js?v=20261011-operations-closed-loop-8';
+import {operationsEnabled} from './operations-workflow.js?v=20261011-operations-closed-loop-8';
 /* Client-stated reception information. This module never makes a diagnosis or authorizes treatment. */
 const clone = value => JSON.parse(JSON.stringify(value));
 export const PAPER_SAFETY_QUESTIONS = Object.freeze([
@@ -143,12 +144,14 @@ function normalized(model, data, role) {
     if(Object.keys(data).some(k=>!keys.has(k)))throw new Error('初诊表提交包含非法字段');
     if(role?.type==='therapist'&&data.initialCase?.phone!=null&&data.initialCase.phone!=='')throw new Error('康复师不能填写客户手机号，请由老板核对主档');
     if(!appointment)throw new Error('新版初诊表须关联今天实际已到店预约');
-    const assessorId=data.assessorId||client.assessorId||'tao';
+    const assessorId=data.assessorId||appointment.assessorId||client.assessorId||'tao';
+    if(appointment.assessorId&&assessorId!==appointment.assessorId)throw new Error('初访表须由本次预约指定实际评估师复核，不能更换评估人');
     if(!model.assessorRows(storeId).some(p=>p.id===assessorId))throw new Error('请选择本次门店在职评估师');
     return {formVersion:INITIAL_CASE_VERSION,clientId,storeId,appointmentId:appointment.id,ownerId:client.ownerId,assessorId,age:client.age??null,initialCase:normalizeInitialCase(data.initialCase,{client,date:model.today}),version:0,history:[]};
   }
   const age = number(data.age, '客户年龄', 0, 120), minor = age < 18;
-  const assessorId=data.assessorId||client.assessorId||(appointment?'tao':undefined);
+  const assessorId=data.assessorId||appointment?.assessorId||client.assessorId||(appointment?'tao':undefined);
+  if(appointment?.assessorId&&assessorId!==appointment.assessorId)throw new Error('初访表评估师须与本次预约实际评估师一致');
   if(assessorId&&!model.assessorRows(storeId).some(p=>p.id===assessorId))throw new Error('请选择本次门店在职评估师');
   const result = { clientId, storeId, ...(appointment?{appointmentId:appointment.id}:{}), ownerId: client.ownerId, ...(assessorId?{assessorId}:{}), age, problem: text(data.problem, '主要问题（客户自述）', true), goal: text(data.goal, '客户希望达到的目标', true), bodyArea: text(data.bodyArea, '主要部位', false, 80), duration: text(data.duration, '持续多久', false, 100), impact: text(data.impact, '影响日常活动', false, 300), pain: data.pain === '' || data.pain == null ? null : number(data.pain, '客户自述疼痛分数', 0, 10), sex: choice(data.sex, { male: '男', female: '女', undisclosed: '不方便填写' }, '性别'), source: choice(data.source, SOURCES, '客户来源', 'unknown'), referrer: text(data.referrer, '介绍人', false, 100), exercise: choice(data.exercise, EXERCISE, '运动频率', 'unknown'), recentCare: text(data.recentCare, '近期就医或病史'), surgery: text(data.surgery, '手术史'), allergies: text(data.allergies, '过敏情况'), emergencyName: text(data.emergencyName, '紧急联系人', false, 80), emergencyPhone: phone(data.emergencyPhone, '紧急联系人手机号'), guardianName: text(data.guardianName, '监护人姓名', minor, 80), guardianPhone: phone(data.guardianPhone, '监护人手机号', minor), safetyNotes: text(data.safetyNotes, '需注意的情况'), answers: {} };
   for (const question of PAPER_SAFETY_QUESTIONS) {
@@ -193,7 +196,8 @@ export function savePaperIntake(model, data, role) {
 
 export function reviewPaperIntake(model, id, data, role) {
   const row = readRecord(model, id, role), client = model._client(row.clientId);
-  if(role.type==='boss')model._boss(role);else if(role.type==='franchise_owner')model.assertStoreOwner(role,[row.storeId]);
+  if(row.assessorId||operationsEnabled(model)){if(!model.isAssignedAssessor(role,row.assessorId,row.storeId))throw new Error('仅本次指定评估师本人有专业复核权限');}
+  else if(role.type==='boss')model._boss(role);else if(role.type==='franchise_owner')model.assertStoreOwner(role,[row.storeId]);
   else if (!model.isAssignedAssessor(role,row.assessorId,row.storeId)&&(role.type !== 'therapist' || (client.assessorId || !model._therapist(role.id).legacy || role.id !== client.ownerId) || !model.state.therapists.some(t => t.id === role.id && t.active === true))) throw new Error('仅老板或客户当前在职负责康复师有专业复核权限');
   if (!data || typeof data !== 'object') throw new Error('请填写复核记录');
   const decision = choice(data.decision, DECISIONS, '下一步安排');
@@ -223,9 +227,13 @@ export function amendPaperIntake(model,data,role){
  const prior=model.state.audit.find(a=>a.type==='paper_intake_amended'&&a.actorId===role.id&&a.actorType===role.type&&a.requestId===requestId);
  if(prior){if(prior.inputKey!==inputKey)throw new Error('同一提交的修订内容发生变化');return project(row,role);}
  if((row.version??0)!==expectedVersion)throw new Error('初诊表版本已更新，请重新核对');
- const stamp=currentStamp(model),sequence=nextSequence(model),before={formVersion:row.formVersion,initialCase:clone(row.initialCase),version:row.version??0};
+ const stamp=currentStamp(model),sequence=nextSequence(model),before=clone({formVersion:row.formVersion,initialCase:row.initialCase,version:row.version??0,status:row.status,reviewedAt:row.reviewedAt,reviewedBy:row.reviewedBy,reviewedRole:row.reviewedRole,review:row.review});
  const entry={before,reason,actorId:role.id,actorRole:role.type,createdAt:stamp.createdAt};
  const updated={...row,initialCase,version:expectedVersion+1,history:[...(row.history||[]),entry]};
+ if(row.assessorId||operationsEnabled(model)){
+  updated.status='pending';for(const key of ['reviewedAt','reviewedBy','reviewedRole','review','reviewRequestId','reviewInputKey'])delete updated[key];
+  model.state.tasks=model.state.tasks.map(task=>task.id===row.review?.taskId&&task.paperIntakeId===row.id&&task.clientId===row.clientId&&task.storeId===row.storeId&&task.status==='pending'?{...task,status:'superseded',supersededAt:stamp.createdAt,supersededReason:reason}:task);
+ }
  model.state.paperIntakes=collection(model).map(r=>r.id===row.id?updated:r);model.state.audit=[...model.state.audit,audit(`audit${sequence}`,'paper_intake_amended',updated,role,stamp.createdAt,{before,reason,requestId,inputKey})];model.sequence=sequence;
  return project(updated,role);
 }
@@ -238,7 +246,7 @@ function select(ctx, label, name, choices, value = '', blank = '请选择（选�
 function assessmentPerson(ctx,client) {return client?.assessorId?names(ctx,'assessors',client.assessorId):names(ctx,'therapists',client?.ownerId);}
 function reviewable(ctx, row) {
   const client = ctx.model.state.clients.find(c => c.id === row.clientId);
-  const authorized=ctx.model.isAssignedAssessor(ctx.role,row.assessorId,row.storeId)|| (ctx.role.type==='boss'?ctx.role.id==='boss':ctx.role.type==='franchise_owner'?ctx.model.isStoreOwner(ctx.role,[row.storeId]):ctx.role.type==='therapist'&&!client?.assessorId&&ctx.model.state.therapists.some(t=>t.id===ctx.role.id&&t.legacy)&&ctx.role.id===client?.ownerId&&ctx.model.state.therapists.some(t=>t.id===ctx.role.id&&t.active===true));
+  const authorized=row.assessorId||operationsEnabled(ctx.model)?ctx.model.isAssignedAssessor(ctx.role,row.assessorId,row.storeId):(ctx.role.type==='boss'?ctx.role.id==='boss':ctx.role.type==='franchise_owner'?ctx.model.isStoreOwner(ctx.role,[row.storeId]):ctx.role.type==='therapist'&&!client?.assessorId&&ctx.model.state.therapists.some(t=>t.id===ctx.role.id&&t.legacy)&&ctx.role.id===client?.ownerId&&ctx.model.state.therapists.some(t=>t.id===ctx.role.id&&t.active===true));
   return authorized&&row.status==='pending';
 }
 function handoffSummary(ctx,row,showResult=false) {
@@ -285,7 +293,7 @@ export function paperIntakeDialog(type, id, ctx) {
     const owner = model.state.therapists.find(t => t.id === client.ownerId && t.active === true);
     if (!reception && !owner && !client.assessorId) throw new Error('负责康复师已停用，请先联系老板核对负责人');
     if(!reception)throw new Error('请从今天实际已到店预约填写本次初诊表');
-    return {title:'初诊个案资料表',html:`<form data-form="paper-intake-create" data-client-age="${esc(client.age??'')}"><input type="hidden" name="clientId" value="${esc(client.id)}"><input type="hidden" name="appointmentId" value="${esc(reception.id)}"><input type="hidden" name="storeId" value="${esc(reception.storeId)}"><label class="field"><span>本次评估师</span><select name="assessorId" required data-assessor-store>${model.assessorRows(selected).map(p=>`<option value="${esc(p.id)}"${p.id===(client.assessorId||'tao')?' selected':''}>${esc(p.name)}</option>`).join('')}</select></label>${renderInitialCaseFields(ctx,client)}<p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="close-dialog">返回</button><button type="submit" class="btn btn-primary">保存，交给所选评估师复核</button></div></form>`};
+    return {title:'初诊个案资料表',html:`<form data-form="paper-intake-create" data-client-age="${esc(client.age??'')}"><input type="hidden" name="clientId" value="${esc(client.id)}"><input type="hidden" name="appointmentId" value="${esc(reception.id)}"><input type="hidden" name="storeId" value="${esc(reception.storeId)}"><label class="field"><span>本次评估师</span><select name="assessorId" required data-assessor-store>${model.assessorRows(selected).filter(p=>!reception.assessorId||p.id===reception.assessorId).map(p=>`<option value="${esc(p.id)}"${p.id===(reception.assessorId||client.assessorId||'tao')?' selected':''}>${esc(p.name)}</option>`).join('')}</select></label>${renderInitialCaseFields(ctx,client)}<p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="close-dialog">返回</button><button type="submit" class="btn btn-primary">保存，交给所选评估师复核</button></div></form>`};
   }
   const raw = readRecord(model, id, role), row = project(raw,role), client = model.state.clients.find(c => c.id === row.clientId);
   if(type==='paper-intake-amend'){
@@ -293,7 +301,7 @@ export function paperIntakeDialog(type, id, ctx) {
    return {title:'更正已保存初诊资料',html:`<form data-form="paper-intake-amend" data-client-age="${esc(row.age??'')}"><input type="hidden" name="id" value="${esc(row.id)}"><input type="hidden" name="expectedVersion" value="${esc(row.version??0)}">${renderInitialCaseFields({...ctx,model:{...model,today:row.date}}, {...row.initialCase,id:row.clientId,age:row.age},row.initialCase)}${area(ctx,'修改原因','reason','','required maxlength="500"')}<p class="notice">保留原内容及修改历史；不能更换客户、门店、预约或所选评估师。</p><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="submit" class="btn btn-primary">保存初诊资料更正</button></div></form>`};
   }
   if (type === 'paper-intake-review') {
-    if (!reviewable(ctx, row)) throw new Error('仅老板或客户当前负责康复师可复核待处理接待表');
+    if (!reviewable(ctx, row)) throw new Error('仅本次指定评估师本人可复核待处理接待表');
     const assignees=followupAssignees(model,client,row.storeId);
     const assignment=`<div class="form-grid"><label class="field"><span>下一步交给谁</span><select name="assigneeId" required><option value="">请选择已授权康复师</option>${assignees.map(t=>`<option value="${esc(t.id)}"${t.id===(client.assessorId?'boss':client.ownerId)?' selected':''}>${esc(t.name)} · ${esc(names(ctx,'stores',t.storeId))}</option>`).join('')}</select></label>${field(ctx,'计划完成日期','dueDate',model.today,`type="date" min="${esc(model.today)}" required`)}</div><p class="meta">本次评估师本人可从协同接待入口登记评估。下一步待办交给已授权负责人接续；完成时须留下结果。</p>`;
     return { title: '接待复核与下一步', html: `<form data-form="paper-intake-review"><input type="hidden" name="id" value="${esc(row.id)}"><div class="note"><strong>${esc(client.name)} · ${esc(row.date)} ${esc(row.time)}</strong>${row.formVersion===INITIAL_CASE_VERSION?renderInitialCaseDetail(ctx,row):`<p>${esc(row.problem)}</p><p>客户目标：${esc(row.goal)}</p>`}</div><p class="notice">${row.formVersion===INITIAL_CASE_VERSION?'初诊资料已记录，仍须所选评估师专业复核。':row.attentionItems.length ? '需核对：' + row.attentionItems.map(q => `${esc(q.label)}（${ANSWERS[q.answer] || '未填写'}）`).join('；') : '十项均记录为“否”，请结合本次情况专业复核。'}${row.safetyNotes ? '<br>客户补充：' + esc(row.safetyNotes) : ''}</p><p class="meta">${action(ctx, '查看完整接待表', 'paper-intake-detail', row.id)}</p>${select(ctx, '复核后的下一步', 'decision', DECISIONS, '', '请选择下一步安排')}${area(ctx, '下一步具体事项', 'nextStep', '', 'required maxlength="500" placeholder="写清接下来做什么、由谁安排"')}${assignment}${area(ctx, '复核说明（选填）', 'notes', '', 'maxlength="1000"')}<p class="meta">这里只记录本次专业核对与工作安排，原始客户回答完整保留；不会自动生成诊断或修改套餐次数。</p><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="button" class="btn btn-quiet" data-action="close-dialog">返回</button><button type="submit" class="btn btn-primary">保存复核与下一步</button></div></form>` };

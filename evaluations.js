@@ -1,3 +1,4 @@
+import {operationsEnabled,reviewedByAssessor} from './operations-workflow.js?v=20261011-operations-closed-loop-8';
 /* Assessment records and employee reviews for the fictional in-memory preview. */
 const clone = value => JSON.parse(JSON.stringify(value));
 const CONCLUSIONS = Object.freeze({ met: '符合要求', improve: '需改进', unobserved: '未观察' });
@@ -89,9 +90,10 @@ function assertAssessmentWriter(model, role, clientId, storeId) {
   return client;
 }
 function canConfirm(model, role, row) {
+  if (row.assessorId) return model.isAssignedAssessor(role,row.assessorId,row.storeId);
+  if (operationsEnabled(model)) return false;
   if (isBoss(role)) return true;
   if(role?.type==='franchise_owner')return model.isStoreOwner(role,[row.storeId]);
-  if (row.assessorId) return model.isAssignedAssessor(role,row.assessorId,row.storeId);
   if (role?.type !== 'therapist') return false;
   const person = model.state.therapists.find(item => item.id === role.id && item.active);
   const client = model.state.clients.find(item => item.id === row.clientId);
@@ -191,6 +193,13 @@ export function recordAssessment(model, data, role) {
   }
   if (!metrics.length) throw new Error('请至少完整填写一组指标名称和实际值');
   const input = { clientId, storeId, date: date(data.date), time: time(data.time), type, project: text(data.project, '评估项目', 80), ...(assessorId?{assessorId}:{therapistId}), summary: text(data.summary, '评估记录说明', 2000), metrics };
+  if(type==='initial'&&operationsEnabled(model,data)){
+    const appointment=model.receptionAppointment(role,text(data.appointmentId,'本次已到店预约',80),{arrived:true});
+    if(appointment.clientId!==clientId||appointment.storeId!==storeId||!appointment.assessorId||appointment.assessorId!==assessorId||appointment.date!==input.date||appointment.assessmentTime!==input.time)throw new Error('初次评估须对应本次已到店预约的指定评估师及独立评估时间');
+    const paper=(model.state.paperIntakes||[]).find(p=>p.id===data.paperIntakeId&&p.appointmentId===appointment.id&&p.assessorId===assessorId&&p.date===appointment.date&&p.storeId===storeId&&p.clientId===clientId&&reviewedByAssessor(model,p)&&model.isAssignedAssessor({type:p.reviewedRole,id:p.reviewedBy},assessorId,storeId));
+    if(!paper)throw new Error('初次评估须关联本次指定评估师已复核的初访接待表');
+    input.appointmentId=appointment.id;input.paperIntakeId=paper.id;
+  }
   const inputKey = JSON.stringify(input);
   const existing = repeated(model.state.assessments, role, requestId, inputKey);
   if (existing) return clone(model.projectForRole(existing,role));
@@ -392,7 +401,9 @@ export function evaluationDialog(type, id, ctx) {
     if (!assessors.length) return { title: '客户评估资料登记', html: '<p class="empty">此客户暂没有可选的在职评估康复师，请先由老板核对客户负责人。</p>' };
     const selectedStore = stores.some(store => store.id === ctx.filters?.storeId) ? ctx.filters.storeId : stores.some(store => store.id === client.storeId) ? client.storeId : stores[0]?.id;
     const actual = actualMoment(model);
-    return { title: `登记${client.name}的评估资料`, html: x.form(type, `${x.hidden('clientId', id)}<div class="note"><strong>${x.esc(client.name)}</strong><p>记录实际评估资料，所选评估师核对确认后，客户才能查看。</p></div><div class="form-grid">${x.select('评估门店', 'storeId', stores, selectedStore)}${x.select('评估类型', 'type', Object.entries(ASSESSMENT_TYPES).map(([value, label]) => ({ id: value, name: label })), 'initial')}${x.field('实际评估日期', 'date', actual.date, 'date', `required max="${actual.date}"`)}${x.field('实际评估时间', 'time', actual.time, 'time', 'required')}${x.field('评估项目', 'project', '', 'text', 'required maxlength="80" placeholder="填写实际项目"')}${x.select('评估师', 'assessorId', assessors, 'tao')}${[1, 2, 3].map(i => `<fieldset class="evaluation-metric-field field span-all"><legend>指标 ${i}${i === 1 ? ' · 至少填写一组' : '（选填）'}</legend><div class="evaluation-metric-inputs">${x.field('指标名称', `metricName${i}`, '', 'text', `${i === 1 ? 'required' : ''} maxlength="80"`)}${x.field('实际记录值', `metricValue${i}`, '', 'text', `${i === 1 ? 'required' : ''} maxlength="200" placeholder="按原始记录填写"`)}${x.field('单位（选填）', `metricUnit${i}`, '', 'text', 'maxlength="30"')}</div></fieldset>`).join('')}${x.textarea('记录说明', 'summary', 'required maxlength="2000" placeholder="记录来源、观察与核对事项，不自动生成诊断或康复结论"')}</div><p class="meta">本次仅保存评估资料，不扣次数、不记收入；错误由老板写原因后撤销，原数据保留。</p>`, '保存 · 等待指定评估师确认') };
+    const visits=model.state.appointments.filter(a=>a.clientId===id&&a.storeId===selectedStore&&a.arrivalAt&&['confirmed','reschedule_requested'].includes(a.status)),visit=visits[0];
+    const papers=(model.state.paperIntakes||[]).filter(p=>p.clientId===id&&p.storeId===selectedStore&&reviewedByAssessor(model,p)&&model.isAssignedAssessor({type:p.reviewedRole,id:p.reviewedBy},p.assessorId,p.storeId)&&visits.some(a=>a.id===p.appointmentId));
+    return { title: `登记${client.name}的评估资料`, html: x.form(type, `${x.hidden('clientId', id)}<div class="note"><strong>${x.esc(client.name)}</strong><p>记录实际评估资料，所选评估师核对确认后，客户才能查看。</p></div><div class="form-grid">${x.select('评估门店', 'storeId', stores, selectedStore)}${x.select('本次已到店预约', 'appointmentId', [{id:'',name:'请选择本次实际到店预约'},...visits.map(a=>({id:a.id,name:a.date+' '+a.time+' · '+(model.state.assessors.find(p=>p.id===a.assessorId)?.name||'历史评估人员')}))],visit?.id||'')}${x.select('本次已复核初访表','paperIntakeId',[{id:'',name:'请选择本次已复核表'},...papers.map(p=>({id:p.id,name:p.date+' '+p.time+' · '+p.id}))],papers.find(p=>p.appointmentId===visit?.id)?.id||'')}${x.select('评估类型', 'type', Object.entries(ASSESSMENT_TYPES).map(([value, label]) => ({ id: value, name: label })), 'initial')}${x.field('实际评估日期', 'date', visit?.date||actual.date, 'date', `required max="${actual.date}"`)}${x.field('实际评估时间', 'time', visit?.assessmentTime||actual.time, 'time', 'required')}${x.field('评估项目', 'project', '', 'text', 'required maxlength="80" placeholder="填写实际项目"')}${x.select('评估师', 'assessorId', assessors, visit?.assessorId||'tao')}${[1, 2, 3].map(i => `<fieldset class="evaluation-metric-field field span-all"><legend>指标 ${i}${i === 1 ? ' · 至少填写一组' : '（选填）'}</legend><div class="evaluation-metric-inputs">${x.field('指标名称', `metricName${i}`, '', 'text', `${i === 1 ? 'required' : ''} maxlength="80"`)}${x.field('实际记录值', `metricValue${i}`, '', 'text', `${i === 1 ? 'required' : ''} maxlength="200" placeholder="按原始记录填写"`)}${x.field('单位（选填）', `metricUnit${i}`, '', 'text', 'maxlength="30"')}</div></fieldset>`).join('')}${x.textarea('记录说明', 'summary', 'required maxlength="2000" placeholder="记录来源、观察与核对事项，不自动生成诊断或康复结论"')}</div><p class="meta">本次仅保存评估资料，不扣次数、不记收入；错误由老板写原因后撤销，原数据保留。</p>`, '保存 · 等待指定评估师确认') };
   }
   if (['assessment-detail', 'assessment-confirm', 'assessment-void'].includes(type)) {
     const row = getAssessment(model, id, role);

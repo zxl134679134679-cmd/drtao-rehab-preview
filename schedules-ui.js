@@ -1,5 +1,5 @@
 /* Shared daily schedule UI. Role scope and every write are enforced by schedules.js. */
-import { scheduleRows, scheduleRequestRows, bossScheduleNotifications, scheduleStatus } from './schedules.js?v=20261011-suzhou-franchise-preview-7b';
+import { scheduleRows, scheduleRequestRows, bossScheduleNotifications, scheduleStatus } from './schedules.js?v=20261011-operations-closed-loop-8';
 
 const escDefault = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 const TIMES = Object.freeze(Array.from({ length: 48 }, (_, index) => `${String(Math.floor(index / 2)).padStart(2, '0')}:${index % 2 ? '30' : '00'}`));

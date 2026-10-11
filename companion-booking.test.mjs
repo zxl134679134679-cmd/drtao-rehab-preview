@@ -222,7 +222,7 @@ test('twenty separately assigned clients can book together but a twenty-first cl
   const m = model(), save = api(m), items = [];
   for (let n = 1; n <= 21; n++) {
     const clientId = `group-client-${n}`, principalId = `group-therapist-${n}`;
-    m.state.therapists.push({ id: principalId, name: `示例康复师 ${n}`, storeId: 'a', active: true });
+    m.state.therapists.push({ id: principalId, name: `示例康复师 ${n}`, storeId: 'a', active: true, legacy: true });
     confirmTestShift(m, { therapistId: principalId, storeId: 'a', date: '2026-10-12' });
     m.state.clients.push({ ...clone(m.state.clients[0]), id: clientId, name: `示例同行客户 ${n}`, ownerId: principalId, storeId: 'a' });
     items.push({ clientId, principalId });

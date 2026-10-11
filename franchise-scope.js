@@ -50,7 +50,7 @@ export function franchiseState(model,role){
  if(role.type==='boss')return clone(model.state);
  const clean=value=>Array.isArray(value)?value.filter(row=>!row||typeof row!=='object'||!row.storeId||ids.has(row.storeId)).map(clean):value&&typeof value==='object'?Object.fromEntries(Object.entries(value).filter(([key])=>!privateKeys.has(key)).map(([key,item])=>[key,clean(item)])):value;
  const own=row=>Boolean(row?.storeId)&&ids.has(row.storeId);
- const localCollections=['packages','services','appointments','receipts','refunds','cashClosings','paperIntakes','assessments','frontDeskEvaluations','staffSchedules','scheduleChangeRequests','bookingRequests','productCatalog','purchaseIntents','amountApplications','equipmentOrders'];
+ const localCollections=['packages','services','appointments','receipts','refunds','cashClosings','paperIntakes','assessments','frontDeskEvaluations','staffSchedules','scheduleChangeRequests','bookingRequests','productCatalog','purchaseIntents','amountApplications','equipmentOrders','assessorSchedules','storeDutyAssignments','identityBindings','serviceVisits'];
  const result=Object.fromEntries(localCollections.map(key=>[key,clean((model.state[key]||[]).filter(own))]));
  const related=new Set(localCollections.flatMap(key=>result[key].map(row=>row.clientId).filter(Boolean)));
  result.stores=clone(model.state.stores.filter(row=>ids.has(row.id)));

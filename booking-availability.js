@@ -1,4 +1,4 @@
-import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261011-suzhou-franchise-preview-7b';
+import { assertScheduleAvailability, scheduleStatus } from './schedules.js?v=20261011-operations-closed-loop-8';
 
 const minutes = time => Number(time.slice(0,2))*60+Number(time.slice(3));
 const pending = row => ['confirmed','reschedule_requested','pending_reassignment'].includes(row.status);
@@ -8,7 +8,7 @@ export function bookingAvailability(model,input) {
   try {
     assertScheduleAvailability(model,input);
     const collision=model.state.appointments.some(row=>row.id!==input.excludeId&&pending(row)&&row.date===input.date&&
-      (row.principalId===input.principalId||input.clientId&&row.clientId===input.clientId)&&Math.abs(minutes(row.time)-minutes(input.time))<60);
+      (((row.principalId===input.principalId||row.participantIds?.includes(input.principalId)||input.clientId&&row.clientId===input.clientId)&&Math.abs(minutes(row.time)-minutes(input.time))<60)||(row.assessmentTime&&Math.abs(minutes(row.assessmentTime)-minutes(input.time))<60&&(input.clientId&&row.clientId===input.clientId||model.state.assessors.some(p=>p.id===row.assessorId&&p.accountRole==='therapist'&&p.accountId===input.principalId)))));
     if(collision)throw new Error('这个时段已有预约，请选择其他时间');
     return {available:true,message:''};
   } catch(error) {return {available:false,message:error.message};}

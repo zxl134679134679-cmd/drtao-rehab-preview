@@ -1,7 +1,7 @@
-import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261011-suzhou-franchise-preview-7b';
-import {bookingAvailability} from './booking-availability.js?v=20261011-suzhou-franchise-preview-7b';
+import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261011-operations-closed-loop-8';
+import {bookingAvailability} from './booking-availability.js?v=20261011-operations-closed-loop-8';
 const clone=value=>JSON.parse(JSON.stringify(value));
-const appointmentFields=['id','clientId','storeId','date','time','principalId','project','status'];
+const appointmentFields=['id','clientId','storeId','date','time','principalId','project','status','assessorId','assessmentTime','initialAssessmentRequired'];
 const safeAppointment=row=>clone(Object.fromEntries(appointmentFields.map(key=>[key,row[key]])));
 const required=(value,label,max=80)=>{if(typeof value!=='string'||!value.trim()||value.trim().length>max)throw new Error(`请填写有效的${label}`);return value.trim();};
 function day(value){const date=required(value,'预约日期',10),stamp=Date.parse(`${date}T00:00:00Z`);if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||!Number.isFinite(stamp)||new Date(stamp).toISOString().slice(0,10)!==date)throw new Error('请选择有效日期');return date;}
@@ -32,7 +32,7 @@ export function saveMultiDayBooking(model,data,role){
  const input={clientId:required(data.clientId??(role?.type==='customer'?role.id:''),'客户'),storeId:required(data.storeId,'服务门店'),project:required(data.project,'服务项目',120),items:[]};
  const requestId=required(data.requestId,'提交标识',60);
  for(let index=0;index<data.items.length;index++){
-  try{const row=data.items[index];if(!row||typeof row!=='object'||Object.keys(row).some(key=>!['date','time','principalId'].includes(key)))throw new Error('每天仅选择日期、时间和康复师，不能修改客户、门店或已有预约');input.items.push({date:day(row.date),time:hour(row.time),principalId:required(row.principalId,'服务康复师')});authorize(model,input,input.items[index],role);}
+  try{const row=data.items[index];if(!row||typeof row!=='object'||Object.keys(row).some(key=>!['date','time','principalId','assessorId','assessmentTime'].includes(key)))throw new Error('每天仅选择日期、时间和康复师，不能修改客户、门店或已有预约');input.items.push({date:day(row.date),time:hour(row.time),principalId:required(row.principalId,'服务康复师'),...(row.assessorId?{assessorId:required(row.assessorId,'实际评估师')}:{ }),...(row.assessmentTime?{assessmentTime:hour(row.assessmentTime)}:{})});authorize(model,input,input.items[index],role);}
   catch(error){throw new Error(`请调整第 ${index+1} 天：${error.message}。本批未保存`);}
  }
  if(new Set(input.items.map(row=>row.date)).size!==input.items.length)throw new Error('日期重复，请每一天只选一次。本批未保存');

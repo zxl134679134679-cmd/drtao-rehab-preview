@@ -46,16 +46,18 @@ export function workflowDialog(type,id,{model,role}){
  if(type==='appointment-cancel-request'||type==='appointment-cancel-handle'){
   const a=find(model,'appointments',id);if(!a)throw new Error('预约不存在');
   const request=a.cancellationRequest;
-  const summary=`<h3>${esc(name(model,'clients',a.clientId))} · ${esc(a.date)} ${esc(a.time)}</h3><p>${esc(a.project)} · ${esc(name(model,'stores',a.storeId))} · ${esc(name(model,'therapists',a.principalId))}</p>`;
+  const task=model.state.tasks.find(t=>t.appointmentId===a.id&&t.type==='appointment_cancellation'&&t.status==='pending');
+  const deadline=task?.dueAt?`<p class="notice">处理时限：${esc(new Date(task.dueAt).toLocaleString('zh-CN'))} · ${Date.parse(model.now())>Date.parse(task.dueAt)?'已超时，升级总部核对':'超时升级总部核对'}。原时段在审批完成前仍保留。</p>`:'';
+  const summary=deadline+`<h3>${esc(name(model,'clients',a.clientId))} · ${esc(a.date)} ${esc(a.time)}</h3><p>${esc(a.project)} · ${esc(name(model,'stores',a.storeId))} · ${esc(name(model,'therapists',a.principalId))}</p>`;
   if(type==='appointment-cancel-request'){
    if(role.type==='customer'){if(role.id!==a.clientId)throw new Error('仅客户本人可以申请取消');}else if(role.type==='frontdesk')model.assertCancellationActor(role,a);else throw new Error('仅客户本人或本店前台可申请取消');
    if(request?.status==='pending')return {title:'取消申请待门店处理',html:`${summary}<p class="notice">原预约时间仍保留，门店确认后才取消。本次申请不扣次数。</p><p>申请原因：${esc(request.reason)}</p>`};
    if(!['confirmed','reschedule_requested'].includes(a.status))throw new Error('该预约已处理，不能申请取消');
-   return {title:'申请取消预约',html:form(type,`${hidden('id',id)}${summary}${textarea('取消原因','reason','','required maxlength="500" placeholder="请说明需要取消的原因"')}<p class="notice">${role.type==='frontdesk'?'老板或本店店长批准前':'门店确认前'}，原预约仍保留；申请本身不扣次数、不改变收款。</p>`,'提交取消申请')};
+   return {title:'申请取消预约',html:form(type,`${hidden('id',id)}${summary}${textarea('取消原因','reason','','required maxlength="500" placeholder="请说明需要取消的原因"')}<p class="notice">${role.type==='frontdesk'?'本店店长或当前加盟老板批准前':'门店确认前'}，原预约仍保留；申请本身不扣次数、不改变收款。</p>`,'提交取消申请')};
   }
   model.assertCancellationActor(role,a,{approval:request?.needsApproval===true||request?.source==='frontdesk'});
   if(request?.status!=='pending')return {title:'取消申请已处理',html:`${summary}<p class="notice">请返回查看最新预约状态。</p>`};
-  return {title:'处理取消申请',html:form(type,`${hidden('id',id)}${summary}<div class="note"><strong>${request.source==='frontdesk'?'前台申请取消，待老板或本店店长批准':'客户申请取消'}</strong><p>${esc(request.reason)}</p></div><label class="field"><span>处理结果</span><select name="decision" required><option value="">请选择处理结果</option><option value="approve">${role.type==='frontdesk'?'核对同意 · 申请老板或本店店长批准':'同意取消 · 释放时间'}</option><option value="reject">暂不同意 · 保留预约</option></select></label>${textarea('处理说明','reason','','required maxlength="500" placeholder="说明已核对的情况，客户可以查看"')}<p class="meta">只处理预约，不扣次数、不退款。款项更正仍由老板处理。</p>`,'保存处理结果')};
+  return {title:'处理取消申请',html:form(type,`${hidden('id',id)}${summary}<div class="note"><strong>${request.source==='frontdesk'?'前台申请取消，待本店店长或当前加盟老板批准':'客户申请取消'}</strong><p>${esc(request.reason)}</p></div><label class="field"><span>处理结果</span><select name="decision" required><option value="">请选择处理结果</option><option value="approve">${role.type==='frontdesk'?'核对同意 · 申请本店店长或当前加盟老板批准':'同意取消 · 释放时间'}</option><option value="reject">暂不同意 · 保留预约</option></select></label>${textarea('处理说明','reason','','required maxlength="500" placeholder="说明已核对的情况，客户可以查看"')}<p class="meta">只处理预约，不扣次数、不退款。款项更正由本店授权老板按金额审批办理。</p>`,'保存处理结果')};
  }
  if(type==='confirm-service-next-step'){
   const s=find(model,'services',id),c=s&&find(model,'clients',s.clientId);
@@ -78,6 +80,8 @@ export function updateWorkflowForm(form,{model}){
 }
 
 export function serviceResultSummary(s,{model},mode='registered'){
+ if(s.visitId){const rows=model.state.services.filter(row=>row.visitId===s.visitId),total=rows.reduce((n,row)=>n+row.amount,0);return `<p class="notice">同一次真实预约 · ${rows.length} 个实际项目${mode==='revoked'?'已整组撤销，所有对应次数已恢复':'已整组登记，各项目分别扣对应卡一次'}。照片与参与人员共用。</p><div class="line-list">${rows.map(row=>`<div class="row"><div><strong>${esc({rehabilitation:'康复训练',cryotherapy:'超低温冷疗',iastm:'筋膜刀','deep-stretch':'深度拉伸放松治疗'}[row.serviceOfferingId]||row.lineProject||row.project)}</strong><p>${esc(row.billingMode==='single'?'单次已到账':name(model,'packages',row.packageId))}${row.packageId?' · 剩余 '+model.packageRemaining(row.packageId)+'次':''}</p></div><span>${money(row.amount)}</span></div>`).join('')}</div><p class="meta">${mode==='revoked'?'冲回':'消费'}业绩合计 ${money(total)}，归${esc(name(model,'therapists',s.principalId))}；本次不新增收款。</p>`;}
+
  const single=s.billingMode==='single';
  const appointment=find(model,'appointments',s.appointmentId),reassignment=mode==='revoked'&&appointment?.status==='pending_reassignment'?`<p class="notice">原预约需重新安排：${esc(appointment.reassignmentReason||'原时间或服务人员已不可用，请重新核对安排。')}</p>${button('重新安排原预约','appointment-edit',appointment.id,'btn-primary')}`:'';
  if(mode==='revoked'&&single)return `<p class="notice">单次服务业绩已冲回，收款记录保留；本次更正不自动退款。</p><div class="detail-grid">${pair('客户',name(model,'clients',s.clientId))}${pair('冲回消费业绩',money(s.amount))}${pair('主康复师',name(model,'therapists',s.principalId))}</div><p class="meta">原服务小结、照片和撤销原因保留，不改变任何套餐次数。</p>${reassignment}`;

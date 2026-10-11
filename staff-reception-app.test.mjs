@@ -25,7 +25,7 @@ test('shared appointment cards retain basic cancellation status for every staff 
  const model=new DemoModel(),boss={type:'boss',id:'boss'},chen={type:'manager',id:'m-chen-kang'},he={type:'manager',id:'m-he-zanfeng'},qiu={type:'therapist',id:'t-qiu-zhen'},front={type:'frontdesk',id:'f1'};
  model.state.appointments.push({id:'actual-cancel',clientId:'c1',storeId:'a',date:model.today,time:'15:00',project:'训练',principalId:qiu.id,status:'confirmed'});
  const ctx=role=>({model,role,esc:String});
- assert.match(workflowDialog('appointment-cancel-request','actual-cancel',ctx(front)).html,/老板或本店店长批准前/);
+ assert.match(workflowDialog('appointment-cancel-request','actual-cancel',ctx(front)).html,/本店店长或当前加盟老板批准前/);
  model.cancelAppointment('actual-cancel','申请',front,{requestId:'r'});
  for(const role of [front,he,qiu]){const html=renderStaffReception(ctx(role));assert.match(html,/取消待处理 \/ 审批/);assert.doesNotMatch(html,/data-action="(?:staff-arrival|appointment-cancel-handle)" data-id="actual-cancel"/);}
  assert.match(renderStaffReception(ctx(chen)),/data-action="appointment-cancel-handle" data-id="actual-cancel"/);

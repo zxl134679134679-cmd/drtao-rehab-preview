@@ -1,7 +1,8 @@
+import {initialAssessmentFields} from './operations-ui.js?v=20261011-operations-closed-loop-8';
 // A shared reception queue grants basic appointment access, never chart/finance access.
-import {hourTimeField} from './hour-picker.js?v=20261011-suzhou-franchise-preview-7b';
-import {paperIntakeDialog} from './paper-intake.js?v=20261011-suzhou-franchise-preview-7b';
-import {assessmentRows} from './evaluations.js?v=20261011-suzhou-franchise-preview-7b';
+import {hourTimeField} from './hour-picker.js?v=20261011-operations-closed-loop-8';
+import {paperIntakeDialog} from './paper-intake.js?v=20261011-operations-closed-loop-8';
+import {assessmentRows} from './evaluations.js?v=20261011-operations-closed-loop-8';
 export function renderStaffReception(ctx){
  const {model,role,esc}=ctx;model.assertAppointmentStaff(role);
  const name=(kind,id)=>model.state[kind]?.find(p=>p.id===id)?.name||'历史人员';
@@ -17,7 +18,7 @@ export function staffReceptionDialog(type,id,ctx){
   const ids=new Set([...model.state.appointments,...(model.state.bookingRequests||[])].map(a=>a.clientId));
   const clients=model.state.clients.filter(c=>ids.has(c.id)||model.canSeeClient(role,c.id)||(c.createdBy===role.id&&c.createdRole===role.type));
   const selected=clients.find(c=>c.id===id);
-  return {title:'新建预约',html:`<form data-form="appointment-create" data-staff-reception="true"><p class="notice">为已接待或已申请预约的客户新建本次安排。请核对客户本人、门店、治疗师与排班；不改变既有预约、不收款、不扣次。</p><div class="form-grid"><label class="field"><span>客户</span><select name="clientId" required>${clients.map(c=>`<option value="${esc(c.id)}"${c.id===selected?.id?' selected':''}>${esc(c.name)}</option>`).join('')}</select></label><label class="field"><span>服务门店</span><select name="storeId" required>${model.state.stores.filter(st=>st.active!==false).map(st=>`<option value="${esc(st.id)}"${st.id===selected?.storeId?' selected':''}>${esc(st.name)}</option>`).join('')}</select></label><label class="field"><span>预约日期</span><input name="date" type="date" min="${esc(model.today)}" required></label><label class="field"><span>本次主治疗师</span><select name="principalId" required><option value="">预约时选择服务治疗师</option></select></label>${hourTimeField('',esc,'开始时间')}<label class="field"><span>服务项目</span><input name="project" value="基础训练" required maxlength="120"></label></div><p data-booking-availability></p><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="submit" class="btn btn-primary">确认新建预约</button></div></form>`};
+  return {title:'新建预约',html:`<form data-form="appointment-create" data-staff-reception="true"><p class="notice">为已接待或已申请预约的客户新建本次安排。请核对客户本人、门店、治疗师与排班；不改变既有预约、不收款、不扣次。</p><div class="form-grid"><label class="field"><span>客户</span><select name="clientId" required>${clients.map(c=>`<option value="${esc(c.id)}"${c.id===selected?.id?' selected':''}>${esc(c.name)}</option>`).join('')}</select></label><label class="field"><span>服务门店</span><select name="storeId" required>${model.state.stores.filter(st=>st.active!==false).map(st=>`<option value="${esc(st.id)}"${st.id===selected?.storeId?' selected':''}>${esc(st.name)}</option>`).join('')}</select></label><label class="field"><span>预约日期</span><input name="date" type="date" min="${esc(model.today)}" required></label><label class="field"><span>本次主治疗师</span><select name="principalId" required><option value="">预约时选择服务治疗师</option></select></label>${hourTimeField('',esc,'开始时间')}<label class="field"><span>服务项目</span><input name="project" value="基础训练" required maxlength="120"></label>${initialAssessmentFields(model,selected?.id||clients[0]?.id,selected?.storeId||clients[0]?.storeId||model.state.stores[0]?.id)}</div><p data-booking-availability></p><p class="form-error" role="alert" hidden></p><div class="dialog-footer"><button type="submit" class="btn btn-primary">确认新建预约</button></div></form>`};
  }
  if(!['staff-arrival','staff-intake-create','staff-appointment'].includes(type))return null;
  const a=ctx.model.receptionAppointment(ctx.role,id,{arrived:type==='staff-intake-create'}),c=ctx.model._client(a.clientId),esc=ctx.esc;
@@ -28,7 +29,8 @@ export function staffReceptionDialog(type,id,ctx){
 export function updateAssessorChoices(form,ctx){
  if(!form?.elements.assessorId||!['reception-create-client','paper-intake-create','assessment-create'].includes(form.dataset.form))return;
  const select=form.elements.assessorId,prior=select.value,storeId=form.elements.storeId?.value;
- const people=ctx.model.assessorRows(storeId),valid=people.some(p=>p.id===prior),selected=valid?prior:'tao';
+ const appointment=ctx.model.state.appointments.find(a=>a.id===form.elements.appointmentId?.value);
+ const people=ctx.model.assessorRows(storeId).filter(p=>!appointment?.assessorId||p.id===appointment.assessorId),valid=people.some(p=>p.id===prior),selected=valid?prior:people.find(p=>p.id==='tao')?.id||people[0]?.id||'';
  select.innerHTML=people.map(p=>`<option value="${ctx.esc(p.id)}">${ctx.esc(p.name)}</option>`).join('');select.value=selected;
  const label=form.querySelector?.('[data-paper-assessor-name]');if(label)label.textContent=people.find(p=>p.id===selected)?.name||'王勤涛';
 }

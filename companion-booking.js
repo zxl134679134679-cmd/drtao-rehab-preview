@@ -1,6 +1,7 @@
-import {registerClientChoiceSource,refreshClientChoiceSource} from './client-search.js?v=20261011-suzhou-franchise-preview-7b';
-import { hourTimeField } from './hour-picker.js?v=20261011-suzhou-franchise-preview-7b';
-import { receptionStores } from './reception.js?v=20261011-suzhou-franchise-preview-7b';
+import {keyedAssessmentFields} from './operations-ui.js?v=20261011-operations-closed-loop-8';
+import {registerClientChoiceSource,refreshClientChoiceSource} from './client-search.js?v=20261011-operations-closed-loop-8';
+import { hourTimeField } from './hour-picker.js?v=20261011-operations-closed-loop-8';
+import { receptionStores } from './reception.js?v=20261011-operations-closed-loop-8';
 
 const limit = 20;
 function clients(ctx) { return ctx.model.visibleClients(ctx.role); }
@@ -17,7 +18,7 @@ function memberRow(index, member, ctx) {
   const storeId=ctx.bookingStoreId||ctx.filters?.storeId||customer?.storeId;
   const eligible = model.state.therapists.filter(t => t.active && model.bookingTherapistAllowed(t.id,member.clientId,storeId)&&(ctx.role.type!=='therapist'||model._therapist(ctx.role.id).legacy||t.id===ctx.role.id));
   const principal = member.principalId || customer?.ownerId || '';
-  return `<section class="booking-member" data-booking-member><div class="section-head"><h3>客户 ${index + 1}</h3><button type="button" class="text-link" data-action="booking-remove">移除</button></div><div class="form-grid"><label class="field"><span>客户 / 同行朋友</span><select name="memberClient_${index}" required data-booking-client aria-label="客户 ${index + 1}"><option value="">选择已建档客户</option>${clients(ctx).map(c => `<option value="${esc(c.id)}" ${c.id === member.clientId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label><label class="field"><span>服务康复师</span><select name="memberPrincipal_${index}" required data-booking-principal aria-label="客户 ${index + 1} 的康复师"><option value="">${customer ? '选择康复师' : '先选择客户'}</option>${eligible.map(t => `<option value="${esc(t.id)}" ${t.id === principal ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label></div></section>`;
+  return `<section class="booking-member" data-booking-member><div class="section-head"><h3>客户 ${index + 1}</h3><button type="button" class="text-link" data-action="booking-remove">移除</button></div><div class="form-grid"><label class="field"><span>客户 / 同行朋友</span><select name="memberClient_${index}" required data-booking-client aria-label="客户 ${index + 1}"><option value="">选择已建档客户</option>${clients(ctx).map(c => `<option value="${esc(c.id)}" ${c.id === member.clientId ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select></label><label class="field"><span>服务康复师</span><select name="memberPrincipal_${index}" required data-booking-principal aria-label="客户 ${index + 1} 的康复师"><option value="">${customer ? '选择康复师' : '先选择客户'}</option>${eligible.map(t => `<option value="${esc(t.id)}" ${t.id === principal ? 'selected' : ''}>${esc(t.name)}</option>`).join('')}</select></label><div class="span-all" data-member-assessment>${keyedAssessmentFields(ctx.model,member.clientId,ctx.bookingStoreId||ctx.filters?.storeId||ctx.model.state.clients.find(c=>c.id===member.clientId)?.storeId||ctx.model.state.stores[0]?.id,'memberAssessor_'+index,'memberAssessmentTime_'+index,member)}</div></div></section>`;
 }
 
 export function appointmentBatchDialog(id, ctx) {
@@ -36,7 +37,7 @@ export function restoreBookingDraft(form, saved, ctx) {
   const entries = new Map(saved.entries);
   const indices = [...entries.keys()].filter(k => /^memberClient_\d+$/.test(k)).map(k => Number(k.split('_')[1])).sort((a,b) => a-b);
   if (indices.length < 2 || indices.length > limit) return;
-  form.querySelector('[data-booking-members]').innerHTML = indices.map((i,index) => memberRow(index,{clientId:entries.get(`memberClient_${i}`),principalId:entries.get(`memberPrincipal_${i}`)},ctx)).join('');
+  form.querySelector('[data-booking-members]').innerHTML = indices.map((i,index) => memberRow(index,{clientId:entries.get(`memberClient_${i}`),principalId:entries.get(`memberPrincipal_${i}`),assessorId:entries.get(`memberAssessor_${i}`),assessmentTime:entries.get(`memberAssessmentTime_${i}`)},ctx)).join('');
 }
 
 export function updateBookingMembers(form, ctx) {
@@ -60,6 +61,7 @@ export function updateBookingMembers(form, ctx) {
     const ownerId = ctx.model.state.clients.find(c => c.id === client.value)?.ownerId;
     const selected = eligible.some(t => t.id === previous) ? previous : eligible.find(t => t.id === ownerId && !occupied.includes(t.id))?.id || '';
     principal.innerHTML = `<option value="">${client.value ? '选择康复师' : '先选择客户'}</option>${eligible.map(t => `<option value="${ctx.esc(t.id)}" ${t.id === selected ? 'selected' : ''} ${occupied.includes(t.id) && t.id !== selected ? 'disabled' : ''}>${ctx.esc(t.name)}${occupied.includes(t.id) && t.id !== selected ? '（已选）' : ''}</option>`).join('')}`;
+    const assessment=row.querySelector('[data-member-assessment]');if(assessment){const assessorId=assessment.querySelector('select')?.value,assessmentTime=assessment.querySelector('input')?.value;assessment.innerHTML=keyedAssessmentFields(ctx.model,client.value,form.elements.storeId.value,'memberAssessor_'+index,'memberAssessmentTime_'+index,{assessorId,assessmentTime});const required=ctx.model.firstVisit(client.value,form.elements.storeId.value);for(const el of assessment.querySelectorAll('select,input')){el.required=required;el.disabled=!required;}}
     row.querySelector('[data-action="booking-remove"]').disabled = rows.length <= 2 || form.dataset.busy === 'true';
   });
   // Include defaults just assigned to later rows when marking staff occupied.
@@ -92,5 +94,5 @@ export function removeBookingMember(row, form, ctx) {
 
 export function bookingMembers(formData) {
   return [...formData.keys()].filter(k => /^memberClient_\d+$/.test(k)).sort((a,b) => Number(a.split('_')[1])-Number(b.split('_')[1]))
-    .map(key => ({clientId:formData.get(key),principalId:formData.get(key.replace('memberClient_','memberPrincipal_'))}));
+    .map(key => ({clientId:formData.get(key),principalId:formData.get(key.replace('memberClient_','memberPrincipal_')),...(formData.get(key.replace('memberClient_','memberAssessor_'))?{assessorId:formData.get(key.replace('memberClient_','memberAssessor_'))}:{}),...(formData.get(key.replace('memberClient_','memberAssessmentTime_'))?{assessmentTime:formData.get(key.replace('memberClient_','memberAssessmentTime_'))}:{})}));
 }
