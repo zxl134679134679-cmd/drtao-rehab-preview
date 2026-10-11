@@ -1,7 +1,7 @@
-import {normalizeClientName} from './client-search.js?v=20261011-customer-search-layout-7a';
-import { renderPaperIntakeList } from './paper-intake.js?v=20261011-customer-search-layout-7a';
-import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261011-customer-search-layout-7a';
-import { renderReceptionAssessments } from './evaluations.js?v=20261011-customer-search-layout-7a';
+import {normalizeClientName} from './client-search.js?v=20261011-suzhou-franchise-preview-7b';
+import { renderPaperIntakeList } from './paper-intake.js?v=20261011-suzhou-franchise-preview-7b';
+import { renderCashClosingSummary, cashOverview } from './cash.js?v=20261011-suzhou-franchise-preview-7b';
+import { renderReceptionAssessments } from './evaluations.js?v=20261011-suzhou-franchise-preview-7b';
 
 export function receptionStores(ctx) {
   const account=ctx.model.state.frontDesks.find(r=>r.id===ctx.role.id&&r.active!==false);

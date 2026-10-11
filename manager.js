@@ -1,9 +1,9 @@
-import {normalizeClientName} from './client-search.js?v=20261011-customer-search-layout-7a';
-import { renderCashClosingSummary } from './cash.js?v=20261011-customer-search-layout-7a';
+import {normalizeClientName} from './client-search.js?v=20261011-suzhou-franchise-preview-7b';
+import { renderCashClosingSummary } from './cash.js?v=20261011-suzhou-franchise-preview-7b';
 /* Store managers supervise local work with read-only store access. */
-import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261011-customer-search-layout-7a';
-import { renderBookingInbox } from './customer-ui.js?v=20261011-customer-search-layout-7a';
-import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-customer-search-layout-7a';
+import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261011-suzhou-franchise-preview-7b';
+import { renderBookingInbox } from './customer-ui.js?v=20261011-suzhou-franchise-preview-7b';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-suzhou-franchise-preview-7b';
 const CHANNELS = {direct:'门店收款',douyin:'抖音',meituan:'美团',other_platform:'其他平台'};
 const METHODS = {wechat:'微信',alipay:'支付宝',cash:'现金',bank:'银行转账'};
 const PURPOSES = {package:'套餐',renewal:'续费',single:'单次服务',other:'其他',platform_settlement:'平台结算'};

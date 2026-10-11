@@ -1,30 +1,30 @@
-import {mountClientSearch,handleClientSearchInput,validateClientSearchSelection} from './client-search.js?v=20261011-customer-search-layout-7a';
-import {renderPurchasePanel,purchaseDialog,purchaseLinesFromForm} from './package-purchase-ui.js?v=20261011-customer-search-layout-7a';
-import {approvedPurchaseReceipt,approvedPurchaseSettlement} from './package-purchase.js?v=20261011-customer-search-layout-7a';
-import {renderFranchiseManagement,renderFranchiseDashboard,franchiseDialog} from './franchise-ui.js?v=20261011-customer-search-layout-7a';
-import {INITIAL_CASE_FIELDS,updatePaperIntakeSearch,paperIntakeSelection} from './paper-case-form.js?v=20261011-customer-search-layout-7a';
-import {renderStaffReception,staffReceptionDialog,updateAssessorChoices,restoreAssessorDraft} from './staff-reception.js?v=20261011-customer-search-layout-7a';
-import { bossDecisionDialog } from './boss-decision.js?v=20261011-customer-search-layout-7a';
-import {saveMultiDayBooking} from './multi-day-booking.js?v=20261011-customer-search-layout-7a';
-import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261011-customer-search-layout-7a';
-import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples } from './core.js?v=20261011-customer-search-layout-7a';
-import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261011-customer-search-layout-7a';
-import { renderManager, managerDialog } from './manager.js?v=20261011-customer-search-layout-7a';
-import { hourTimeField } from './hour-picker.js?v=20261011-customer-search-layout-7a';
-import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261011-customer-search-layout-7a';
-import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261011-customer-search-layout-7a';
-import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261011-customer-search-layout-7a';
-import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261011-customer-search-layout-7a';
+import {mountClientSearch,handleClientSearchInput,validateClientSearchSelection} from './client-search.js?v=20261011-suzhou-franchise-preview-7b';
+import {renderPurchasePanel,purchaseDialog,purchaseLinesFromForm} from './package-purchase-ui.js?v=20261011-suzhou-franchise-preview-7b';
+import {approvedPurchaseReceipt,approvedPurchaseSettlement} from './package-purchase.js?v=20261011-suzhou-franchise-preview-7b';
+import {renderFranchiseManagement,renderFranchiseDashboard,franchiseDialog} from './franchise-ui.js?v=20261011-suzhou-franchise-preview-7b';
+import {INITIAL_CASE_FIELDS,updatePaperIntakeSearch,paperIntakeSelection} from './paper-case-form.js?v=20261011-suzhou-franchise-preview-7b';
+import {renderStaffReception,staffReceptionDialog,updateAssessorChoices,restoreAssessorDraft} from './staff-reception.js?v=20261011-suzhou-franchise-preview-7b';
+import { bossDecisionDialog } from './boss-decision.js?v=20261011-suzhou-franchise-preview-7b';
+import {saveMultiDayBooking} from './multi-day-booking.js?v=20261011-suzhou-franchise-preview-7b';
+import {multiDayBookingDialog,restoreMultiDayBookingDraft,updateMultiDayBookingForm,addMultiDayBookingRow,removeMultiDayBookingRow,multiDayBookingItems,advanceMultiDayBookingForm,multiDayResultSummary} from './multi-day-booking-ui.js?v=20261011-suzhou-franchise-preview-7b';
+import { DemoModel, TODAY, EVIDENCE_LIMITS, ensureStorePackageExamples, ensureFranchisePreviewExamples } from './core.js?v=20261011-suzhou-franchise-preview-7b';
+import { renderStaff, staffDialog, personnelDialog, updateServicePackageChoices } from './staff.js?v=20261011-suzhou-franchise-preview-7b';
+import { renderManager, managerDialog } from './manager.js?v=20261011-suzhou-franchise-preview-7b';
+import { hourTimeField } from './hour-picker.js?v=20261011-suzhou-franchise-preview-7b';
+import { appointmentBatchDialog, restoreBookingDraft, updateBookingMembers, addBookingMember, removeBookingMember, bookingMembers } from './companion-booking.js?v=20261011-suzhou-franchise-preview-7b';
+import { cashDialog, updateCashFields, updateCashPackageChoices } from './cash.js?v=20261011-suzhou-franchise-preview-7b';
+import { receptionDialog, receptionStores, assertReceptionAppointment, receptionIntakeDialog, receptionIntakeSuccess, updateReceptionIntakeChoices, receptionDuplicateMarkup, restoreReceptionIntakeDraft } from './reception.js?v=20261011-suzhou-franchise-preview-7b';
+import { ensureEvaluations, assessmentRows, latestConfirmedAssessment, recordAssessment, confirmAssessment, voidAssessment, recordFrontDeskEvaluation, frontDeskEvaluationRows, voidFrontDeskEvaluation, evaluationDialog } from './evaluations.js?v=20261011-suzhou-franchise-preview-7b';
 
-import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261011-customer-search-layout-7a';
-import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261011-customer-search-layout-7a';
+import { ensureCustomerBooking, requestCustomerBooking, cancelCustomerBooking, confirmCustomerBooking, customerBookingRows, resolveCustomerBooking, acceptCustomerBookingSuggestion } from './customer-booking.js?v=20261011-suzhou-franchise-preview-7b';
+import { customerBookingTypes, renderCustomerHome, customerRequestDialog, renderBookingInbox, renderRequestHistory, updateCustomerBookingForm, advanceCustomerBookingForm } from './customer-ui.js?v=20261011-suzhou-franchise-preview-7b';
 
-import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, amendPaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261011-customer-search-layout-7a';
+import { ensurePaperIntakes, paperIntakeRows, savePaperIntake, amendPaperIntake, reviewPaperIntake, paperIntakeDialog, updatePaperIntakeForm } from './paper-intake.js?v=20261011-suzhou-franchise-preview-7b';
 
-import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261011-customer-search-layout-7a';
-import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261011-customer-search-layout-7a';
-import { updateAppointmentAvailability } from './booking-availability.js?v=20261011-customer-search-layout-7a';
-import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261011-customer-search-layout-7a';
+import { ensureSchedules, scheduleRows, scheduleRequestRows, bossScheduleNotifications, saveSchedule, requestScheduleChange, decideScheduleChange, markScheduleNotificationRead } from './schedules.js?v=20261011-suzhou-franchise-preview-7b';
+import { renderSchedulePage, renderScheduleSummary, renderScheduleInbox, scheduleDialog, updateScheduleForm } from './schedules-ui.js?v=20261011-suzhou-franchise-preview-7b';
+import { updateAppointmentAvailability } from './booking-availability.js?v=20261011-suzhou-franchise-preview-7b';
+import { workflowTypes, workflowDialog, updateWorkflowForm, serviceResultSummary } from './workflow-ui.js?v=20261011-suzhou-franchise-preview-7b';
 
 // Keep operations on the displayed example day. Real systems use server time.
 function previewTimestamp() {
@@ -32,6 +32,7 @@ function previewTimestamp() {
   return new Date(`${TODAY}T${time}+08:00`).toISOString();
 }
 let model = new DemoModel({now:previewTimestamp});
+ensureFranchisePreviewExamples(model);
 ensureStorePackageExamples(model);
 ensureEvaluations(model);
 ensureCustomerBooking(model);
@@ -100,7 +101,7 @@ function toast(message) {
 }
 
 function roleOptions() {
-  $('#role-select').innerHTML = `<optgroup label="客户端">${model.state.clients.map(c => `<option value="customer:${c.id}">${esc(c.name)} · 客户 · ${esc(name('stores', c.storeId))}</option>`).join('')}</optgroup><optgroup label="治疗师端">${model.state.therapists.filter(t => t.active).map(t => `<option value="therapist:${t.id}">${esc(t.name)} · ${esc(name('stores', t.storeId))}</option>`).join('')}</optgroup><optgroup label="前台端">${(model.state.frontDesks||[]).filter(f=>f.active!==false).map(f=>`<option value="frontdesk:${esc(f.id)}">${esc(f.name)} · 前台</option>`).join('')}</optgroup><optgroup label="店长端">${model.state.storeManagers.filter(m=>m.active).map(m=>`<option value="manager:${esc(m.id)}">${esc(m.name)} · ${esc(name('stores',m.storeId))}</option>`).join('')}</optgroup><optgroup label="加盟端">${(model.state.franchiseOwners||[]).filter(f=>f.active===true).map(f=>`<option value="franchise_owner:${esc(f.id)}">${esc(f.name)} · 加盟老板</option>`).join('')}</optgroup><optgroup label="管理端"><option value="boss:boss">王勤涛 · 评估师 / 老板 · 所有门店</option></optgroup>`;
+  $('#role-select').innerHTML = `<optgroup label="客户端">${model.state.clients.map(c => `<option value="customer:${c.id}">${esc(c.name)} · 客户 · ${esc(name('stores', c.storeId))}</option>`).join('')}</optgroup><optgroup label="治疗师端">${model.state.therapists.filter(t => t.active).map(t => `<option value="therapist:${t.id}">${esc(t.name)} · ${esc(name('stores', t.storeId))}</option>`).join('')}</optgroup><optgroup label="前台端">${(model.state.frontDesks||[]).filter(f=>f.active!==false).map(f=>`<option value="frontdesk:${esc(f.id)}">${esc(f.name)} · 前台</option>`).join('')}</optgroup><optgroup label="店长端">${model.state.storeManagers.filter(m=>m.active).map(m=>`<option value="manager:${esc(m.id)}">${esc(m.name)} · ${esc(name('stores',m.storeId))}</option>`).join('')}</optgroup><optgroup label="加盟端">${(model.state.franchiseOwners||[]).filter(f=>f.active===true&&model.isStoreOwner({type:'franchise_owner',id:f.id},f.storeIds)).map(f=>`<option value="franchise_owner:${esc(f.id)}">${esc(f.name)} · 加盟老板 · ${f.storeIds.map(id=>esc(model.state.stores.find(s=>s.id===id)?.name||'门店待核对')).join('、')}${f.previewOnly===true?' · 示例身份':''}</option>`).join('')}</optgroup><optgroup label="管理端"><option value="boss:boss">王勤涛 · 评估师 / 老板 · 所有门店</option></optgroup>`;
   $('#role-select').value = `${role.type}:${role.id}`;
 }
 function switchRole(value, targetView) {
@@ -473,7 +474,7 @@ function buildDialog(type, id) {
     return {title:'反馈与帮助',html:`<h3>您的负责康复师：${esc(name('therapists',find('clients',id).ownerId))}</h3><p>调整到店时间，可在下一次服务中申请改约。对已完成服务有建议，可填写评价并勾选“希望老板联系我”。除您本人外，评分与文字反馈仅老板可查看，康复师和前台无法查看，店长也无法查看。</p><div class="action-row">${role.type === 'customer' ? button('查看预约','appointment',appointments(id)[0]?.id || '','btn-outline') : ''}${last && role.type === 'customer' ? button('反馈最近一次服务','review',last.id,'btn-primary') : ''}</div><p class="muted">正式版本会补充真实客服电话和微信联系入口。</p>`};
   }
   if (type === 'mini-info') return {title:'涛博士 · 客户体验预览',html:'<p>您可以体验预约康复、查看剩余次数、康复计划、服务记录与评价。</p><p class="muted">所有姓名与服务安排均为虚构示例。预约申请、评价和改约仅用于体验，刷新后恢复示例，不会提交给门店。微信登录、真实档案和消息提醒将在正式版本启用。</p>'};
-  if (type === 'reset') return {title:'重置示例数据',html:form('reset','<p>将恢复初始的两家门店、五名康复师和虚构客户。本次预览中新增的记录与草稿会清除。</p>','恢复初始示例')};
+  if (type === 'reset') return {title:'重置示例数据',html:form('reset','<p>将恢复初始门店、现有人员、虚构客户和苏州店加盟示例身份。本次预览中新增的记录与草稿会清除；刷新页面也会恢复初始示例，包括示例身份的初始授权。</p>','恢复初始示例')};
   if (type === 'deactivate-therapist') {
     assertBoss();
     return {title:'停用康复师',html:form('deactivate-therapist',`${hidden('id',id)}<p>停用 ${esc(name('therapists',id))} 前，需要先转交负责客户、处理预约和待办。历史服务归属保留。</p>`,'检查并停用')};
@@ -562,7 +563,7 @@ function openDialog(type,id = '') {
 async function loadLegacyDialog(context) {
   const active=()=>context===dialogContext&&sheet.open&&role.type==='boss'&&role.id==='boss';
   try {
-    const legacy=await import('./legacy.js?v=20261011-customer-search-layout-7a');
+    const legacy=await import('./legacy.js?v=20261011-suzhou-franchise-preview-7b');
     if(!active())return;
     $('#sheet-body').innerHTML=legacy.legacyDialog(ctx()).html;
     context.legacyController=legacy.mountLegacyForm({form:$('#sheet-body form'),getModel:()=>model,getRole:()=>role,isActive:active,
@@ -1049,7 +1050,7 @@ document.addEventListener('submit', async event => {
       drafts.delete(context.key); f.dataset.succeeded = 'true'; render();
       showSuccess(result.billingMode==='single'?'服务已更正，业绩已冲回':find('packages',result.packageId)?.closed?'消课已更正，业绩已冲回':'次数已恢复，业绩已冲回',`${serviceResultSummary(result,ctx(),'revoked')}${button('查看原记录','service-detail',result.id,'btn-outline')}`); return;
     } else if (type === 'reset') {
-      model = new DemoModel({now:previewTimestamp}); ensureStorePackageExamples(model); ensureEvaluations(model); ensurePaperIntakes(model); ensureCustomerBooking(model); ensureSchedules(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
+      model = new DemoModel({now:previewTimestamp}); ensureFranchisePreviewExamples(model); ensureStorePackageExamples(model); ensureEvaluations(model); ensurePaperIntakes(model); ensureCustomerBooking(model); ensureSchedules(model); drafts.clear(); preferences.clear(); $('#network-toggle').checked = false;
       closeDialog(false); role = {type:'customer',id:'c1'}; view='home'; filters={storeId:'',therapistId:'',from:'',to:'',query:''}; render(true); toast('示例已重置'); return;
     } else throw new Error('此表单暂不可提交');
     drafts.delete(context.key); f.dataset.succeeded = 'true'; closeDialog(false); render();

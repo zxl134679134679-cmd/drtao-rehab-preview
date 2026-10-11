@@ -1,7 +1,7 @@
 // A shared reception queue grants basic appointment access, never chart/finance access.
-import {hourTimeField} from './hour-picker.js?v=20261011-customer-search-layout-7a';
-import {paperIntakeDialog} from './paper-intake.js?v=20261011-customer-search-layout-7a';
-import {assessmentRows} from './evaluations.js?v=20261011-customer-search-layout-7a';
+import {hourTimeField} from './hour-picker.js?v=20261011-suzhou-franchise-preview-7b';
+import {paperIntakeDialog} from './paper-intake.js?v=20261011-suzhou-franchise-preview-7b';
+import {assessmentRows} from './evaluations.js?v=20261011-suzhou-franchise-preview-7b';
 export function renderStaffReception(ctx){
  const {model,role,esc}=ctx;model.assertAppointmentStaff(role);
  const name=(kind,id)=>model.state[kind]?.find(p=>p.id===id)?.name||'历史人员';

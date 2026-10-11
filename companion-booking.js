@@ -1,6 +1,6 @@
-import {registerClientChoiceSource,refreshClientChoiceSource} from './client-search.js?v=20261011-customer-search-layout-7a';
-import { hourTimeField } from './hour-picker.js?v=20261011-customer-search-layout-7a';
-import { receptionStores } from './reception.js?v=20261011-customer-search-layout-7a';
+import {registerClientChoiceSource,refreshClientChoiceSource} from './client-search.js?v=20261011-suzhou-franchise-preview-7b';
+import { hourTimeField } from './hour-picker.js?v=20261011-suzhou-franchise-preview-7b';
+import { receptionStores } from './reception.js?v=20261011-suzhou-franchise-preview-7b';
 
 const limit = 20;
 function clients(ctx) { return ctx.model.visibleClients(ctx.role); }

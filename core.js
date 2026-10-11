@@ -1,9 +1,9 @@
-import {assertApprovedAmount,assertPurchasedService,purchaseCommands,purchaseView} from './package-purchase.js?v=20261011-customer-search-layout-7a';
-import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261011-customer-search-layout-7a';
-import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261011-customer-search-layout-7a';
-import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-customer-search-layout-7a';
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-customer-search-layout-7a';
-import { assertScheduleAvailability } from './schedules.js?v=20261011-customer-search-layout-7a';
+import {assertApprovedAmount,assertPurchasedService,purchaseCommands,purchaseView} from './package-purchase.js?v=20261011-suzhou-franchise-preview-7b';
+import {initializeProductCatalog,catalogCommands,catalogView} from './product-catalog.js?v=20261011-suzhou-franchise-preview-7b';
+import { ownerStoreIds, assertStoreOwner, saveFranchiseOwner, franchiseState } from './franchise-scope.js?v=20261011-suzhou-franchise-preview-7b';
+import { customerBookingRows, customerBookingConfirmation, customerBookingHandling } from './customer-booking.js?v=20261011-suzhou-franchise-preview-7b';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-suzhou-franchise-preview-7b';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-suzhou-franchise-preview-7b';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -267,6 +267,16 @@ export function ensureStorePackageExamples(model) {
   return model;
 }
 
+// Only the explicit preview entry creates this fictional store identity once.
+// Supplied archives and subsequent rendering never restore withdrawn grants.
+export function ensureFranchisePreviewExamples(model) {
+  if (!model._usesPreviewSeed || model._franchisePreviewInitialized) return model;
+  model._franchisePreviewInitialized = true;
+  if (model.state.franchiseOwners.length || !model.state.stores.some(row => row.id === 'store-suzhou')) return model;
+  model.state.franchiseOwners.push({id:'franchise-preview-suzhou',previewOnly:true,name:'苏州店加盟老板（示例）',phone:'',storeIds:['store-suzhou'],active:true,profileVersion:0,history:[]});
+  return model;
+}
+
 export class DemoModel {
   constructor({ today = TODAY, now = () => new Date().toISOString(), state, sequence = 100, seed = true, enforceServiceTime = false } = {}) {
     this.today = validDate(today);
@@ -280,7 +290,7 @@ export class DemoModel {
     const source = state === undefined ? seedState() : state;
     const collections = ['stores', 'therapists', 'clients', 'packages', 'services', 'appointments', 'tasks', 'reviews', 'audit'];
     if (!source || collections.some(key => !Array.isArray(source[key]))) throw new Error('业务状态缺少有效的数据集合');
-    for (const key of ['receipts', 'refunds', 'frontDesks', 'appointmentBatches', 'storeManagers', 'cashClosings', 'assessors']) {
+    for (const key of ['receipts', 'refunds', 'frontDesks', 'appointmentBatches', 'storeManagers', 'cashClosings', 'assessors', 'franchiseOwners']) {
       if (source[key] !== undefined && !Array.isArray(source[key])) throw new Error('业务状态缺少有效的数据集合');
       collections.push(key);
     }
@@ -291,6 +301,7 @@ export class DemoModel {
     this.state.appointmentBatches ??= [];
     this.state.storeManagers ??= [];
     this.state.cashClosings ??= [];
+    this.state.franchiseOwners ??= [];
     this.state.assessors ??= [{id:'tao',name:'王勤涛',accountRole:'boss',accountId:'boss',storeIds:['a','b','store-suzhou']},{id:'m-chen-kang',name:'陈康',accountRole:'manager',accountId:'m-chen-kang',storeIds:['a']},{id:'t-qiu-zhen',name:'邱振',accountRole:'therapist',accountId:'t-qiu-zhen',storeIds:['a']},{id:'t-zou-zonglin',name:'邹宗霖',accountRole:'therapist',accountId:'t-zou-zonglin',storeIds:['a']},{id:'m-he-zanfeng',name:'何赞峰',accountRole:'manager',accountId:'m-he-zanfeng',storeIds:['b']},{id:'t-wu-wenpei',name:'武文沛',accountRole:'therapist',accountId:'t-wu-wenpei',storeIds:['b']}];
     if (!Number.isSafeInteger(sequence) || sequence < 0) throw new Error('业务序列无效');
     const ids = collections.flatMap(key => this.state[key].map(row => row?.id));
@@ -311,6 +322,13 @@ export class DemoModel {
       this._store(row.storeId);
       if (typeof row.active !== 'boolean' || managerIds.has(row.id)) throw new Error('店长业务状态包含无效或重复人员记录');
       managerIds.add(row.id);
+    }
+    const franchiseIds = new Set();
+    for (const row of this.state.franchiseOwners) {
+      required(row.name, '加盟老板姓名', 80);
+      if (typeof row.active !== 'boolean' || franchiseIds.has(row.id)) throw new Error('加盟身份状态包含无效或重复记录');
+      if (!Array.isArray(row.storeIds) || !row.storeIds.length || new Set(row.storeIds).size !== row.storeIds.length || row.storeIds.some(id => typeof id !== 'string' || !this.state.stores.some(store => store.id === id))) throw new Error('加盟身份门店分配无效');
+      franchiseIds.add(row.id);
     }
     for (const client of this.state.clients) {
       if (client.storeTherapistIds === undefined) continue;

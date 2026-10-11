@@ -1,6 +1,6 @@
-import {amountExecutions as executions} from './amount-capability.js?v=20261011-customer-search-layout-7a';
-import {catalogProductSnapshot} from './product-catalog.js?v=20261011-customer-search-layout-7a';
-import {isRootBoss,canApproveStore,assertManageStore} from './franchise-scope.js?v=20261011-customer-search-layout-7a';
+import {amountExecutions as executions} from './amount-capability.js?v=20261011-suzhou-franchise-preview-7b';
+import {catalogProductSnapshot} from './product-catalog.js?v=20261011-suzhou-franchise-preview-7b';
+import {isRootBoss,canApproveStore,assertManageStore} from './franchise-scope.js?v=20261011-suzhou-franchise-preview-7b';
 const clone=v=>JSON.parse(JSON.stringify(v)),plain=v=>v&&typeof v==='object'&&!Array.isArray(v);
 const text=(v,label,max=1000)=>{if(typeof v!=='string'||!v.trim()||v.trim().length>max)throw new Error(`请核对${label}`);return v.trim();};
 const integer=(v,label,min=0,max=1000000000)=>{if(!Number.isSafeInteger(v)||v<min||v>max)throw new Error(`请核对${label}`);return v;};

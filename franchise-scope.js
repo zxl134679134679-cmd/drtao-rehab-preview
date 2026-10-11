@@ -26,7 +26,8 @@ export function saveFranchiseOwner(model,data,role,editing=false){
  if(new Set(data.storeIds).size!==data.storeIds.length)throw new Error('分配门店不能重复');
  const active=data.active===undefined?current?.active??true:data.active===true||data.active==='true'?true:data.active===false||data.active==='false'?false:null;
  if(active===null)throw new Error('加盟身份启停状态无效');
- const contact=text(data.phone,'加盟老板手机号',30).replace(/\s/g,'');if(!/^1\d{10}$/.test(contact))throw new Error('加盟老板手机号须为11位');
+ const preview=current?.id==='franchise-preview-suzhou'&&current.previewOnly===true;
+ const contact=preview&&typeof data.phone==='string'&&!data.phone.trim()?'':text(data.phone,'加盟老板手机号',30).replace(/\s/g,'');if(contact!==''&&!/^1\d{10}$/.test(contact))throw new Error('加盟老板手机号须为11位');
  const input={name:text(data.name,'加盟老板姓名',80),phone:contact,storeIds:[...data.storeIds].sort(),active};
  const expectedVersion=editing?version(data.expectedVersion):0,reason=text(data.reason,'授权或修改原因',500),requestId=text(data.requestId,'提交标识',150);
  const action=editing?'franchise_owner_updated':'franchise_owner_added',inputKey=JSON.stringify({id:current?.id||'',...input,expectedVersion,reason});
@@ -60,7 +61,7 @@ export function franchiseState(model,role){
  result.tasks=clean((model.state.tasks||[]).filter(own));
  result.reviews=clean((model.state.reviews||[]).filter(row=>{const service=model.state.services.find(item=>item.id===row.serviceId);return own(service);}));
  result.audit=clean(model.state.audit.filter(own));
- result.franchiseOwners=clean((model.state.franchiseOwners||[]).filter(row=>row.id===role.id).map(row=>({id:row.id,name:row.name,storeIds:row.storeIds,active:row.active,profileVersion:row.profileVersion})));
+ result.franchiseOwners=clean((model.state.franchiseOwners||[]).filter(row=>row.id===role.id).map(row=>({id:row.id,name:row.name,storeIds:row.storeIds,active:row.active,profileVersion:row.profileVersion,...(row.previewOnly===true?{previewOnly:true}:{})})));
  return clone(result);
 }
 
