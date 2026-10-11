@@ -149,7 +149,7 @@ export function assessmentRows(model, role, { clientId = '', storeId = '' } = {}
     find(model, 'stores', storeId, '门店');
     if (role.type === 'frontdesk' && !frontDesk(model, role.id).storeIds.includes(storeId)) throw new Error('您没有此门店的评估记录查看权限');
   }
-  return clone(originalOrder(model.state.assessments.filter(row => (!clientId || row.clientId === clientId) && (!storeId || row.storeId === storeId) && canReadAssessment(model, role, row))));
+  return clone(model.projectForRole(originalOrder(model.state.assessments.filter(row => (!clientId || row.clientId === clientId) && (!storeId || row.storeId === storeId) && canReadAssessment(model, role, row))),role));
 }
 
 export function latestConfirmedAssessment(model, role, clientId) {
@@ -189,12 +189,12 @@ export function recordAssessment(model, data, role) {
   const input = { clientId, storeId, date: date(data.date), time: time(data.time), type, project: text(data.project, '评估项目', 80), ...(assessorId?{assessorId}:{therapistId}), summary: text(data.summary, '评估记录说明', 2000), metrics };
   const inputKey = JSON.stringify(input);
   const existing = repeated(model.state.assessments, role, requestId, inputKey);
-  if (existing) return clone(existing);
+  if (existing) return clone(model.projectForRole(existing,role));
   const actual = assertOccurred(model, input);
   const row = { id: nextId(model, 'assessment'), ...input, status: 'pending', recordedBy: role.id, recordedRole: role.type, createdAt: actual.stamp, requestId, inputKey };
   model.state.assessments.push(row);
   log(model, 'assessment_recorded', { assessmentId: row.id, clientId, storeId, therapistId, status: row.status }, role);
-  return clone(row);
+  return clone(model.projectForRole(row,role));
 }
 
 function getAssessment(model, id, role) {
@@ -209,12 +209,12 @@ export function confirmAssessment(model, id, role) {
   const row = getAssessment(model, id, role);
   if (!canConfirm(model, role, row)) throw new Error('仅指定评估康复师、客户负责人或老板有权限确认评估');
   if (row.status === 'voided') throw new Error('已撤销的评估不能再次确认，请重新登记正确记录');
-  if (row.status === 'confirmed') return clone(row);
+  if (row.status === 'confirmed') return clone(model.projectForRole(row,role));
   if (row.status !== 'pending') throw new Error('当前评估状态不可确认，请刷新后核对');
   const actual = assertOccurred(model, row);
   row.status = 'confirmed'; row.confirmedBy = role.id; row.confirmedRole = role.type; row.confirmedAt = actual.stamp;
   log(model, 'assessment_confirmed', { assessmentId: row.id, clientId: row.clientId, storeId: row.storeId, therapistId: row.therapistId }, role);
-  return clone(row);
+  return clone(model.projectForRole(row,role));
 }
 
 export function voidAssessment(model, id, reason, role) {
@@ -225,7 +225,7 @@ export function voidAssessment(model, id, reason, role) {
   const previousStatus = row.status;
   row.status = 'voided'; row.voidReason = why; row.voidedBy = role.id; row.voidedAt = stamp(model);
   log(model, 'assessment_voided', { assessmentId: row.id, clientId: row.clientId, storeId: row.storeId, previousStatus, reason: why }, role);
-  return clone(row);
+  return clone(model.projectForRole(row,role));
 }
 
 function employeeReader(model, role, id) {
@@ -285,12 +285,12 @@ export function recordFrontDeskEvaluation(model, data, role) {
   if (improvement && !dueDate) throw new Error('填写改进事项后，请填写有效的改进计划日期');
   const input = { frontDeskId, storeId, from, to, ...conclusions, summary: text(data.summary, '考核说明', 2000), improvement, dueDate };
   const inputKey = JSON.stringify(input), existing = repeated(model.state.frontDeskEvaluations, role, requestId, inputKey);
-  if (existing) return clone(existing);
+  if (existing) return clone(model.projectForRole(existing,role));
   const snapshot = clone(frontDeskWorkSummary(model, role, frontDeskId, { from, to, storeId }));
   const row = { id: nextId(model, 'frontdesk-evaluation'), ...input, snapshot, status: 'valid', recordedBy: role.id, recordedRole: role.type, createdAt: stamp(model), requestId, inputKey };
   model.state.frontDeskEvaluations.push(row);
   log(model, 'frontdesk_evaluation_recorded', { evaluationId: row.id, frontDeskId, storeId, from, to }, role);
-  return clone(row);
+  return clone(model.projectForRole(row,role));
 }
 
 export function frontDeskEvaluationRows(model, role, frontDeskId) {
@@ -313,7 +313,7 @@ export function voidFrontDeskEvaluation(model, id, reason, role) {
   if (row.status === 'voided') throw new Error('此前台考核记录已撤销，不能重复撤销');
   row.status = 'voided'; row.voidReason = why; row.voidedBy = role.id; row.voidedAt = stamp(model);
   log(model, 'frontdesk_evaluation_voided', { evaluationId: row.id, frontDeskId: row.frontDeskId, storeId: row.storeId, reason: why }, role);
-  return clone(row);
+  return clone(model.projectForRole(row,role));
 }
 
 function ui(ctx) {

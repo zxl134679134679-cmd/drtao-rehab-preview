@@ -1,5 +1,5 @@
-import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261011-suzhou-owner-edit-5';
-import {bookingAvailability} from './booking-availability.js?v=20261011-suzhou-owner-edit-5';
+import {requestCustomerBooking,customerBookingRows} from './customer-booking.js?v=20261011-therapist-phone-package-owner-6';
+import {bookingAvailability} from './booking-availability.js?v=20261011-therapist-phone-package-owner-6';
 const clone=value=>JSON.parse(JSON.stringify(value));
 const appointmentFields=['id','clientId','storeId','date','time','principalId','project','status'];
 const safeAppointment=row=>clone(Object.fromEntries(appointmentFields.map(key=>[key,row[key]])));

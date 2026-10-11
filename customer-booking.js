@@ -1,7 +1,7 @@
 // Desired times are requests, not live availability or confirmed appointments.
 // The preview's existing appointment model remains the confirmation authority.
-import { assertScheduleAvailability } from './schedules.js?v=20261011-suzhou-owner-edit-5';
-import { bookingAvailability } from './booking-availability.js?v=20261011-suzhou-owner-edit-5';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-therapist-phone-package-owner-6';
+import { bookingAvailability } from './booking-availability.js?v=20261011-therapist-phone-package-owner-6';
 const clone = value => JSON.parse(JSON.stringify(value));
 const fields = ['id', 'clientId', 'storeId', 'date', 'time', 'principalId', 'project', 'status', 'requestedBy', 'requestedRole', 'requestedAt', 'appointmentId', 'confirmedBy', 'confirmedRole', 'confirmedAt', 'cancelledBy', 'cancelledRole', 'cancelledAt', 'resolutionReason', 'resolvedBy', 'resolvedRole', 'resolvedAt', 'suggestedDate', 'suggestedTime', 'acceptedRequestId', 'acceptedBy', 'acceptedAt', 'sourceRequestId'];
 const publicRow = row => clone(Object.fromEntries(fields.filter(key => row[key] !== undefined).map(key => [key, row[key]])));
@@ -141,6 +141,9 @@ export function cancelCustomerBooking(model, id, role) {
 }
 
 export function customerBookingRows(model, role) {
+  // A projected UI model delegates validation to the source-bound read method.
+  // The original replay key never returns to the context or public row.
+  if (model.isUiProjection === true) return model.customerBookingRows(role);
   reader(model, role);
   ensureCustomerBooking(model);
   return model.state.bookingRequests.filter(row => role.type!=='customer'||row.clientId===role.id).map(publicRow);

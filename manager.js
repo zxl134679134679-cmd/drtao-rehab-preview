@@ -1,8 +1,8 @@
-import { renderCashClosingSummary } from './cash.js?v=20261011-suzhou-owner-edit-5';
+import { renderCashClosingSummary } from './cash.js?v=20261011-therapist-phone-package-owner-6';
 /* Store managers supervise local work with read-only store access. */
-import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261011-suzhou-owner-edit-5';
-import { renderBookingInbox } from './customer-ui.js?v=20261011-suzhou-owner-edit-5';
-import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-suzhou-owner-edit-5';
+import { renderPaperIntakeInbox, renderPaperIntakeList } from './paper-intake.js?v=20261011-therapist-phone-package-owner-6';
+import { renderBookingInbox } from './customer-ui.js?v=20261011-therapist-phone-package-owner-6';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-therapist-phone-package-owner-6';
 const CHANNELS = {direct:'门店收款',douyin:'抖音',meituan:'美团',other_platform:'其他平台'};
 const METHODS = {wechat:'微信',alipay:'支付宝',cash:'现金',bank:'银行转账'};
 const PURPOSES = {package:'套餐',renewal:'续费',single:'单次服务',other:'其他',platform_settlement:'平台结算'};
@@ -175,7 +175,7 @@ export function managerDialog(type,id,ctx) {
     const assessments = (x.all.assessments || []).filter(item => item.clientId === id);
     const tasks = (x.all.tasks || []).filter(item => item.clientId === id && item.type !== 'review_followup');
     title = `${row.name}的档案`;
-    html = `<p class="muted">各门店套餐分别使用，下方只显示本店套餐及工作记录。</p>${x.detail([['年龄',row.age!=null?`${row.age} 岁`:'未填写'],['主要问题（客户自述）',row.problem || '未填写'],['手机',row.phone || '待补充'],['负责康复师',x.name('therapists',row.ownerId)],['当前套餐',row.packageName || '待完善'],['剩余 / 总次数',`${row.remaining} / ${row.total} 次`],['康复目标',row.goal || row.planName || '待完善'],['当前阶段',row.phase || '待康复师更新']])}<div class="note"><strong>下一步</strong><p>${x.esc(row.nextStep || '待康复师更新')}</p></div><h3>康复进展</h3><p>${x.esc(row.progress?.summary || '待康复师评估后更新')}</p>${row.homeAdvice ? `<h3>居家建议</h3><p>${x.esc(row.homeAdvice)}</p>` : ''}<h3>本店预约</h3>${appointments.map(item => appointmentCard(x,item)).join('') || x.empty('该客户暂无本店预约记录。')}<h3>本店工作待办</h3>${tasks.map(item => `<div class="row"><div><strong>${x.esc(item.title)}</strong><p class="meta">${x.esc(x.actorName(item.assigneeId))} · ${x.esc(item.dueDate || '待安排')} · ${['completed','done'].includes(item.status) ? '已完成' : '待完成'}</p></div></div>`).join('') || x.empty('该客户暂无本店工作待办。')}<h3>初访与服务前确认</h3>${renderPaperIntakeList({...ctx,filters:{...ctx.filters,clientId:id,storeId:x.all.storeId}})}${serviceLedger(x,services,'本店服务历史')}<h3>本店评估</h3>${assessmentList(x,assessments)}`;
+    html = `<p class="muted">各门店套餐分别使用，下方只显示本店套餐及工作记录。</p>${x.detail([['年龄',row.age!=null?`${row.age} 岁`:'未填写'],['主要问题（客户自述）',row.problem || '未填写'],['手机',row.phone || '待补充'],['负责康复师',x.name('therapists',row.ownerId)],['当前套餐',row.packageName || '待完善'],['剩余 / 总次数',`${row.remaining} / ${row.total} 次`],['康复目标',row.goal || row.planName || '待完善'],['当前阶段',row.phase || '待康复师更新']])}<div class="note"><strong>下一步</strong><p>${x.esc(row.nextStep || '待康复师更新')}</p></div><h3>康复进展</h3><p>${x.esc(row.progress?.summary || '待康复师评估后更新')}</p>${row.homeAdvice ? `<h3>居家建议</h3><p>${x.esc(row.homeAdvice)}</p>` : ''}${(row.packageContents||[]).map(p=>`<div class="note"><strong>${x.esc(p.name)}</strong>${p.serviceContent?`<p>服务内容：${x.esc(p.serviceContent)}</p>`:''}${p.description?`<p>套餐说明：${x.esc(p.description)}</p>`:''}</div>`).join('')}<h3>本店预约</h3>${appointments.map(item => appointmentCard(x,item)).join('') || x.empty('该客户暂无本店预约记录。')}<h3>本店工作待办</h3>${tasks.map(item => `<div class="row"><div><strong>${x.esc(item.title)}</strong><p class="meta">${x.esc(x.actorName(item.assigneeId))} · ${x.esc(item.dueDate || '待安排')} · ${['completed','done'].includes(item.status) ? '已完成' : '待完成'}</p></div></div>`).join('') || x.empty('该客户暂无本店工作待办。')}<h3>初访与服务前确认</h3>${renderPaperIntakeList({...ctx,filters:{...ctx.filters,clientId:id,storeId:x.all.storeId}})}${serviceLedger(x,services,'本店服务历史')}<h3>本店评估</h3>${assessmentList(x,assessments)}`;
   } else if (type === 'manager-service') {
     const row = allowedRow(x,'services',id);
     title = '本店服务明细';

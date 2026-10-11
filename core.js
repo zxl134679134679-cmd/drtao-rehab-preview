@@ -1,5 +1,6 @@
-import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-suzhou-owner-edit-5';
-import { assertScheduleAvailability } from './schedules.js?v=20261011-suzhou-owner-edit-5';
+import { customerBookingRows } from './customer-booking.js?v=20261011-therapist-phone-package-owner-6';
+import { managerClientInStore, storeWorkSnapshot } from './manager-scope.js?v=20261011-therapist-phone-package-owner-6';
+import { assertScheduleAvailability } from './schedules.js?v=20261011-therapist-phone-package-owner-6';
 
 export const TODAY = '2026-10-08';
 export const EVIDENCE_LIMITS = Object.freeze({ maxCount: 3, maxBytes: 512 * 1024, maxEdge: 1280 });
@@ -565,7 +566,7 @@ export class DemoModel {
   }
   appointmentReceptionRows(role) {
     this.assertAppointmentStaff(role);
-    return this.state.appointments.map(a=>({id:a.id,clientId:a.clientId,clientName:this._client(a.clientId).name,phone:this._client(a.clientId).phone,storeId:a.storeId,date:a.date,time:a.time,principalId:a.principalId,status:a.status,arrivalAt:a.arrivalAt}));
+    return this.projectForRole(this.state.appointments.map(a=>({id:a.id,clientId:a.clientId,clientName:this._client(a.clientId).name,phone:this._client(a.clientId).phone,storeId:a.storeId,date:a.date,time:a.time,principalId:a.principalId,status:a.status,arrivalAt:a.arrivalAt})), role);
   }
   receptionAppointment(role,id,{arrived=false}={}) {
     this.assertAppointmentStaff(role);const a=this.state.appointments.find(a=>a.id===id);
@@ -593,6 +594,7 @@ export class DemoModel {
 
   findReceptionDuplicates(value, role) {
     this._receptionActor(role);
+    if (role.type === 'therapist') throw new Error('康复师不能查询客户手机号，请由老板核对补充');
     const phone = receptionPhone(value);
     const matches = this.state.clients.filter(client => typeof client.phone === 'string' && client.phone.replace(/\s/g, '') === phone);
     // A cross-store match blocks a duplicate file, but it does not grant access
@@ -604,6 +606,7 @@ export class DemoModel {
     if (role?.type === 'manager') throw new Error('店长仅有本店监管查看权限，新客户建档请由前台或老板录入');
     this._receptionActor(role);
     if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('请填写新客户基本资料');
+    if (role.type === 'therapist' && data.phone != null && data.phone !== '') throw new Error('康复师不能录入客户手机号，请由老板核对补充');
     const storeId = required(data.storeId, '接待门店', 80);
     this._receptionActor(role, storeId);
     const store = this._store(storeId);
@@ -612,15 +615,15 @@ export class DemoModel {
     const ownerId = '', assessorId = data.assessorId || 'tao';
     if(!this.assessorRows(storeId).some(p=>p.id===assessorId))throw new Error('请选择本店在职评估师');
     const requestId = required(data.requestId, '建档提交标识', 80);
-    const input = { name: required(data.name, '客户姓名', 80), phone: receptionPhone(data.phone), age: count(data.age, '客户年龄', 0, 120),
+    const input = { name: required(data.name, '客户姓名', 80), phone: role.type === 'therapist' ? '' : receptionPhone(data.phone), age: count(data.age, '客户年龄', 0, 120),
       problem: optionalText(data.problem, '主要问题', 1000), storeId, ownerId, assessorId };
     const inputKey = JSON.stringify(input);
     const existing = this.state.clients.find(client => client.receptionRequestId === requestId && client.createdBy === role.id && client.createdRole === role.type);
     if (existing) {
       if (existing.receptionInputKey !== inputKey) throw new Error('同一建档提交请求的内容发生变化，请重新打开接待表');
-      return existing;
+      return this.projectForRole(existing, role);
     }
-    if (this.findReceptionDuplicates(input.phone, role).duplicate) throw new Error('该手机号已存在客户档案，请核对原档案，避免重复建档；其他门店档案请联系老板处理');
+    if (input.phone && this.findReceptionDuplicates(input.phone, role).duplicate) throw new Error('该手机号已存在客户档案，请核对原档案，避免重复建档；其他门店档案请联系老板处理');
     const stamp = this._timestamp(), staged = this._stagePackageWrite(stamp);
     const client = seedClient(staged._id('c'), input.name, ownerId, storeId, null, input.phone);
     Object.assign(client, { assessorId, age: input.age, problem: input.problem, goal: '待制定康复计划', phase: '待初次评估',
@@ -630,7 +633,7 @@ export class DemoModel {
     staged.state.clients.push(client);
     staged._log('reception_client_created', { clientId: client.id, storeId, after: receptionBasicClient(client), note: '仅建立客户基本档案，不办理套餐、不登记收款、不计消费业绩' }, role);
     this.state = staged.state; this.sequence = staged.sequence;
-    return client;
+    return this.projectForRole(client, role);
   }
   _cashActor(role, storeId, clientId) {
     if (role?.type === 'boss') return this._boss(role);
@@ -1103,6 +1106,28 @@ export class DemoModel {
     return this.state.packages.find(pack => pack.requestId === requestId && (pack.createdBy === role.id || pack.renewedBy === role.id));
   }
 
+  updatePackageContent(data, role) {
+    this._boss(role);
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('请填写套餐内容');
+    const allowed = new Set(['packageId', 'name', 'serviceContent', 'description', 'expectedVersion', 'reason', 'requestId']);
+    if (Object.keys(data).some(key => !allowed.has(key))) throw new Error('仅能修改套餐名称、服务内容和说明，提交含非法字段');
+    const packageId = required(data.packageId, '套餐标识', 80), row = this.state.packages.find(pack=>pack.id===packageId);
+    if(!row)throw new Error('套餐不存在');
+    const input = {name:required(data.name,'套餐名称',80),serviceContent:optionalText(data.serviceContent,'服务内容',2000),description:optionalText(data.description,'套餐说明',2000)};
+    const expectedVersion=count(data.expectedVersion,'套餐内容版本',0,Number.MAX_SAFE_INTEGER-1),reason=required(data.reason,'修改原因',500),requestId=required(data.requestId,'提交标识',150);
+    const inputKey=JSON.stringify({packageId,...input,expectedVersion,reason});
+    const prior=this.state.audit.find(item=>item.type==='package_content_updated'&&item.requestId===requestId&&item.actorId===role.id&&item.actorType===role.type);
+    if(prior){if(prior.inputKey!==inputKey)throw new Error('同一提交的套餐内容发生变化，请重新打开');return row;}
+    if(personnelVersion(row.metadataVersion??0)!==expectedVersion)throw new Error('套餐内容版本已更新，请重新打开核对');
+    const before={name:row.name,serviceContent:row.serviceContent||'',description:row.description||''};
+    if(Object.keys(input).every(key=>input[key]===before[key]))throw new Error('套餐内容没有变化');
+    const stamp=this._timestamp(),staged=this._stagePackageWrite(stamp),updated=staged.state.packages.find(pack=>pack.id===packageId);
+    const entry={before,after:copy(input),reason,changedBy:role.id,changedRole:role.type,changedAt:stamp,version:expectedVersion+1};
+    Object.assign(updated,input,{metadataVersion:expectedVersion+1,metadataHistory:[...(updated.metadataHistory||[]),entry]});
+    staged._log('package_content_updated',{packageId,clientId:row.clientId,storeId:row.storeId,before,after:copy(input),reason,version:expectedVersion+1,requestId,inputKey},role,stamp);
+    this.state=staged.state;this.sequence=staged.sequence;return updated;
+  }
+
   createStorePackage(data, role) {
     this._boss(role);
     const client = this._client(data.clientId), store = this._store(required(data.storeId, '办卡门店', 80));
@@ -1315,11 +1340,32 @@ export class DemoModel {
     return (this._therapist(role.id).legacy && client.ownerId === role.id) || service.principalId === role.id || service.participantIds.includes(role.id);
   }
 
+  projectForRole(value, role) {
+    if (role?.type === 'boss' && role.id === 'boss') return value;
+    const hidden = new Set(['metadataHistory',...(role?.type === 'therapist' ? ['phone', 'clientPhone', 'customerPhone', 'phoneMasked', 'guardianPhone', 'emergencyPhone', 'inputKey', 'receptionInputKey', 'reviewInputKey', 'confirmInputKey'] : [])]);
+    const project = item => Array.isArray(item) ? item.map(project) : item && typeof item === 'object'
+      ? Object.fromEntries(Object.entries(item).filter(([key]) => !hidden.has(key)).map(([key, child]) => [key, project(child)])) : item;
+    return project(value);
+  }
+  // The UI receives a read projection. Domain methods still validate and mutate
+  // the original state, including saved guardian evidence used for review.
+  customerBookingRows(role) { return customerBookingRows(this,role); }
+  uiModel(role) {
+    if (role?.type !== 'therapist') return this;
+    const state = this.projectForRole(this.state, role), model = this;
+    return new Proxy(this, {get(target, key) {
+      if (key === 'state') return state;
+      if (key === 'isUiProjection') return true;
+      const value = Reflect.get(target, key);
+      return typeof value === 'function' ? (...args) => model.projectForRole(value.apply(model, args), role) : value;
+    }});
+  }
+
   visibleClients(role) {
     if (role?.type === 'manager') return this.managerSnapshot(role).clients;
     const clients = this.state.clients.filter(item => this.canSeeClient(role, item.id));
     if (role?.type === 'frontdesk') return clients.map(({ id, name, phone, age, problem, ownerId, assessorId, storeId, packageId }) => ({ id, name, phone, age, problem, ownerId, assessorId, storeId, packageId }));
-    return clients;
+    return this.projectForRole(clients, role);
   }
 
   reviewRows(role) {

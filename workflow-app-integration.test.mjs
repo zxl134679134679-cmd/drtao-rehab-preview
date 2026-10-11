@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import {readFile} from 'node:fs/promises';
 import {DemoModel} from './legacy-test-fixture.mjs';
+import {receptionIntakeSuccess} from './reception.js';
 import {DemoModel as ActualModel} from './core.js';
 import {savePaperIntake,reviewPaperIntake,PAPER_SAFETY_QUESTIONS} from './paper-intake.js';
 import {recordAssessment,confirmAssessment} from './evaluations.js';
@@ -13,7 +14,7 @@ const source=await readFile(new URL('./app.js',import.meta.url),'utf8');
 class Data{constructor(f){this.data=f.data;}*[Symbol.iterator](){yield*Object.entries(this.data);}getAll(k){return this.data[k]===undefined?[]:[this.data[k]];}has(k){return k in this.data;}}
 function runtime(role,type,data,suppliedModel){
  const model=suppliedModel||new DemoModel({now:()=> '2026-10-08T12:00:00.000Z'}),f={dataset:{form:type},data,isConnected:true,reportValidity:()=>true,querySelector:()=>null,querySelectorAll:()=>[]};
- const scope={model,role,TODAY:model.today,FormData:Data,document:{addEventListener:(n,fn)=>{if(n==='submit')scope.submit=fn;}},dialogContext:{key:'workflow',requestId:'workflow-submit',evidencePhotos:[]},drafts:new Map(),$:(s)=>s==='#network-toggle'?{checked:false}:null,sheet:{open:true},setTimeout:fn=>{fn();return 1;},saveDraft(){},advanceCustomerBookingForm:()=>true,render(){},showSuccess(title,html){scope.success={title,html};},formError:(f,msg)=>{scope.error=msg;},assertBoss:()=>model._boss(role),assertStaff:()=>{if(!['boss','therapist'].includes(role.type))throw new Error('无操作权限');},ctx:()=>({model,role}),customerCtx:()=>({model,role}),esc:v=>String(v??''),name:(k,id)=>id==='boss'?'老板':model.state[k]?.find(r=>r.id===id)?.name||'待安排',money:v=>String(v),date:v=>v,pair:(k,v)=>k+v,button:()=>'',find:(k,id)=>model.state[k]?.find(r=>r.id===id),serviceResultSummary,savePaperIntake,reviewPaperIntake,recordAssessment,confirmAssessment,confirmCustomerBooking,resolveCustomerBooking,acceptCustomerBookingSuggestion,toast(){},closeDialog(){}};
+ const scope={model,role,TODAY:model.today,FormData:Data,document:{addEventListener:(n,fn)=>{if(n==='submit')scope.submit=fn;}},dialogContext:{key:'workflow',requestId:'workflow-submit',evidencePhotos:[]},drafts:new Map(),$:(s)=>s==='#network-toggle'?{checked:false}:null,sheet:{open:true},setTimeout:fn=>{fn();return 1;},saveDraft(){},advanceCustomerBookingForm:()=>true,render(){},showSuccess(title,html){scope.success={title,html};},formError:(f,msg)=>{scope.error=msg;},assertBoss:()=>model._boss(role),assertStaff:()=>{if(!['boss','therapist'].includes(role.type))throw new Error('无操作权限');},ctx:()=>({model,role,esc:v=>String(v??'')}),customerCtx:()=>({model,role}),esc:v=>String(v??''),name:(k,id)=>id==='boss'?'老板':model.state[k]?.find(r=>r.id===id)?.name||'待安排',money:v=>String(v),date:v=>v,pair:(k,v)=>k+v,button:()=>'',find:(k,id)=>model.state[k]?.find(r=>r.id===id),serviceResultSummary,receptionIntakeSuccess,savePaperIntake,reviewPaperIntake,recordAssessment,confirmAssessment,confirmCustomerBooking,resolveCustomerBooking,acceptCustomerBookingSuggestion,toast(){},closeDialog(){}};
  for(const n of ['updateEvidencePicker','updateReceptionIntakeChoices','updatePaperIntakeForm','updateScheduleForm','updateAppointmentAvailability','updateWorkflowForm'])scope[n]=()=>{};
  const start=source.indexOf("document.addEventListener('submit', async event =>"),end=source.indexOf('\nfunction exportPreview',start);vm.runInNewContext(source.slice(start,end),scope);
  return {model,f,scope,run:()=>scope.submit({target:f,preventDefault(){}})};
@@ -80,4 +81,10 @@ test('actual cash-closing submit preserves frontdesk initial input but refuses a
  const front={type:'frontdesk',id:'f1'},boss={type:'boss',id:'boss'},data={storeId:'a',date:'2026-10-08',version:'0',actualWechat:'0',actualAlipay:'0',actualCash:'0',actualBank:'0',notes:'首次核对'},r=runtime(front,'cash-closing',data);await r.run();assert.equal(r.scope.error,undefined);assert.equal(r.model.state.cashClosings.length,1);const before=JSON.stringify([r.model.state,r.model.sequence]);
  const denied=runtime(front,'cash-closing',{...data,version:'1',notes:'改老记录'},r.model);denied.scope.dialogContext.requestId='closing-edit';await denied.run();assert.match(denied.scope.error,/老板|权限|修改/);assert.equal(JSON.stringify([r.model.state,r.model.sequence]),before);
  const approved=runtime(boss,'cash-closing',{...data,version:'1',notes:'老板重核'},r.model);approved.scope.dialogContext.requestId='closing-boss-edit';await approved.run();assert.equal(approved.scope.error,undefined);assert.equal(r.model.state.cashClosings.length,2);assert.equal(r.model.state.cashClosings[0].notes,'首次核对');assert.equal(r.model.state.cashClosings[1].notes,'老板重核');
+});
+
+test('actual therapist new-client submit keeps routine entry without customer phone and blocks a forged number',async()=>{
+ const r=runtime({type:'therapist',id:'t1'},'reception-create-client',{name:'实际提交无电话',age:'30',storeId:'a'});
+ await r.run();assert.equal(r.scope.error,undefined);assert.ok(r.scope.success);const c=r.model.state.clients.find(c=>c.name==='实际提交无电话');assert.equal(c.phone,'');assert.match(r.scope.success.html,/老板.*核对|老板.*补充/);
+ const blocked=runtime({type:'therapist',id:'t1'},'reception-create-client',{name:'不能猜号码',age:'30',storeId:'a',phone:'13800000003'}),before=JSON.stringify(blocked.model.state);await blocked.run();assert.match(blocked.scope.error,/康复师.*手机号/);assert.equal(JSON.stringify(blocked.model.state),before);
 });

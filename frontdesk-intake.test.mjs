@@ -141,9 +141,9 @@ test('both store managers inspect boss-created local files but all booking and f
 
 test('therapist intake is store-bound and unassigned; customer responsibility requires a separate boss assignment',()=>{
  for(const [id,storeId,otherStore] of [['t1','a','b'],['t2','b','a']]){
- const model=newModel(),role={type:'therapist',id},client=model.createReceptionClient(input({storeId}),role);
+ const model=newModel(),role={type:'therapist',id},client=model.createReceptionClient(input({storeId,phone:''}),role);
  assert.equal(client.ownerId,'');assert.equal(client.assessorId,'tao');assert.equal(model.canSeeClient(role,client.id),false);
- rejectsUnchanged(model,()=>model.createReceptionClient(input({phone:'13912345679',storeId:otherStore,requestId:'foreign'}),role),/门店|权限/);
+ rejectsUnchanged(model,()=>model.createReceptionClient(input({phone:'',storeId:otherStore,requestId:'foreign'}),role),/门店|权限/);
  model.transferClient(client.id,id,'独立客户负责人分配',boss);assert.equal(model.canSeeClient(role,client.id),true);assert.equal(model._client(client.id).assessorId,'tao');
  }
 });
@@ -152,7 +152,6 @@ test('new intake roles keep duplicate identity scoped to canSeeClient and expose
   const model = newModel(), check = api(model, 'findReceptionDuplicates');
   for (const [role, visiblePhone, visibleId, hiddenPhone] of [
     [{ type: 'manager', id: 'm1' }, '13800000003', 'c3', '13800000002'],
-    [{ type: 'therapist', id: 't1' }, '13800000003', 'c3', '13800000005'],
   ]) {
     const result = check(visiblePhone, role); assert.equal(result.duplicate, true); assert.equal(result.clients[0].id, visibleId);
     assert.deepEqual(Object.keys(result.clients[0]).sort(), ['id', 'name', 'ownerId', 'phone', 'storeId']);
@@ -177,9 +176,9 @@ test('stopped employees and stopped home stores cannot check or create intake re
 
 test('authorized front desk and therapist submissions retain replay guarantees', () => {
   for (const role of [frontdesk, { type: 'therapist', id: 't1' }]) {
-    const model = newModel(), create = api(model, 'createReceptionClient'), client = create(input(), role), before = snapshot(model);
-    assert.equal(create(input(), role).id, client.id); assert.equal(snapshot(model), before);
-    rejectsUnchanged(model, () => create(input({ age: '33' }), role), /提交|内容|变化|评估/);
+    const model = newModel(), create = api(model, 'createReceptionClient'), client = create(input(role.type==='therapist'?{phone:''}:{}), role), before = snapshot(model);
+    assert.equal(create(input(role.type==='therapist'?{phone:''}:{}), role).id, client.id); assert.equal(snapshot(model), before);
+    rejectsUnchanged(model, () => create(input({ age: '33',...(role.type==='therapist'?{phone:''}:{}) }), role), /提交|内容|变化|评估/);
   }
 });
 

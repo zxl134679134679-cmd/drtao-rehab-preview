@@ -34,7 +34,8 @@ test('shared intake respects role stores and keeps assessment and treatment sepa
   const m=fixture();
   for(const kind of ['boss','frontdesk','therapist']){
     const html=reception.receptionIntakeDialog('reception-create-client','',ctx(m,roles[kind])).html;
-    for(const key of ['name','age','phone'])assert.match(html,new RegExp(`name="${key}"`));
+    for(const key of ['name','age',...(kind==='therapist'?[]:['phone'])])assert.match(html,new RegExp(`name="${key}"`));
+    if(kind==='therapist')assert.doesNotMatch(html,/name="phone"|reception-check-phone/);
     assert.doesNotMatch(html,/name="problem"/);
     if(kind==='boss')assert.match(html,/value="b"/);
     else assert.ok(!html.includes('value="b"'));

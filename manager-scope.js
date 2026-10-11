@@ -53,7 +53,7 @@ export function storeWorkSnapshot(model, role, filters = {}) {
       const packs = model.availablePackages(client.id,storeId);
       const pack = packs[0];
       const remaining = model.remainingInStore(client.id,storeId), total=packs.reduce((sum,p)=>sum+p.total,0);
-      return { ...pick(client, ['id', 'name', 'phone', 'age', 'problem', 'ownerId', 'assessorId', 'storeId', 'planName', 'goal', 'phase', 'nextStep', 'phaseNote', 'progress', 'homeAdvice']), packageId:pack?.id || null, remaining, total, used:total-remaining, packageName:pack?.name || '暂无本店可用套餐' };
+      return { ...pick(client, ['id', 'name', 'phone', 'age', 'problem', 'ownerId', 'assessorId', 'storeId', 'planName', 'goal', 'phase', 'nextStep', 'phaseNote', 'progress', 'homeAdvice']), packageId:pack?.id || null, remaining, total, used:total-remaining, packageName:pack?.name || '暂无本店可用套餐',packageContents:packs.map(p=>pick(p,['id','name','serviceContent','description','metadataVersion'])) };
     }),
     services: dated(state.services).map(row => ({
       ...pick(row, ['id', 'clientId', 'packageId', 'storeId', 'date', 'time', 'project', 'principalId', 'participantIds', 'ownerId', 'recordedBy', 'recordedAt', 'createdAt', 'amount', 'amountMinor', 'sessions', 'billingMode', 'receiptId', 'nextStepSuggestion', 'status', 'notes', 'revokeReason', 'revokedBy', 'revokedAt']),

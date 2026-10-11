@@ -1,15 +1,15 @@
-import { renderBossDecision } from './boss-decision.js?v=20261011-suzhou-owner-edit-5';
+import { renderBossDecision } from './boss-decision.js?v=20261011-therapist-phone-package-owner-6';
 /* Employee and owner views for the in-memory review prototype. */
-import { renderScheduleSummary } from './schedules-ui.js?v=20261011-suzhou-owner-edit-5';
-import { renderPaperIntakeInbox } from './paper-intake.js?v=20261011-suzhou-owner-edit-5';
-import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-suzhou-owner-edit-5';
-import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261011-suzhou-owner-edit-5';
-import { hourTimeField } from './hour-picker.js?v=20261011-suzhou-owner-edit-5';
-import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261011-suzhou-owner-edit-5';
+import { renderScheduleSummary } from './schedules-ui.js?v=20261011-therapist-phone-package-owner-6';
+import { renderPaperIntakeInbox } from './paper-intake.js?v=20261011-therapist-phone-package-owner-6';
+import { renderDailyOperations } from './daily-operations-ui.js?v=20261011-therapist-phone-package-owner-6';
+import { cashOverview, renderCashClosingSummary } from './cash.js?v=20261011-therapist-phone-package-owner-6';
+import { hourTimeField } from './hour-picker.js?v=20261011-therapist-phone-package-owner-6';
+import { renderReception, receptionStores, clientIntakeButton } from './reception.js?v=20261011-therapist-phone-package-owner-6';
 const TODAY = '2026-10-08';
 
 function h(ctx) {
-  const state = ctx.model.state;
+  const state = ctx.model.projectForRole(ctx.model.state,ctx.role);
   const esc = ctx.esc || (value => String(value ?? '').replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch])));
   const find = (kind, id) => (state[kind] || []).find(item => item.id === id);
   const name = (kind, id) => id === 'boss' ? '老板' : find(kind, id)?.name || (kind==='therapists'&&!id?'预约时选择':'待安排');
@@ -213,7 +213,7 @@ function clientList(ctx) {
   const x = h(ctx);
   const f = ctx.filters || {};
   const q = (f.query || '').trim().toLowerCase();
-  const visible = x.clients.filter(c => (x.role.type === 'therapist' || ((!f.storeId || c.storeId === f.storeId) && (!f.therapistId || c.ownerId === f.therapistId))) && (!q || `${c.name} ${c.phone || ''}`.toLowerCase().includes(q)));
+  const visible = x.clients.filter(c => (x.role.type === 'therapist' || ((!f.storeId || c.storeId === f.storeId) && (!f.therapistId || c.ownerId === f.therapistId))) && (!q || (x.role.type==='therapist'?c.name:`${c.name} ${c.phone || ''}`).toLowerCase().includes(q)));
   if (x.role.type === 'therapist') {
     const cards = visible.map(c => {
       const next = x.state.appointments.filter(a => a.clientId === c.id && ['confirmed', 'reschedule_requested'].includes(a.status) && a.date >= TODAY).sort((a, b) => `${a.date} ${a.time}`.localeCompare(`${b.date} ${b.time}`))[0];
@@ -222,7 +222,7 @@ function clientList(ctx) {
       const remaining = remainingAtStore(ctx.model, c.id, balanceStore);
       return `<article class="card ease-client-card"><div class="section-head"><div><h2>${x.esc(c.name)}</h2><p class="meta">${x.esc(x.name('stores', c.storeId))} · ${c.ownerId === x.role.id ? '我负责' : `参与服务 · 负责人 ${x.esc(x.name('therapists', c.ownerId))}`}</p></div>${x.tag(`${x.name('stores', balanceStore)}剩余 ${remaining} 次`, remaining <= 2 ? 'warn' : 'green')}</div><div class="ease-client-schedule"><span>下次服务</span><strong>${next ? `${x.date(next.date)} ${x.esc(next.time)}` : '待安排'}</strong>${next ? `<small>${x.esc(x.name('stores', next.storeId))} · ${x.esc(x.name('therapists', next.principalId))}${next.status === 'reschedule_requested' ? ' · 改约待确认' : ''}</small>` : ''}</div>${recent ? `<p class="meta">最近服务：${x.date(recent.date)} · ${x.esc(recent.project)}</p>` : '<p class="meta">暂无新增服务记录</p>'}<div class="ease-client-actions">${x.action('查看预约', 'appointment-history', c.id, 'btn-outline')}${x.action('查看档案', 'client-detail', c.id, 'btn-outline')}${c.ownerId===x.role.id||x.role.type==='boss'?x.action('初访接待表','paper-intake-create',c.id,'btn-outline'):''}${x.action('评估记录','assessment-history',c.id,'btn-outline')}${x.action('登记服务', 'register', c.id, 'btn-primary')}</div></article>`;
     }).join('');
-    return `<div class="ease-client-list"><div class="page-head"><div><span class="eyebrow">客户档案</span><h1>我的客户</h1><p class="muted">本人负责或实际参与过服务的客户。</p></div><div class="action-row">${clientIntakeButton(ctx)}${x.action('选择客户登记', 'register', '', 'btn-outline', 'plus')}</div></div><form class="toolbar" data-form="client-search"><label class="field search-field"><span class="sr-only">搜索客户姓名或手机号</span><input name="query" type="search" placeholder="搜索姓名或手机号" value="${x.esc(q)}"></label><button class="btn btn-outline" type="submit">${x.ico('search', 18)}搜索</button></form><p class="ease-list-count">共 ${visible.length} 位客户</p><div class="client-grid">${cards || '<div class="empty card">未找到客户，请调整搜索内容。</div>'}</div></div>`;
+    return `<div class="ease-client-list"><div class="page-head"><div><span class="eyebrow">客户档案</span><h1>我的客户</h1><p class="muted">本人负责或实际参与过服务的客户。</p></div><div class="action-row">${clientIntakeButton(ctx)}${x.action('选择客户登记', 'register', '', 'btn-outline', 'plus')}</div></div><form class="toolbar" data-form="client-search"><label class="field search-field"><span class="sr-only">搜索客户姓名</span><input name="query" type="search" placeholder="搜索姓名" value="${x.esc(q)}"></label><button class="btn btn-outline" type="submit">${x.ico('search', 18)}搜索</button></form><p class="ease-list-count">共 ${visible.length} 位客户</p><div class="client-grid">${cards || '<div class="empty card">未找到客户，请调整搜索内容。</div>'}</div></div>`;
   }
   return `<div class="page-head"><div><span class="eyebrow">客户档案</span><h1>${x.role.type === 'boss' ? '所有客户' : '我的客户'}</h1><p class="muted">${x.role.type === 'boss' ? '多店共用一份档案，跨店服务清晰可追溯。' : '查看您负责或实际参与过服务的客户。'}</p></div>${x.role.type === 'boss' ? `<div class="action-row">${clientIntakeButton(ctx)}${x.action('录入一位客户','import-opening','','btn-outline','plus')}${x.action('表格批量录入','import-opening-batch','','btn-primary')}</div>` : ''}</div><form class="toolbar" data-form="client-search"><label class="field search-field"><span class="sr-only">搜索客户姓名或手机号</span><input name="query" type="search" placeholder="搜索客户姓名或手机号" value="${x.esc(q)}"></label><button class="btn btn-outline" type="submit">${x.ico('search', 18)}搜索</button></form><div class="client-grid">${visible.length ? visible.map(c => `<article class="card person-card"><div class="section-head"><div><h2>${x.esc(c.name)}</h2><span class="meta">${x.esc(x.name('stores', c.storeId))}</span></div><div class="metric"><strong>${remainingAtStore(ctx.model,c.id,f.storeId || c.storeId)}</strong><span>${x.esc(x.name('stores',f.storeId || c.storeId))}剩余次数</span></div></div><div class="meta">负责人 ${x.esc(x.name('therapists', c.ownerId))} ${c.ownerId === x.role.id ? x.tag('我负责', 'green') : x.role.type === 'therapist' ? x.tag('参与服务') : ''}</div><p class="client-goal">${x.esc(c.goal || '康复目标待评估后完善')}</p><div class="note"><span class="muted">下一步</span><p>${x.esc(c.nextStep || '由负责康复师制定下一步安排')}</p></div><div class="action-row">${x.action('查看档案', 'client-detail', c.id, 'btn-outline')}${x.action('评估记录','assessment-history',c.id,'btn-outline')}${x.action('登记服务', 'register', c.id, 'btn-primary')}${x.role.type === 'boss' ? x.link('转交负责人', 'transfer-client', c.id) : ''}</div></article>`).join('') : '<div class="empty card">未找到符合条件的客户。</div>'}</div>`;
 }
