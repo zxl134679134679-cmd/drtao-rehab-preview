@@ -1,6 +1,6 @@
 import {serviceEvidenceOwner,serviceVisitRows,purchasedCardDetails,renderOperationsPanel,operationsDialog,operationsTypes,updateOperationsForm,serviceItemsFromForm,dispatchOperations} from './operations-ui.js?v=20261012-identity-flow-9';
 import {mountClientSearch,handleClientSearchInput,validateClientSearchSelection} from './client-search.js?v=20261012-identity-flow-9';
-import {renderPurchasePanel,purchaseDialog,purchaseLinesFromForm} from './package-purchase-ui.js?v=20261012-customer-display-11';
+import {renderPurchasePanel,purchaseDialog,purchaseLinesFromForm} from './package-purchase-ui.js?v=20261012-customer-display-12';
 import {approvedPurchaseReceipt,approvedPurchaseSettlement} from './package-purchase.js?v=20261012-identity-flow-9';
 import {renderFranchiseManagement,renderFranchiseDashboard,franchiseDialog} from './franchise-ui.js?v=20261012-identity-flow-9';
 import {INITIAL_CASE_FIELDS,updatePaperIntakeSearch,paperIntakeSelection} from './paper-case-form.js?v=20261012-identity-flow-9';

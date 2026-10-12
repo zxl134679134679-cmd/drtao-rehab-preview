@@ -453,7 +453,7 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
   .filters > .btn { flex: 1; }
   .data-table { min-width: 630px; }
   .data-table td, .data-table th { padding-left: 10px; padding-right: 10px; }
-  .sheet { margin: auto 0 0; max-height: 93dvh; width: 100%; border-radius: 23px 23px 0 0; border: 0; padding-bottom: env(safe-area-inset-bottom); }
+  .sheet { margin: auto 0 0; max-height: 93dvh; width: 100%; max-width: 100%; border-radius: 23px 23px 0 0; border: 0; padding-bottom: env(safe-area-inset-bottom); }
   .sheet-head { padding: 16px 20px 12px; }
   .sheet-head h2 { font-size: 18px; }
   .sheet-body { padding: 20px; }
@@ -760,6 +760,9 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
 .ease-fold-body > .ease-service-card + .ease-service-card { margin-top: 12px; }
 .ease-fold-body > .meta { margin: 12px 0 8px; }
 .ease-fold-body > .meta:first-child { margin-top: 0; }
+.ease-work-notice > .search-field { margin: 14px 18px 8px; }
+.ease-work-notice > .search-field + .meta { margin: 0 18px 12px; }
+.ease-work-notice > .search-field + .meta + .ease-fold-body { padding-top: 0; }
 .ease-fold-body .row { gap: 12px; }
 .ease-fold-body .row-main { min-width: 0; }
 .ease-fold-body .row-main strong, .ease-fold-body .row-main .meta { overflow-wrap: anywhere; }
@@ -809,6 +812,7 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
   .ease-work-notice { margin-bottom: 16px; }
   .ease-work-notice > summary { min-height: 55px; padding: 13px 15px; font-size: 13px; gap: 8px; }
   .ease-fold-body { padding: 12px 15px 16px; }
+  .ease-work-notice > .search-field, .ease-work-notice > .search-field + .meta { margin-left: 15px; margin-right: 15px; }
   .ease-fold-body .row { flex-wrap: wrap; }
   .ease-fold-body .row > .action-row { margin: 3px 0 0; }
   .ease-client-list .page-head > .btn { min-height: 44px; }
@@ -838,6 +842,8 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
 .ease-work-alert > .ease-work-notice { border-top: 0; }
 .ease-work-more > .ease-work-notice > summary, .boss-panel > .ease-work-notice > summary, .ease-work-alert > .ease-work-notice > summary { padding-left: 0; padding-right: 0; border-bottom: 0; border-radius: 0; }
 .ease-work-more > .ease-work-notice > .ease-fold-body, .boss-panel > .ease-work-notice > .ease-fold-body, .ease-work-alert > .ease-work-notice > .ease-fold-body { padding: 3px 0 16px; }
+.ease-work-more > .ease-work-notice > .search-field, .boss-panel > .ease-work-notice > .search-field, .ease-work-alert > .ease-work-notice > .search-field, .ease-work-more > .ease-work-notice > .search-field + .meta, .boss-panel > .ease-work-notice > .search-field + .meta, .ease-work-alert > .ease-work-notice > .search-field + .meta { margin-left: 0; margin-right: 0; }
+.ease-work-more > .ease-work-notice > .search-field + .meta + .ease-fold-body, .boss-panel > .ease-work-notice > .search-field + .meta + .ease-fold-body, .ease-work-alert > .ease-work-notice > .search-field + .meta + .ease-fold-body { padding-top: 0; }
 .ease-register-collabs { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
 .ease-register-collabs > summary { min-height: 44px; padding: 10px 0; cursor: pointer; font-size: 13px; color: #5f6d64; }
 .ease-register-collabs .field { margin: 0 0 12px; }
