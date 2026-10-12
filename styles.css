@@ -157,8 +157,8 @@ img { display: block; max-width: 100%; }
 .app-header { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 22px; background: #fff; border-bottom: 1px solid #eef1ec; flex: 0 0 auto; }
 .app-brand { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .brand-logo { width: 142px; height: 48px; object-fit: contain; object-position: left center; }
-.header-name { font-size: 13px; font-weight: 650; white-space: nowrap; }
-.customer-head { display: flex; align-items: center; gap: 8px; }
+.header-name { font-size: 13px; font-weight: 650; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.customer-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .customer-mode .app-header { padding: 9px 18px; min-height: 60px; gap: 8px; }
 .customer-mode .brand-logo { width: 132px; height: 38px; }
 .capsule { border: 1px solid #e8eae6; border-radius: 25px; height: 31px; width: 76px; display: flex; align-items: center; justify-content: space-around; padding: 0 8px; color: #111; flex-shrink: 0; }
@@ -305,7 +305,7 @@ img { display: block; max-width: 100%; }
 .filters .btn { flex-shrink: 0; }
 .field { display: flex; flex-direction: column; align-items: stretch; gap: 7px; min-width: 0; }
 .field > span:first-child, .field legend { font-size: 12px; color: #667165; line-height: 1.7; }
-.field input, .field select, .field textarea { display: block; border: 1px solid #d7e1d3; border-radius: 9px; padding: 10px 11px; width: 100%; min-height: 44px; background: #fff; color: var(--ink); line-height: 1.7; }
+.field input:not([type="checkbox"]):not([type="radio"]), .field select, .field textarea { display: block; border: 1px solid #d7e1d3; border-radius: 9px; padding: 10px 11px; width: 100%; min-height: 44px; background: #fff; color: var(--ink); line-height: 1.7; }
 .field select { padding-right: 28px; }
 .field textarea { resize: vertical; min-height: 100px; }
 .field input::placeholder, .field textarea::placeholder { color: #9aaba0; font-size: 12px; }
@@ -316,7 +316,7 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
 .span-all { grid-column: 1 / -1; }
 .checkbox-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 7px; }
 .check { display: flex; align-items: center; gap: 9px; min-height: 44px; cursor: pointer; }
-.check input { width: 17px; height: 17px; accent-color: var(--forest); margin: 0; flex-shrink: 0; }
+.check input { width: 17px; height: 17px; min-height: 0; padding: 0; accent-color: var(--forest); margin: 0; flex-shrink: 0; }
 .check span { font-size: 12px; line-height: 1.7; }
 .check small { margin-left: 5px; color: var(--muted); font-size: 11px; }
 .empty { text-align: center; padding: 34px 18px; color: #849080; font-size: 13px; line-height: 1.9; }
@@ -342,7 +342,7 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
 .sheet[open] { display: flex; flex-direction: column; }
 .sheet::backdrop { background: #14291c65; backdrop-filter: blur(2px); }
 .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 18px 23px 14px; border-bottom: 1px solid var(--line); flex-shrink: 0; }
-.sheet-head h2 { font-size: 19px; }
+.sheet-head h2 { font-size: 19px; min-width: 0; overflow-wrap: anywhere; }
 .icon-button { height: 44px; width: 44px; border-radius: 50%; display: flex; justify-content: center; align-items: center; background: #f1f5ee; color: #566452; flex-shrink: 0; }
 .sheet-body { overflow-y: auto; overscroll-behavior: contain; padding: 23px; scrollbar-width: thin; }
 .sheet-body .card { padding: 18px; }
@@ -748,14 +748,18 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
 .ease-service-options > summary::-webkit-details-marker { display: none; }
 .ease-service-options .action-row { margin: 0; }
 .ease-service-warning { font-size: 12px; color: #73501f; margin-top: 8px; }
-.ease-work-notice { border-top: 1px solid var(--line); background: #fff; }
-.ease-work-notice > summary { min-height: 58px; display: flex; align-items: center; gap: 12px; cursor: pointer; list-style: none; font-size: 14px; }
+.ease-work-notice { border: 1px solid var(--line); border-radius: 14px; background: #fff; padding: 0; margin-bottom: 18px; min-width: 0; }
+.ease-work-notice > summary { min-height: 58px; display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer; list-style: none; font-size: 14px; line-height: 1.7; border-radius: inherit; }
 .ease-work-notice > summary::-webkit-details-marker { display: none; }
-.ease-work-notice > summary strong { font-weight: 500; }
+.ease-work-notice > summary strong { font-weight: 500; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ease-work-notice[open] > summary { border-bottom: 1px solid var(--line); border-radius: 13px 13px 0 0; }
 .ease-fold-count { margin-left: auto; font-size: 12px; color: #5f6d64; white-space: nowrap; }
 .ease-work-urgent .ease-fold-count { padding: 3px 7px; border-radius: 6px; background: #faf0df; color: #73501f; font-weight: 600; }
 .ease-work-notice[open] > summary > .icon:last-child, .ease-service-options[open] > summary > .icon:last-child, .ease-performance-filters[open] > summary > .icon:last-child { transform: rotate(90deg); }
-.ease-fold-body { padding: 3px 0 16px; }
+.ease-fold-body { padding: 14px 18px 18px; min-width: 0; overflow-wrap: anywhere; }
+.ease-fold-body > .ease-service-card + .ease-service-card { margin-top: 12px; }
+.ease-fold-body > .meta { margin: 12px 0 8px; }
+.ease-fold-body > .meta:first-child { margin-top: 0; }
 .ease-fold-body .row { gap: 12px; }
 .ease-fold-body .row-main { min-width: 0; }
 .ease-fold-body .row-main strong, .ease-fold-body .row-main .meta { overflow-wrap: anywhere; }
@@ -783,7 +787,7 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
 .ease-performance-filters > summary strong { font-weight: 500; }
 .ease-performance-filters .filters { margin: 10px 0 0; }
 .ease-performance-note { font-size: 12px; color: #5f6d64; margin-bottom: 12px; }
-.ease-collaboration-records { padding: 0 20px; border: 1px solid var(--line); border-radius: 14px; }
+.ease-collaboration-records { padding: 0; }
 @media (max-width: 760px) {
   .ease-work .page-head, .ease-client-list .page-head { gap: 13px; margin-bottom: 17px; }
   .ease-work h1, .ease-client-list h1, .ease-performance h1 { font-size: 24px; }
@@ -802,7 +806,9 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
   .ease-service-list { grid-template-columns: 1fr; }
   .ease-work-more > .section-head { gap: 8px; margin-bottom: 4px; }
   .ease-work-more > .section-head .text-link { font-size: 11px; }
-  .ease-work-notice > summary { min-height: 55px; font-size: 13px; gap: 8px; }
+  .ease-work-notice { margin-bottom: 16px; }
+  .ease-work-notice > summary { min-height: 55px; padding: 13px 15px; font-size: 13px; gap: 8px; }
+  .ease-fold-body { padding: 12px 15px 16px; }
   .ease-fold-body .row { flex-wrap: wrap; }
   .ease-fold-body .row > .action-row { margin: 3px 0 0; }
   .ease-client-list .page-head > .btn { min-height: 44px; }
@@ -824,11 +830,14 @@ fieldset.field legend { padding: 0; margin-bottom: 9px; }
   .ease-performance .data-table td:last-child::before { display: none; }
   .ease-performance .data-table td:last-child .text-link { min-height: 44px; }
   .ease-performance .data-table td .meta { color: #5f6d64; font-size: 12px; }
-  .ease-collaboration-records { padding: 0 15px; }
+  .ease-collaboration-records { padding: 0; }
 }
 
 .ease-work-alert { padding: 0 20px; background: #fff; border: 1px solid #e8dbc6; border-radius: 14px; margin-bottom: 18px; }
-.ease-work-alert .ease-work-notice { border-top: 0; }
+.ease-work-more > .ease-work-notice, .boss-panel > .ease-work-notice, .ease-work-alert > .ease-work-notice { border: 0; border-top: 1px solid var(--line); border-radius: 0; background: transparent; margin: 0; }
+.ease-work-alert > .ease-work-notice { border-top: 0; }
+.ease-work-more > .ease-work-notice > summary, .boss-panel > .ease-work-notice > summary, .ease-work-alert > .ease-work-notice > summary { padding-left: 0; padding-right: 0; border-bottom: 0; border-radius: 0; }
+.ease-work-more > .ease-work-notice > .ease-fold-body, .boss-panel > .ease-work-notice > .ease-fold-body, .ease-work-alert > .ease-work-notice > .ease-fold-body { padding: 3px 0 16px; }
 .ease-register-collabs { grid-column: 1 / -1; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; }
 .ease-register-collabs > summary { min-height: 44px; padding: 10px 0; cursor: pointer; font-size: 13px; color: #5f6d64; }
 .ease-register-collabs .field { margin: 0 0 12px; }
@@ -949,7 +958,7 @@ button.ease-work-stat:hover { border-color: #a9c699; background: #f4f8ee; }
 [data-service-package-block][hidden], [data-service-single-block][hidden] { display: none; }
 [data-service-package-block] .note { margin-top: 12px; }
 .booking-store-balances { display:flex; flex-wrap:wrap; gap:8px 18px; margin:12px 0 20px; color:var(--muted); font-size:13px; }
-.booking-store-balances strong { color:var(--green); }
+.booking-store-balances strong { color:var(--forest); }
 .booking-store-balances small { width:100%; font-size:12px; }
 @media (max-width: 600px) {
   .cash-hero-compact { padding: 18px; }
@@ -966,3 +975,43 @@ button.ease-work-stat:hover { border-color: #a9c699; background: #f4f8ee; }
 .daily-operations-stats { grid-template-columns: repeat(2,minmax(0,1fr)); }
 .daily-operations-therapists > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .daily-operations-detail-hint { margin-left: auto; color: var(--forest); font-size: 12px; }
+
+/* Complete existing disclosure components without styling the preview controls. */
+.section-head > h2, .section-head > div, .ease-service-head > div { min-width: 0; overflow-wrap: anywhere; }
+.staff-mode .app-main > .boss-panel { margin-bottom: 20px; }
+.operations-panel { margin: 20px 0; }
+.ease-work-notice.reception-closing { margin-top: 0; }
+.ease-work-notice.reception-closing > summary { justify-content: flex-start; padding: 14px 18px; }
+.ease-work-notice.reception-closing > summary > .meta { margin-left: auto; }
+.ease-work-notice.reception-closing > .ease-fold-body .cash-closing-summary { margin: 0; }
+.ease-service-options[open] > .action-row { padding: 4px 0 2px; }
+.boss-panel > details.card { padding: 0; margin-top: 12px; }
+.boss-panel > details.card > summary { padding: 14px 18px; }
+.boss-panel > details.card > .row { margin: 0 18px; padding: 14px 0; }
+.boss-panel > details.card > .row:last-child { padding-bottom: 18px; }
+.boss-panel > details.card > .btn { margin: 0 18px 18px; max-width: calc(100% - 36px); }
+.booking-inbox > details, .operations-panel > details { margin-top: 12px; border-top: 1px solid var(--line); }
+.boss-dashboard > details.paper-intake-section { padding: 0; margin: 18px 0; border: 1px solid var(--line); border-radius: 14px; background: #fff; }
+.boss-dashboard > details.paper-intake-section > summary { padding: 14px 18px; margin: 0; font-size: 16px; }
+.boss-dashboard > details.paper-intake-section > :not(summary) { margin: 14px 18px 18px; }
+.sheet-body details.field { display: block; border: 1px solid var(--line); border-radius: 10px; padding: 0 12px; min-width: 0; }
+.sheet-body details.field[open] > :not(summary) { margin-top: 10px; margin-bottom: 12px; }
+.sheet-body details.field > fieldset[data-service-group-item] { border: 1px solid var(--line); border-radius: 9px; padding: 12px; min-width: 0; }
+.sheet-body details.note, .sheet-body details:not([class]) { margin-top: 14px; margin-bottom: 14px; }
+.booking-inbox > details > summary, .operations-panel > details > summary, .boss-panel > details.card > summary, .boss-dashboard > details.paper-intake-section > summary, .sheet-body details.field > summary, .sheet-body details.note > summary, .sheet-body details:not([class]) > summary { display: flex; align-items: center; gap: 12px; min-height: 44px; line-height: 1.7; list-style: none; cursor: pointer; overflow-wrap: anywhere; }
+.booking-inbox > details > summary, .operations-panel > details > summary, .sheet-body details.field > summary, .sheet-body details:not([class]) > summary { padding-top: 12px; padding-bottom: 12px; }
+.booking-inbox > details > summary::-webkit-details-marker, .operations-panel > details > summary::-webkit-details-marker, .boss-panel > details.card > summary::-webkit-details-marker, .boss-dashboard > details.paper-intake-section > summary::-webkit-details-marker, .sheet-body details.field > summary::-webkit-details-marker, .sheet-body details.note > summary::-webkit-details-marker, .sheet-body details:not([class]) > summary::-webkit-details-marker { display: none; }
+.booking-inbox > details > summary::after, .operations-panel > details > summary::after, .boss-panel > details.card > summary::after, .boss-dashboard > details.paper-intake-section > summary::after, .sheet-body details.field:not(.ease-register-collabs) > summary::after, .sheet-body details.note > summary::after, .sheet-body details:not([class]) > summary::after { content: ''; width: 7px; height: 7px; margin-left: auto; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); flex: 0 0 auto; }
+.booking-inbox > details[open] > summary::after, .operations-panel > details[open] > summary::after, .boss-panel > details.card[open] > summary::after, .boss-dashboard > details.paper-intake-section[open] > summary::after, .sheet-body details.field:not(.ease-register-collabs)[open] > summary::after, .sheet-body details.note[open] > summary::after, .sheet-body details:not([class])[open] > summary::after { transform: rotate(45deg); }
+@media (max-width: 760px) {
+  .staff-mode .app-main > .boss-panel { margin-bottom: 16px; }
+  .operations-panel { margin: 16px 0; }
+  .ease-work-notice.reception-closing > summary { padding: 13px 15px; }
+  .ease-work-notice > summary > .meta, .manager-supervision > summary span { min-width: 0; overflow-wrap: anywhere; }
+  .boss-panel > details.card > summary, .boss-dashboard > details.paper-intake-section > summary { padding: 13px 15px; }
+  .boss-panel > details.card > .row { margin-left: 15px; margin-right: 15px; }
+  .boss-panel > details.card > .btn { margin-left: 15px; margin-right: 15px; max-width: calc(100% - 30px); }
+  .boss-dashboard > details.paper-intake-section > :not(summary) { margin-left: 15px; margin-right: 15px; }
+  .sheet-body details.field > fieldset[data-service-group-item] { padding: 10px; }
+  .ease-service-head > .tag, .booking-inbox .section-head > .tag { max-width: 100%; white-space: normal; }
+}

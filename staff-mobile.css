@@ -1,8 +1,13 @@
 /* Staff daily work follows the same deep-green brand and native controls. */
-.manager-supervision { margin-bottom: 20px; }
-.manager-supervision > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 48px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--soft); color: var(--forest); cursor: pointer; }
+.manager-supervision { margin-bottom: 20px; border: 1px solid var(--line); border-radius: 14px; background: #fff; min-width: 0; }
+.manager-supervision > summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 52px; padding: 14px 18px; border-radius: inherit; background: var(--soft); color: var(--forest); cursor: pointer; list-style: none; line-height: 1.7; }
+.manager-supervision > summary::-webkit-details-marker { display: none; }
+.manager-supervision > summary strong { min-width: 0; overflow-wrap: anywhere; }
+.manager-supervision > summary::after { content: ''; width: 7px; height: 7px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); flex: 0 0 auto; }
+.manager-supervision[open] > summary { border-bottom: 1px solid var(--line); border-radius: 13px 13px 0 0; }
+.manager-supervision[open] > summary::after { transform: rotate(45deg); }
 .manager-supervision > summary span { color: #52665a; font-size: 12px; }
-.manager-supervision-body { padding-top: 14px; }
+.manager-supervision-body { padding: 16px 18px 18px; min-width: 0; }
 .manager-dashboard > .booking-inbox { margin: 0 0 20px; }
 .ease-work > .schedule-summary { margin: 0 0 18px; }
 @media (max-width: 760px) {
@@ -17,7 +22,7 @@
   .staff-mode .btn, .staff-mode .text-link, .sheet .btn, .sheet .text-link { font-size: 16px; }
   .staff-mode .nav-label { font-size: 16px; }
   .staff-mode .btn, .sheet .btn { white-space: normal; overflow-wrap: anywhere; line-height: 1.5; }
-  .staff-mode input, .staff-mode select, .staff-mode textarea, .sheet input, .sheet select, .sheet textarea, #role-select { font-size: 16px; min-height: 44px; min-width: 0; max-width: 100%; }
+  .staff-mode input:not([type="checkbox"]):not([type="radio"]), .staff-mode select, .staff-mode textarea, .sheet input:not([type="checkbox"]):not([type="radio"]), .sheet select, .sheet textarea, #role-select { font-size: 16px; min-height: 44px; min-width: 0; max-width: 100%; }
   .staff-mode .nav-item { min-height: 52px; min-width: 44px; padding-left: 1px; padding-right: 1px; }
   .staff-mode .bottom-nav { gap: 0; padding-left: 4px; padding-right: 4px; }
   .staff-mode .meta, .staff-mode .muted { overflow-wrap: anywhere; }
@@ -29,6 +34,8 @@
   .manager-dashboard > .manager-today { order: 1; }
   .manager-dashboard > .booking-inbox { order: 2; padding: 15px; }
   .manager-dashboard > .manager-supervision { order: 3; }
+  .manager-supervision > summary { padding: 13px 15px; }
+  .manager-supervision-body { padding: 14px 15px 16px; }
   .manager-dashboard.boss-dashboard > .boss-panel { order: 4; }
   .manager-dashboard.boss-dashboard > .ease-work-notice { order: 5; }
   .manager-dashboard.boss-dashboard > .boss-footer { order: 6; }
